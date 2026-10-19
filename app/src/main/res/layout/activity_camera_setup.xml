@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 작은 화면에서도 잘리지 않도록 ScrollView 사용 (11_PreCheck와 같은 구조) -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cameraSetupRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true"
+    tools:context=".CameraSetupActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding_horizontal"
+        android:paddingTop="16dp"
+        android:paddingEnd="@dimen/screen_padding_horizontal"
+        android:paddingBottom="32dp">
+
+        <!-- 상단: 뒤로가기 + 제목 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="-12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back"
+                android:src="@drawable/ic_arrow_back" />
+
+            <TextView
+                android:id="@+id/cameraSetupTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="@string/camera_setup_title"
+                android:textColor="@color/gray_dark"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 안내 문구 + 보조 문구 -->
+        <TextView
+            android:id="@+id/cameraSetupDescriptionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/camera_setup_description"
+            android:textColor="@color/gray_dark"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/cameraSetupSubDescriptionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/camera_setup_sub_description"
+            android:textColor="@color/gray"
+            android:textSize="14sp" />
+
+        <!-- Camera Preview 영역 (CameraX 연동 전 Placeholder)
+             weight=1로 남은 공간을 모두 차지하고, 작은 화면에서도 minHeight 이상 유지 -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cameraPreviewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_camera_preview"
+            android:contentDescription="@string/camera_preview_description"
+            android:minHeight="300dp">
+
+            <!-- 전신이 들어가야 할 범위 (세로형 점선 Frame) -->
+            <View
+                android:id="@+id/cameraGuideFrame"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="@drawable/bg_camera_guide_frame"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHeight_percent="0.88"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_percent="0.55" />
+
+            <!-- 전신 실루엣 Placeholder (실제 사람 사진 사용 안 함) -->
+            <ImageView
+                android:id="@+id/bodyPlaceholder"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:contentDescription="@string/camera_body_placeholder_description"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_body_placeholder"
+                app:layout_constraintBottom_toBottomOf="@id/cameraGuideFrame"
+                app:layout_constraintEnd_toEndOf="@id/cameraGuideFrame"
+                app:layout_constraintHeight_percent="0.72"
+                app:layout_constraintStart_toStartOf="@id/cameraGuideFrame"
+                app:layout_constraintTop_toTopOf="@id/cameraGuideFrame" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- 카메라 안내 (거리 수치는 확정 전이라 일반 문구 사용) -->
+        <TextView
+            android:id="@+id/cameraInstructionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/camera_setup_instruction"
+            android:textColor="@color/gray"
+            android:textSize="13sp" />
+
+        <!-- 상태 확인 항목 (현재는 MediaPipe 결과와 연결되지 않은 예시 상태) -->
+        <LinearLayout
+            android:id="@+id/cameraStatusCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:id="@+id/fullBodyStatusContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/fullBodyStatusIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_check_circle"
+                    app:tint="@color/gray_dark" />
+
+                <TextView
+                    android:id="@+id/fullBodyStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="@string/camera_status_full_body"
+                    android:textColor="@color/gray_dark"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/cameraPositionStatusContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/cameraPositionStatusIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_check_circle"
+                    app:tint="@color/gray_dark" />
+
+                <TextView
+                    android:id="@+id/cameraPositionStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="@string/camera_status_position"
+                    android:textColor="@color/gray_dark"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/poseReadyStatusContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/poseReadyStatusIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_check_circle"
+                    app:tint="@color/gray_dark" />
+
+                <TextView
+                    android:id="@+id/poseReadyStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="@string/camera_status_pose_ready"
+                    android:textColor="@color/gray_dark"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 운동 시작 버튼 (공통 Primary Button) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startExerciseButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginTop="24dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/camera_start_exercise"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/gray_dark"
+            app:cornerRadius="@dimen/radius_default" />
+    </LinearLayout>
+</ScrollView>

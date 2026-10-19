@@ -1,0 +1,386 @@
+<resources>
+    <string name="app_name">AIRehabPostureApp</string>
+
+    <!-- 01_Splash (로고/앱 이름 확정 전 Placeholder) -->
+    <string name="splash_logo_placeholder">[LOGO]</string>
+    <string name="splash_app_name_placeholder">[APP NAME]</string>
+    <string name="splash_footer_placeholder">[FOOTER]</string>
+    <string name="splash_loading_description">로딩 중</string>
+
+    <!-- 02_Login -->
+    <string name="login">로그인</string>
+    <string name="email">이메일</string>
+    <string name="email_hint">이메일을 입력해주세요</string>
+    <string name="password">비밀번호</string>
+    <string name="password_hint">비밀번호를 입력해주세요</string>
+    <string name="show_password">비밀번호 보기</string>
+    <string name="hide_password">비밀번호 숨기기</string>
+    <string name="auto_login">자동 로그인</string>
+    <string name="sign_up">회원가입</string>
+    <string name="forgot_password">비밀번호 찾기</string>
+    <string name="feature_not_ready">준비 중인 기능입니다</string>
+
+    <!-- 03_SignUp -->
+    <string name="back">뒤로가기</string>
+    <string name="password_confirm">비밀번호 확인</string>
+    <string name="password_confirm_hint">비밀번호를 다시 입력해주세요</string>
+    <string name="name">이름</string>
+    <string name="name_hint">이름을 입력해주세요</string>
+    <string name="birth_date">생년월일</string>
+    <string name="birth_date_hint">YYYY.MM.DD</string>
+    <string name="agree_terms">이용약관에 동의합니다.</string>
+    <string name="sign_up_button">회원가입</string>
+    <string name="error_email_empty">이메일을 입력해주세요.</string>
+    <string name="error_password_empty">비밀번호를 입력해주세요.</string>
+    <string name="error_password_confirm_empty">비밀번호 확인을 입력해주세요.</string>
+    <string name="error_password_mismatch">비밀번호가 일치하지 않습니다.</string>
+    <string name="error_name_empty">이름을 입력해주세요.</string>
+    <string name="error_birth_date_empty">생년월일을 입력해주세요.</string>
+    <string name="error_terms_not_agreed">이용약관에 동의해주세요.</string>
+
+    <!-- 04_UserSetup -->
+    <string name="user_setup_title">기본정보 설정</string>
+    <string name="user_setup_description">맞춤 운동 추천을 위해 기본 정보를 입력해주세요.</string>
+    <string name="age">나이</string>
+    <string name="age_hint">25</string>
+    <string name="unit_age">세</string>
+    <string name="height">키</string>
+    <string name="height_hint">170</string>
+    <string name="unit_cm">cm</string>
+    <string name="weight">체중</string>
+    <string name="weight_hint">65</string>
+    <string name="unit_kg">kg</string>
+    <string name="exercise_experience">운동 경험</string>
+    <string name="experience_none">없음</string>
+    <string name="experience_beginner">초급</string>
+    <string name="experience_intermediate">중급</string>
+    <string name="experience_advanced">고급</string>
+    <string name="next">다음</string>
+    <string name="error_age_empty">나이를 입력해주세요.</string>
+    <string name="error_age_invalid">나이를 올바른 숫자로 입력해주세요.</string>
+    <string name="error_height_empty">키를 입력해주세요.</string>
+    <string name="error_height_invalid">키를 올바른 숫자로 입력해주세요.</string>
+    <string name="error_weight_empty">체중을 입력해주세요.</string>
+    <string name="error_weight_invalid">체중을 올바른 숫자로 입력해주세요.</string>
+    <string name="error_experience_not_selected">운동 경험을 선택해주세요.</string>
+
+    <!-- 05_BodyCondition -->
+    <string name="body_condition_title">불편 부위 선택</string>
+    <string name="body_condition_description">현재 불편한 부위를 선택해주세요.</string>
+    <string name="body_silhouette_description">인체 실루엣</string>
+    <string name="neck">목</string>
+    <string name="shoulder">어깨</string>
+    <string name="elbow">팔꿈치</string>
+    <string name="waist">허리</string>
+    <string name="knee">무릎</string>
+    <string name="ankle">발목</string>
+    <string name="discomfort_question">현재 불편감은 어느 정도인가요?</string>
+    <string name="error_body_part_not_selected">불편한 부위를 1개 이상 선택해주세요.</string>
+    <string name="error_discomfort_not_selected">불편감 정도를 선택해주세요.</string>
+
+    <!-- 06_GoalSetup -->
+    <string name="goal_setup_title">운동 목표 설정</string>
+    <string name="goal_setup_description">운동 목표를 선택해주세요.</string>
+    <string name="goal_pain_relief">통증 완화</string>
+    <string name="goal_range_of_motion">관절 가동범위 향상</string>
+    <string name="goal_strength">근력 강화</string>
+    <string name="goal_flexibility">유연성 향상</string>
+    <string name="goal_balance">균형 능력 향상</string>
+    <string name="goal_consistency">꾸준한 재활운동</string>
+    <string name="complete">완료</string>
+    <string name="error_goal_not_selected">운동 목표를 하나 이상 선택해주세요.</string>
+
+    <!-- 07_Home -->
+    <string name="home_title">홈</string>
+    <string name="notifications">알림</string>
+    <string name="home_greeting">안녕하세요!</string>
+    <string name="home_greeting_subtitle">오늘도 건강한 하루 보내세요.</string>
+    <string name="today_recommendation">오늘의 추천 운동</string>
+    <string name="start_exercise">시작하기</string>
+    <string name="today_record">오늘의 기록</string>
+    <string name="exercise_time">운동 시간</string>
+    <string name="average_accuracy">평균 정확도</string>
+    <string name="completed_exercises">완료 운동</string>
+    <string name="recent_exercise">최근 운동</string>
+    <string name="nav_home">홈</string>
+    <string name="nav_exercise">운동</string>
+    <string name="nav_record">기록</string>
+    <string name="nav_my_page">마이</string>
+
+    <!-- 07_Home 임시 예시 데이터 (추천/기록 연동 전) -->
+    <string name="recommended_exercise_name">무릎 굽힘 운동</string>
+    <string name="recommended_exercise_description">무릎 가동범위 향상을 위한 기초 재활운동</string>
+    <string name="recommended_exercise_level">초급</string>
+    <string name="recommended_exercise_duration">약 5분</string>
+    <string name="recommended_exercise_reps">20회 × 3세트</string>
+    <string name="sample_exercise_time">15분</string>
+    <string name="sample_average_accuracy">88%</string>
+    <string name="sample_completed_exercises">3개</string>
+    <string name="recent_exercise_name">하체 스트레칭</string>
+    <string name="recent_exercise_date">최근 운동</string>
+    <string name="recent_exercise_info">10분 · 정확도 90%</string>
+
+    <!-- 08_Recommend -->
+    <string name="recommend_title">맞춤 운동 추천</string>
+    <string name="recommend_description">사용자 상태를 반영한 추천 운동</string>
+    <string name="exercise_purpose">목적</string>
+    <string name="exercise_difficulty">난이도</string>
+    <string name="exercise_duration">예상 시간</string>
+    <string name="recommend_reason">추천 이유</string>
+    <string name="recommend_criteria">추천 기준</string>
+    <string name="criteria_body_part">불편 부위</string>
+    <string name="criteria_goal">운동 목표</string>
+    <string name="criteria_recent_record">최근 운동 기록</string>
+    <string name="recommend_sample_notice">현재 추천 목록과 기준은 화면 구성을 위한 예시 데이터입니다.</string>
+
+    <!-- 08_Recommend 임시 예시 데이터 (추천 로직 및 기록 연동 전) -->
+    <string name="recommend_exercise1_name">무릎 굽힘 운동</string>
+    <string name="recommend_exercise1_purpose">가동범위 향상</string>
+    <string name="recommend_exercise1_difficulty">초급</string>
+    <string name="recommend_exercise1_duration">약 5분</string>
+    <string name="recommend_exercise1_reason">무릎 불편감과 가동범위 향상 목표를 기준으로 추천</string>
+    <string name="recommend_exercise2_name">하체 스트레칭</string>
+    <string name="recommend_exercise2_purpose">유연성 향상</string>
+    <string name="recommend_exercise2_difficulty">초급</string>
+    <string name="recommend_exercise2_duration">약 5분</string>
+    <string name="recommend_exercise2_reason">하체 긴장 완화와 유연성 향상을 위해 추천</string>
+    <string name="recommend_exercise3_name">의자 스쿼트</string>
+    <string name="recommend_exercise3_purpose">근력 강화</string>
+    <string name="recommend_exercise3_difficulty">중급</string>
+    <string name="recommend_exercise3_duration">약 8분</string>
+    <string name="recommend_exercise3_reason">하체 근력 강화를 위한 추천 운동</string>
+    <string name="sample_criteria_body_part">무릎</string>
+    <string name="sample_criteria_goal">가동범위 향상, 유연성 향상, 근력 강화</string>
+    <string name="sample_criteria_difficulty">초급 ~ 중급</string>
+    <string name="sample_criteria_recent_record">하체 스트레칭 · 10분 · 정확도 90%</string>
+
+    <!-- 09_ExerciseList -->
+    <string name="exercise_list_title">운동 목록</string>
+    <string name="exercise_search_hint">운동을 검색해보세요</string>
+    <string name="filter_all">전체</string>
+    <string name="filter_purpose">목적: %1$s</string>
+    <string name="filter_difficulty">난이도: %1$s</string>
+    <string name="purpose_pain_relief">통증 완화</string>
+    <string name="purpose_range_of_motion">가동범위 향상</string>
+    <string name="purpose_strength">근력 강화</string>
+    <string name="purpose_flexibility">유연성</string>
+    <string name="exercise_list_empty">조건에 맞는 운동이 없습니다.</string>
+    <string name="exercise_selected">%1$s 상세 화면은 준비 중입니다.</string>
+
+    <!-- 09_ExerciseList 임시 예시 데이터 (DB 연동 전) -->
+    <string name="list_exercise1_name">무릎 굽힘 운동</string>
+    <string name="list_exercise1_purpose">가동범위 향상</string>
+    <string name="list_exercise1_difficulty">초급</string>
+    <string name="list_exercise1_duration">약 5분</string>
+    <string name="list_exercise2_name">의자 스쿼트</string>
+    <string name="list_exercise2_purpose">근력 강화</string>
+    <string name="list_exercise2_difficulty">초급</string>
+    <string name="list_exercise2_duration">약 8분</string>
+    <string name="list_exercise3_name">하체 스트레칭</string>
+    <string name="list_exercise3_purpose">유연성 향상</string>
+    <string name="list_exercise3_difficulty">초급</string>
+    <string name="list_exercise3_duration">약 5분</string>
+    <string name="list_exercise4_name">런지</string>
+    <string name="list_exercise4_purpose">하체 근력</string>
+    <string name="list_exercise4_difficulty">중급</string>
+    <string name="list_exercise4_duration">약 10분</string>
+
+    <!-- 10_ExerciseDetail -->
+    <string name="exercise_detail_title">운동 상세</string>
+    <string name="exercise_image_description">운동 동작 이미지 영역</string>
+    <string name="detail_purpose_label">운동 목적</string>
+    <string name="main_joints">주요 사용 관절</string>
+    <string name="detail_duration_label">예상 운동 시간</string>
+    <string name="recommended_repetitions">권장 횟수</string>
+    <string name="exercise_warning_title">주의사항</string>
+    <string name="exercise_warning">운동 중 통증이 심해질 경우 무리하지 말고 중단해주세요.</string>
+    <string name="start_exercise_button">운동 시작하기</string>
+
+    <!-- 10_ExerciseDetail 임시 예시 데이터 (무릎 굽힘 운동) -->
+    <string name="exercise_name_knee_flexion">무릎 굽힘 운동</string>
+    <string name="exercise_description_knee_flexion">무릎의 가동범위 향상과 움직임 회복을 위한 기초 재활운동</string>
+    <string name="exercise_purpose_knee_flexion">무릎 가동범위 향상</string>
+    <string name="exercise_joints_knee_flexion">무릎, 엉덩이</string>
+    <string name="exercise_duration_knee_flexion">약 5분</string>
+    <string name="exercise_repetitions_knee_flexion">20회 × 3세트</string>
+    <string name="exercise_difficulty_knee_flexion">초급</string>
+
+    <!-- 11_PreCheck -->
+    <string name="pre_check_title">운동 전 컨디션 체크</string>
+    <string name="pre_check_condition_question">오늘의 몸 상태는 어떤가요?</string>
+    <string name="condition_good">좋음</string>
+    <string name="condition_normal">보통</string>
+    <string name="condition_bad">좋지 않음</string>
+    <string name="note_optional">특이사항 (선택)</string>
+    <string name="note_hint">예: 무릎이 조금 뻐근함</string>
+    <string name="error_condition_not_selected">현재 몸 상태를 선택해주세요.</string>
+    <string name="pre_check_completed">컨디션 확인 완료</string>
+
+    <!-- 12_CameraSetup -->
+    <string name="camera_setup_title">카메라 세팅</string>
+    <string name="camera_setup_description">카메라 위치를 확인해주세요.</string>
+    <string name="camera_setup_sub_description">전신이 화면 안에 들어오도록 거리를 조절해주세요.</string>
+    <string name="camera_setup_instruction">점선 안에 머리부터 발끝까지 들어오도록 서주세요.</string>
+    <string name="camera_preview_description">카메라 미리보기 영역</string>
+    <string name="camera_body_placeholder_description">전신 위치 가이드</string>
+    <string name="camera_status_full_body">전신이 화면 안에 있습니다.</string>
+    <string name="camera_status_position">카메라 위치가 적절합니다.</string>
+    <string name="camera_status_pose_ready">관절 인식 준비가 완료되었습니다.</string>
+    <string name="camera_start_exercise">운동 시작</string>
+    <string name="camera_setup_completed">카메라 설정 확인 완료</string>
+
+    <!-- 13_Exercise -->
+    <string name="exercise_timer_initial">00:00</string>
+    <string name="exercise_timer_format">%1$02d:%2$02d</string>
+    <string name="skeleton_overlay_description">자세 인식 Skeleton 표시 영역</string>
+    <string name="repetition_count_label">반복 횟수</string>
+    <string name="repetition_count_format">%1$d / %2$d회</string>
+    <string name="accuracy_label">자세 정확도</string>
+    <string name="percent_format">%1$d%%</string>
+    <string name="exercise_progress_label">운동 진행률</string>
+    <string name="posture_feedback_label">자세 피드백</string>
+    <string name="feedback_bend_knee_more">무릎을 조금 더 굽혀주세요.</string>
+    <string name="pause_exercise">일시정지</string>
+    <string name="end_exercise">운동 종료</string>
+    <string name="exercise_paused">운동 일시정지</string>
+    <string name="exercise_ended">운동 종료</string>
+
+    <!-- 14_Pause -->
+    <string name="pause_title">운동 일시정지</string>
+    <string name="pause_description">운동을 계속하시겠어요?</string>
+    <string name="current_exercise_name_label">운동명</string>
+    <string name="current_repetitions">현재 횟수</string>
+    <string name="current_exercise_time">운동 시간</string>
+    <string name="resume_exercise">계속하기</string>
+    <string name="restart_exercise">처음부터 다시</string>
+    <string name="restart_exercise_message">운동을 처음부터 다시 시작합니다.</string>
+
+    <!-- 15_PostCheck (좋음/보통/좋지 않음, 특이사항 라벨, 다음은 기존 문자열 재사용) -->
+    <string name="post_check_title">운동 후 컨디션 체크</string>
+    <string name="post_check_discomfort_question">운동 후 불편감은 어느 정도인가요?</string>
+    <string name="post_check_condition_question">운동 후 몸 상태는 어떤가요?</string>
+    <string name="post_check_note_hint">예: 운동 전보다 무릎이 조금 가벼워진 느낌</string>
+    <string name="error_post_condition_not_selected">운동 후 몸 상태를 선택해주세요.</string>
+    <string name="post_check_completed">운동 후 컨디션 입력 완료</string>
+
+    <!-- 16_Result (운동 시간 / 평균 정확도 라벨은 기존 문자열 재사용) -->
+    <string name="result_title">운동 결과</string>
+    <string name="exercise_completed">운동이 완료되었습니다.</string>
+    <string name="exercise_result_description">오늘의 운동 결과를 확인해보세요.</string>
+    <string name="performed_repetitions">수행 횟수</string>
+    <string name="completed_sets">세트 완료</string>
+    <string name="exercise_duration_format">%1$d분 %2$d초</string>
+    <string name="set_count_format">%1$d / %2$d세트</string>
+    <string name="view_detailed_analysis">상세 분석 보기</string>
+    <string name="analysis_not_ready">상세 분석 화면 준비 중</string>
+
+    <!-- 17_AIReport -->
+    <string name="ai_report_title">AI 분석 리포트</string>
+    <string name="today_analysis">오늘의 분석</string>
+    <string name="analysis_results">주요 분석 결과</string>
+    <string name="knee_average_error">무릎 평균 오차</string>
+    <string name="back_average_error">허리 평균 오차</string>
+    <string name="overall_accuracy">전반 정확도</string>
+    <string name="late_accuracy">후반 정확도</string>
+    <string name="next_exercise_tip">다음 운동 팁</string>
+    <string name="angle_error_format">%1$+d°</string>
+
+    <!-- 17_AIReport 예시 문구 (Gemini 연동 전 임시 데이터) -->
+    <string name="ai_summary_example">전반적으로 안정적인 자세를 유지했습니다.\n다만 운동 후반부에 무릎 굽힘 정도가 부족해지는 경향이 있었습니다.\n다음 운동에서는 속도를 조금 낮추고 무릎을 충분히 굽히는 것을 의식해보세요.</string>
+    <string name="next_exercise_tip_example">속도를 조금 낮추고 무릎 움직임에 집중해주세요.</string>
+
+    <!-- 18_RecordList (필터 "전체"는 기존 filter_all 재사용) -->
+    <string name="record_list_title">운동 기록</string>
+    <string name="filter_weekly">주간</string>
+    <string name="filter_monthly">월간</string>
+    <string name="record_summary_format">%1$d분 · 정확도 %2$d%%</string>
+    <string name="record_detail_not_ready">기록 상세 화면 준비 중</string>
+
+    <!-- 18_RecordList 임시 예시 데이터 (Supabase 연동 전) -->
+    <string name="record1_date">10월 3일</string>
+    <string name="record1_exercise_name">무릎 굽힘 운동</string>
+    <string name="record2_date">10월 1일</string>
+    <string name="record2_exercise_name">허리 강화 운동</string>
+    <string name="record3_date">9월 30일</string>
+    <string name="record3_exercise_name">어깨 운동</string>
+    <string name="record4_date">9월 28일</string>
+    <string name="record4_exercise_name">하체 스트레칭</string>
+    <!-- 19_RecordDetail 날짜 표시용 (임시 예시 데이터) -->
+    <string name="record1_detail_date">2026.10.03</string>
+    <string name="record2_detail_date">2026.10.01</string>
+    <string name="record3_detail_date">2026.09.30</string>
+    <string name="record4_detail_date">2026.09.28</string>
+
+    <!-- 19_RecordDetail (운동 시간 / 평균 정확도 / 수행 횟수 / 세트 완료 / 무릎 / 허리는 기존 문자열 재사용) -->
+    <string name="record_detail_title">기록 상세</string>
+    <string name="joint_accuracy">관절별 정확도</string>
+    <string name="set_accuracy">세트별 정확도</string>
+    <string name="joint_hip">엉덩이</string>
+    <string name="duration_minutes_format">%1$d분</string>
+    <string name="set_label_format">%1$d세트</string>
+    <string name="view_ai_analysis">AI 분석 다시 보기</string>
+
+    <!-- 20_WeeklyReport (평균 정확도는 기존 average_accuracy, 주간 / 월간 탭은 기존 filter_weekly / filter_monthly 재사용) -->
+    <string name="weekly_monthly_report_title">주간 / 월간 리포트</string>
+    <string name="exercise_count">운동 횟수</string>
+    <string name="total_exercise_time">총 운동 시간</string>
+    <string name="accuracy_change">정확도 변화</string>
+    <string name="most_performed_exercise">가장 많이 한 운동</string>
+    <string name="frequent_mistake">자주 틀린 부위</string>
+    <string name="count_times_format">%1$d회</string>
+    <string name="hours_minutes_format">%1$d시간 %2$d분</string>
+    <string name="accuracy_chart_description">기간별 정확도 변화 그래프</string>
+
+    <!-- 20_WeeklyReport 임시 예시 데이터 (Supabase 연동 전) -->
+    <string name="sample_weekly_period">10월 1일 ~ 10월 7일</string>
+    <string name="sample_monthly_period">2026년 10월</string>
+    <string name="sample_mistake_knee_angle">무릎 각도 부족</string>
+    <string-array name="weekday_labels">
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+        <item>일</item>
+    </string-array>
+    <string-array name="month_week_labels">
+        <item>1주</item>
+        <item>2주</item>
+        <item>3주</item>
+        <item>4주</item>
+    </string-array>
+
+    <!-- 21_GoalChallenge (진행률 %는 기존 percent_format 재사용) -->
+    <string name="goal_challenge_title">목표 / 챌린지</string>
+    <string name="my_goals">나의 목표</string>
+    <string name="challenge">챌린지</string>
+    <string name="weekly_exercise_goal">이번 주 %1$d회 운동</string>
+    <string name="exercise_time_goal">운동 시간 %1$d분</string>
+    <string name="accuracy_goal">평균 정확도 %1$d%%</string>
+    <string name="seven_day_challenge">%1$d일 연속 운동 도전</string>
+    <string name="accuracy_challenge">평균 정확도 %1$d%% 달성</string>
+    <string name="goal_progress_format">현재 %1$d / %2$d</string>
+    <string name="challenge_days_format">현재 %1$d일째 · %1$d / %2$d</string>
+    <string name="challenge_accuracy_format">현재 %1$d%% · 목표 %2$d%%</string>
+
+    <!-- 22_MyPage -->
+    <string name="my_page_title">마이페이지</string>
+    <string name="profile_image_description">프로필 이미지</string>
+    <string name="my_information">내 정보</string>
+    <string name="interest_and_goal">관심 부위 및 목표</string>
+    <string name="notification_settings">알림 설정</string>
+    <string name="favorite_exercises">즐겨찾기 운동</string>
+    <string name="terms_of_service">서비스 이용약관</string>
+    <string name="app_settings">앱 설정</string>
+    <string name="logout">로그아웃</string>
+    <string name="logout_confirm_title">로그아웃</string>
+    <string name="logout_confirm_message">로그아웃하시겠습니까?</string>
+    <string name="cancel">취소</string>
+    <!-- %1$s = 메뉴 이름 (예: 내 정보 기능 준비 중) -->
+    <string name="menu_not_ready_format">%1$s 기능 준비 중</string>
+
+    <!-- 22_MyPage 임시 예시 데이터 (Supabase 사용자 정보 연동 전) -->
+    <string name="user_name_placeholder">사용자</string>
+    <string name="user_email_placeholder">user@example.com</string>
+</resources>

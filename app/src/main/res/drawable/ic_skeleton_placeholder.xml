@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 13_Exercise Skeleton Overlay Placeholder (MediaPipe Landmark 연동 전 예시)
+     관절: 머리, 양쪽 어깨/팔꿈치/손목/엉덩이/무릎/발목 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="200">
+    <!-- 머리 -->
+    <path
+        android:pathData="M41,20a9,9 0,1 0,18,0a9,9 0,1 0,-18,0"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark" />
+    <!-- 목 -->
+    <path
+        android:pathData="M50,29L50,45"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineCap="round" />
+    <!-- 어깨 / 엉덩이 / 몸통 -->
+    <path
+        android:pathData="M35,45L65,45L60,105L40,105Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineJoin="round" />
+    <!-- 왼팔: 어깨 → 팔꿈치 → 손목 -->
+    <path
+        android:pathData="M35,45L28,75L24,102"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- 오른팔: 어깨 → 팔꿈치 → 손목 -->
+    <path
+        android:pathData="M65,45L72,75L76,102"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- 왼다리: 엉덩이 → 무릎 → 발목 -->
+    <path
+        android:pathData="M40,105L38,145L38,185"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- 오른다리: 엉덩이 → 무릎 → 발목 -->
+    <path
+        android:pathData="M60,105L62,145L62,185"
+        android:strokeWidth="2.5"
+        android:strokeColor="@color/gray_dark"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- 관절 점 (어깨, 팔꿈치, 손목, 엉덩이, 무릎, 발목) -->
+    <path
+        android:fillColor="@color/gray_dark"
+        android:pathData="M31,45a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M61,45a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M24,75a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M68,75a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M20,102a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M72,102a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M36,105a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M56,105a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M34,145a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M58,145a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M34,185a4,4 0,1 0,8,0a4,4 0,1 0,-8,0M58,185a4,4 0,1 0,8,0a4,4 0,1 0,-8,0" />
+</vector>

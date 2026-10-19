@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 목표 Card 우측 선택 표시: 선택 시 체크, 기본은 빈 원 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_check_circle" android:state_selected="true" />
+    <item android:drawable="@drawable/ic_circle_outline" />
+</selector>

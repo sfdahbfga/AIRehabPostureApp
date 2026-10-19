@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 하단 메뉴 아이콘/글자색: 선택 시 Dark Gray, 기본은 Gray -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/gray_dark" android:state_selected="true" />
+    <item android:color="@color/gray" />
+</selector>

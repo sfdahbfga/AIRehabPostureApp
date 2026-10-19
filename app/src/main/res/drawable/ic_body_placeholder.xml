@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 인체 실루엣 Placeholder (머리/몸통/팔/다리를 단순 도형으로 표현) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="120dp"
+    android:viewportWidth="60"
+    android:viewportHeight="120">
+    <!-- 머리 -->
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M30,4a10,10 0,1 1,0,20a10,10 0,1 1,0,-20z" />
+    <!-- 몸통 -->
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M22,28h16a4,4 0,0 1,4,4v38h-24v-38a4,4 0,0 1,4,-4z" />
+    <!-- 팔 -->
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M8,34a4,4 0,0 1,4,-4h3v40h-7z" />
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M45,30h3a4,4 0,0 1,4,4v36h-7z" />
+    <!-- 다리 -->
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M19,73h10v43h-10z" />
+    <path
+        android:fillColor="@color/gray_medium"
+        android:pathData="M31,73h10v43h-10z" />
+</vector>

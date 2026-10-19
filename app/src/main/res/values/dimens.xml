@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 02_Login 공통 치수 -->
+    <dimen name="screen_padding_horizontal">24dp</dimen>
+    <dimen name="input_height">52dp</dimen>
+    <dimen name="button_height">52dp</dimen>
+    <dimen name="radius_default">8dp</dimen>
+</resources>

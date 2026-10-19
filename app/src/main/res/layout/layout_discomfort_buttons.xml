@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 불편감 0~10 숫자 버튼 (Slider 미사용, 단일 선택)
+     05_BodyCondition과 같은 구성 / 11_PreCheck, 15_PostCheck에서 include로 재사용 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    tools:ignore="HardcodedText">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/discomfortButton0"
+            style="@style/OptionButton"
+            android:text="0" />
+
+        <TextView
+            android:id="@+id/discomfortButton1"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="1" />
+
+        <TextView
+            android:id="@+id/discomfortButton2"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="2" />
+
+        <TextView
+            android:id="@+id/discomfortButton3"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="3" />
+
+        <TextView
+            android:id="@+id/discomfortButton4"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="4" />
+
+        <TextView
+            android:id="@+id/discomfortButton5"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="5" />
+    </LinearLayout>
+
+    <!-- 두 번째 줄: 마지막 빈 칸(Space)으로 첫 줄과 버튼 크기를 맞춤 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/discomfortButton6"
+            style="@style/OptionButton"
+            android:text="6" />
+
+        <TextView
+            android:id="@+id/discomfortButton7"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="7" />
+
+        <TextView
+            android:id="@+id/discomfortButton8"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="8" />
+
+        <TextView
+            android:id="@+id/discomfortButton9"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="9" />
+
+        <TextView
+            android:id="@+id/discomfortButton10"
+            style="@style/OptionButton"
+            android:layout_marginStart="6dp"
+            android:text="10" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+</LinearLayout>

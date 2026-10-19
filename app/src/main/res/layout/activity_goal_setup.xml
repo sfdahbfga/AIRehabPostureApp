@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 작은 화면에서 잘리지 않도록 ScrollView 사용 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/goalSetupRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true"
+    tools:context=".GoalSetupActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding_horizontal"
+        android:paddingTop="16dp"
+        android:paddingEnd="@dimen/screen_padding_horizontal"
+        android:paddingBottom="32dp">
+
+        <!-- 상단: 뒤로가기 + 제목 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="-12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back"
+                android:src="@drawable/ic_arrow_back" />
+
+            <TextView
+                android:id="@+id/goalSetupTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="@string/goal_setup_title"
+                android:textColor="@color/gray_dark"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 안내 문구 -->
+        <TextView
+            android:id="@+id/goalSetupDescriptionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/goal_setup_description"
+            android:textColor="@color/gray"
+            android:textSize="14sp" />
+
+        <!-- 운동 목표 Card (복수 선택), tag = 저장용 키 -->
+
+        <TextView
+            android:id="@+id/painReliefCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="pain_relief"
+            android:text="@string/goal_pain_relief"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <TextView
+            android:id="@+id/rangeOfMotionCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="range_of_motion"
+            android:text="@string/goal_range_of_motion"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <TextView
+            android:id="@+id/strengthCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="strength"
+            android:text="@string/goal_strength"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <TextView
+            android:id="@+id/flexibilityCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="flexibility"
+            android:text="@string/goal_flexibility"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <TextView
+            android:id="@+id/balanceCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="balance"
+            android:text="@string/goal_balance"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <TextView
+            android:id="@+id/consistencyCard"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_option_button"
+            android:clickable="true"
+            android:drawablePadding="12dp"
+            android:focusable="true"
+            android:gravity="start|center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:tag="consistency"
+            android:text="@string/goal_consistency"
+            android:textColor="@color/option_button_text"
+            android:textSize="15sp"
+            app:drawableEndCompat="@drawable/selector_goal_indicator" />
+
+        <!-- 내용이 짧을 때 완료 버튼을 화면 하단으로 밀어줌 -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="32dp" />
+
+        <!-- 완료 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/completeButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/complete"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/gray_dark"
+            app:cornerRadius="@dimen/radius_default" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 작은 화면/키보드 표시 시 스크롤 가능하도록 ScrollView 사용 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/userSetupRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true"
+    tools:context=".UserSetupActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding_horizontal"
+        android:paddingTop="16dp"
+        android:paddingEnd="@dimen/screen_padding_horizontal"
+        android:paddingBottom="32dp">
+
+        <!-- 상단: 뒤로가기 + 제목 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="-12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back"
+                android:src="@drawable/ic_arrow_back" />
+
+            <TextView
+                android:id="@+id/userSetupTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="@string/user_setup_title"
+                android:textColor="@color/gray_dark"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 안내 문구 -->
+        <TextView
+            android:id="@+id/userSetupDescriptionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/user_setup_description"
+            android:textColor="@color/gray"
+            android:textSize="14sp" />
+
+        <!-- 나이 -->
+        <TextView
+            android:id="@+id/ageLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/age"
+            android:textColor="@color/gray_dark"
+            android:textSize="14sp" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/input_height"
+            android:layout_marginTop="8dp">
+
+            <EditText
+                android:id="@+id/ageEditText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_input"
+                android:hint="@string/age_hint"
+                android:imeOptions="actionNext"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="3"
+                android:paddingStart="16dp"
+                android:paddingEnd="52dp"
+                android:textColor="@color/gray_dark"
+                android:textColorHint="@color/gray"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/ageUnitText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="16dp"
+                android:text="@string/unit_age"
+                android:textColor="@color/gray"
+                android:textSize="15sp" />
+        </FrameLayout>
+
+        <!-- 키 -->
+        <TextView
+            android:id="@+id/heightLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/height"
+            android:textColor="@color/gray_dark"
+            android:textSize="14sp" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/input_height"
+            android:layout_marginTop="8dp">
+
+            <EditText
+                android:id="@+id/heightEditText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_input"
+                android:hint="@string/height_hint"
+                android:imeOptions="actionNext"
+                android:importantForAutofill="no"
+                android:inputType="numberDecimal"
+                android:maxLength="5"
+                android:paddingStart="16dp"
+                android:paddingEnd="52dp"
+                android:textColor="@color/gray_dark"
+                android:textColorHint="@color/gray"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/heightUnitText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="16dp"
+                android:text="@string/unit_cm"
+                android:textColor="@color/gray"
+                android:textSize="15sp" />
+        </FrameLayout>
+
+        <!-- 체중 -->
+        <TextView
+            android:id="@+id/weightLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/weight"
+            android:textColor="@color/gray_dark"
+            android:textSize="14sp" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/input_height"
+            android:layout_marginTop="8dp">
+
+            <EditText
+                android:id="@+id/weightEditText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_input"
+                android:hint="@string/weight_hint"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="numberDecimal"
+                android:maxLength="5"
+                android:paddingStart="16dp"
+                android:paddingEnd="52dp"
+                android:textColor="@color/gray_dark"
+                android:textColorHint="@color/gray"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/weightUnitText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="16dp"
+                android:text="@string/unit_kg"
+                android:textColor="@color/gray"
+                android:textSize="15sp" />
+        </FrameLayout>
+
+        <!-- 운동 경험 (단일 선택) -->
+        <TextView
+            android:id="@+id/exerciseExperienceLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/exercise_experience"
+            android:textColor="@color/gray_dark"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/experienceNoneButton"
+                style="@style/OptionButton"
+                android:text="@string/experience_none" />
+
+            <TextView
+                android:id="@+id/experienceBeginnerButton"
+                style="@style/OptionButton"
+                android:layout_marginStart="8dp"
+                android:text="@string/experience_beginner" />
+
+            <TextView
+                android:id="@+id/experienceIntermediateButton"
+                style="@style/OptionButton"
+                android:layout_marginStart="8dp"
+                android:text="@string/experience_intermediate" />
+
+            <TextView
+                android:id="@+id/experienceAdvancedButton"
+                style="@style/OptionButton"
+                android:layout_marginStart="8dp"
+                android:text="@string/experience_advanced" />
+        </LinearLayout>
+
+        <!-- 내용이 짧을 때 다음 버튼을 화면 하단으로 밀어줌 -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="32dp" />
+
+        <!-- 다음 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/nextButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/next"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/gray_dark"
+            app:cornerRadius="@dimen/radius_default" />
+    </LinearLayout>
+</ScrollView>
