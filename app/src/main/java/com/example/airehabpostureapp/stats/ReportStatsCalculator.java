@@ -20,20 +20,20 @@ public class ReportStatsCalculator {
     private static final int WEEKLY_CHART_SIZE = 7;
     private static final int MONTHLY_CHART_SIZE = 4;
 
-    public ReportStats calculate(List<SessionRecord> records, Period period, LocalDate baseDate) {
-        // 기간 범위: 주간은 기준 날짜가 속한 주의 월~일, 월간은 기준 날짜가 속한 달의 1일~말일
-        LocalDate startDate;
-        LocalDate endDate;
-        int chartSize;
+    // 기간 범위 {시작일, 종료일}: 주간은 기준 날짜가 속한 주의 월~일, 월간은 기준 날짜가 속한 달의 1일~말일
+    public static LocalDate[] periodRange(Period period, LocalDate baseDate) {
         if (period == Period.WEEKLY) {
-            startDate = baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            endDate = startDate.plusDays(6);
-            chartSize = WEEKLY_CHART_SIZE;
-        } else {
-            startDate = baseDate.withDayOfMonth(1);
-            endDate = baseDate.with(TemporalAdjusters.lastDayOfMonth());
-            chartSize = MONTHLY_CHART_SIZE;
+            LocalDate monday = baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            return new LocalDate[]{monday, monday.plusDays(6)};
         }
+        return new LocalDate[]{baseDate.withDayOfMonth(1), baseDate.with(TemporalAdjusters.lastDayOfMonth())};
+    }
+
+    public ReportStats calculate(List<SessionRecord> records, Period period, LocalDate baseDate) {
+        LocalDate[] range = periodRange(period, baseDate);
+        LocalDate startDate = range[0];
+        LocalDate endDate = range[1];
+        int chartSize = period == Period.WEEKLY ? WEEKLY_CHART_SIZE : MONTHLY_CHART_SIZE;
 
         int exerciseCount = 0;
         int totalSeconds = 0;

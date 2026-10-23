@@ -335,6 +335,11 @@
     <string name="sample_weekly_period">10월 1일 ~ 10월 7일</string>
     <string name="sample_monthly_period">2026년 10월</string>
     <string name="sample_mistake_knee_angle">무릎 각도 부족</string>
+    <string name="report_weekly_period_format">%1$d월 %2$d일 ~ %3$d월 %4$d일</string>
+    <string name="report_monthly_period_format">%1$d년 %2$d월</string>
+    <string name="mistake_joint_knee">무릎 각도</string>
+    <string name="mistake_joint_back">허리 각도</string>
+    <string name="empty_value">-</string>
     <string-array name="weekday_labels">
         <item>월</item>
         <item>화</item>
