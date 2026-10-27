@@ -383,4 +383,14 @@
     <!-- 22_MyPage 임시 예시 데이터 (Supabase 사용자 정보 연동 전) -->
     <string name="user_name_placeholder">사용자</string>
     <string name="user_email_placeholder">user@example.com</string>
+
+    <!-- Supabase Auth (회원가입 / 로그인 / 로그아웃) -->
+    <string name="error_invalid_credentials">이메일 또는 비밀번호가 올바르지 않습니다.</string>
+    <string name="error_email_already_registered">이미 가입된 이메일입니다.</string>
+    <string name="error_password_too_short">비밀번호가 너무 짧습니다. 6자 이상 입력해주세요.</string>
+    <string name="error_network">네트워크 연결을 확인해주세요.</string>
+    <string name="error_auth_unknown">요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="sign_up_email_confirmation_required">가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인해주세요.</string>
+    <string name="error_birth_date_format">생년월일을 YYYY.MM.DD 형식으로 입력해주세요.</string>
+    <string name="error_profile_save_failed">프로필 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
 </resources>

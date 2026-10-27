@@ -15,6 +15,14 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.AuthApi;
+import com.example.airehabpostureapp.network.SessionManager;
+import com.example.airehabpostureapp.network.SupabaseClient;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 // 마이페이지 (프로필은 임시 예시 데이터, Supabase 사용자 정보 / Auth 연동 전)
 public class MyPageActivity extends AppCompatActivity {
 
@@ -73,9 +81,34 @@ public class MyPageActivity extends AppCompatActivity {
                 .show();
     }
 
-    // TODO: Supabase Auth 연동 후 실제 로그아웃 처리 (현재는 화면 이동만)
-    // 기존 Task를 비우고 로그인 화면만 남겨 Back 버튼으로 홈에 돌아가지 못하게 함
+    // 서버 로그아웃 요청 → 성공/실패와 관계없이 앱의 세션 삭제 → 로그인 화면 이동
     private void logout() {
+        // 요청 중 중복 클릭 방지
+        findViewById(R.id.logoutRow).setEnabled(false);
+        SessionManager sessionManager = new SessionManager(this);
+        String bearerToken = sessionManager.getBearerToken();
+        if (bearerToken == null) {
+            finishLogout(sessionManager);
+            return;
+        }
+
+        AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
+        authApi.logout(bearerToken).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                finishLogout(sessionManager);
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                finishLogout(sessionManager);
+            }
+        });
+    }
+
+    // 기존 Task를 비우고 로그인 화면만 남겨 Back 버튼으로 홈에 돌아가지 못하게 함
+    private void finishLogout(SessionManager sessionManager) {
+        sessionManager.clear();
         Intent intent = new Intent(this, LoginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
