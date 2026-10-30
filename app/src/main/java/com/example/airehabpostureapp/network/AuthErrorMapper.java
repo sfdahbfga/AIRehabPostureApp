@@ -45,7 +45,13 @@ public final class AuthErrorMapper {
     // 서버에 닿지 못한 경우 (인터넷 끊김, 타임아웃 등)
     @StringRes
     public static int fromFailure(Throwable t) {
-        return t instanceof IOException ? R.string.error_network : R.string.error_auth_unknown;
+        return fromFailure(t, R.string.error_auth_unknown);
+    }
+
+    // 네트워크 오류는 공통 문구, 그 외는 화면별 문구(otherMessage)
+    @StringRes
+    public static int fromFailure(Throwable t, @StringRes int otherMessage) {
+        return t instanceof IOException ? R.string.error_network : otherMessage;
     }
 
     // 최신 응답은 "error_code", 예전 토큰 응답은 "error" 필드를 사용한다.

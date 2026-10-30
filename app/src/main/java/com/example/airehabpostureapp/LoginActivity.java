@@ -20,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
+import com.example.airehabpostureapp.network.OnboardingChecker;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 
@@ -121,10 +122,7 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
                 sessionManager.setAutoLogin(autoLoginCheckBox.isChecked());
-
-                // 로그인 화면은 Back Stack에서 제거
-                startActivity(new Intent(LoginActivity.this, HomeActivity.class));
-                finish();
+                checkOnboarding(email);
             }
 
             @Override
@@ -132,6 +130,23 @@ public class LoginActivity extends AppCompatActivity {
                 showError(AuthErrorMapper.fromFailure(t));
             }
         });
+    }
+
+    // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로 이동. 실패하면 로그인 화면에 머문다.
+    private void checkOnboarding(String email) {
+        new OnboardingChecker(sessionManager, new OnboardingChecker.Listener() {
+            @Override
+            public void onDestination(Class<?> activityClass) {
+                // 로그인 화면은 Back Stack에서 제거
+                startActivity(new Intent(LoginActivity.this, activityClass));
+                finish();
+            }
+
+            @Override
+            public void onError(int messageRes) {
+                showError(messageRes);
+            }
+        }).check(email);
     }
 
     private void showError(@StringRes int messageRes) {

@@ -393,4 +393,9 @@
     <string name="sign_up_email_confirmation_required">가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인해주세요.</string>
     <string name="error_birth_date_format">생년월일을 YYYY.MM.DD 형식으로 입력해주세요.</string>
     <string name="error_profile_save_failed">프로필 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 초기 설정 저장 / 확인 -->
+    <string name="error_body_condition_save_failed">신체 상태를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_goal_save_failed">운동 목표를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_onboarding_check_failed">초기 설정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
 </resources>

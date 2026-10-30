@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -15,6 +16,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.airehabpostureapp.network.AuthApi;
+import com.example.airehabpostureapp.network.OnboardingChecker;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 
@@ -48,7 +50,7 @@ public class SplashActivity extends AppCompatActivity {
     // onResume이 다시 불려도 토큰 갱신 요청이 중복되지 않도록 표시
     private boolean isCheckingSession = false;
 
-    // 자동 로그인이 켜져 있고 refresh token이 있으면 토큰 갱신 후 Home, 아니면 Login
+    // 자동 로그인이 켜져 있고 refresh token이 있으면 토큰 갱신 후 초기 설정 확인, 아니면 Login
     private final Runnable goToNextScreen = () -> {
         if (isCheckingSession) {
             return;
@@ -75,7 +77,7 @@ public class SplashActivity extends AppCompatActivity {
                             return;
                         }
                         sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
-                        moveTo(HomeActivity.class);
+                        checkOnboarding(body.user.email);
                     }
 
                     @Override
@@ -83,6 +85,22 @@ public class SplashActivity extends AppCompatActivity {
                         moveToLogin();
                     }
                 });
+    }
+
+    // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로. 확인에 실패하면 안내 후 로그인 화면으로
+    private void checkOnboarding(String email) {
+        new OnboardingChecker(sessionManager, new OnboardingChecker.Listener() {
+            @Override
+            public void onDestination(Class<?> activityClass) {
+                moveTo(activityClass);
+            }
+
+            @Override
+            public void onError(int messageRes) {
+                Toast.makeText(SplashActivity.this, messageRes, Toast.LENGTH_SHORT).show();
+                moveToLogin();
+            }
+        }).check(email);
     }
 
     // 자동 로그인이 꺼져 있거나 갱신에 실패하면 저장된 세션을 지우고 로그인 화면으로

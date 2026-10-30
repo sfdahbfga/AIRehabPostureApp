@@ -60,5 +60,7 @@ public interface AuthApi {
     class User {
         @SerializedName("id")
         public String id;
+        @SerializedName("email")
+        public String email;
     }
 }
