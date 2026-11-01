@@ -4,23 +4,35 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.SystemBarStyle;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-// 운동 결과 화면 (현재는 고정 예시 데이터만 표시, 운동 기록 데이터 연동 전)
+import com.example.airehabpostureapp.network.AuthErrorMapper;
+import com.example.airehabpostureapp.network.ExerciseSessionApi;
+import com.example.airehabpostureapp.network.SessionManager;
+import com.example.airehabpostureapp.network.SupabaseClient;
+
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+// 운동 결과 화면: 15_PostCheck에서 저장한 exercise_sessions 행을 조회해 운동 시간 / 횟수 / 정확도 표시
 public class ResultActivity extends AppCompatActivity {
 
-    // TODO: 13_Exercise 실제 결과(MediaPipe + 관절 각도 계산) / Supabase 기록과 연동 후 교체 (현재는 임시 예시 데이터)
-    private int exerciseDurationSeconds = 13 * 60 + 24;
-    private int completedReps = 18;
-    private int targetReps = 20;
-    private int averageAccuracy = 88;
+    // 15_PostCheck에서 저장한 exercise_sessions id
+    public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RESULT_SESSION_ID";
+
+    // TODO: 세트 측정 연동 후 실제 값으로 교체 (현재 세트는 저장하지 않으므로 임시 예시 데이터)
     private int completedSets = 3;
     private int targetSets = 3;
 
@@ -38,7 +50,8 @@ public class ResultActivity extends AppCompatActivity {
             return insets;
         });
 
-        showResult();
+        showSetCompletion();
+        loadSession();
 
         // AI 분석 리포트(17_AIReport)로 이동 (Back 시 이 화면으로 복귀)
         findViewById(R.id.viewAnalysisButton).setOnClickListener(v ->
@@ -57,16 +70,56 @@ public class ResultActivity extends AppCompatActivity {
         });
     }
 
-    private void showResult() {
+    // 조회에 실패하면 오류 메시지를 보여주고 이 화면에 머무름 (값 칸은 비어 있음)
+    private void loadSession() {
+        String sessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
+        if (sessionId == null) {
+            showError(R.string.error_result_load_failed);
+            return;
+        }
+        SessionManager sessionManager = new SessionManager(this);
+        ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
+        api.getSession(sessionManager.getBearerToken(), "eq." + sessionId)
+                .enqueue(new Callback<List<ExerciseSessionApi.SessionRow>>() {
+                    @Override
+                    public void onResponse(Call<List<ExerciseSessionApi.SessionRow>> call,
+                                           Response<List<ExerciseSessionApi.SessionRow>> response) {
+                        List<ExerciseSessionApi.SessionRow> rows = response.body();
+                        if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
+                            showError(R.string.error_result_load_failed);
+                            return;
+                        }
+                        showResult(rows.get(0));
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<ExerciseSessionApi.SessionRow>> call, Throwable t) {
+                        showError(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
+                    }
+                });
+    }
+
+    private void showResult(ExerciseSessionApi.SessionRow session) {
         TextView exerciseDurationValueText = findViewById(R.id.exerciseDurationValueText);
         TextView repetitionValueText = findViewById(R.id.repetitionValueText);
         TextView averageAccuracyValueText = findViewById(R.id.averageAccuracyValueText);
-        TextView setCompletionValueText = findViewById(R.id.setCompletionValueText);
+
+        int completedReps = session.completedRepetitions == null ? 0 : session.completedRepetitions;
+        int targetReps = session.targetRepetitions == null ? 0 : session.targetRepetitions;
+        int averageAccuracy = session.averageAccuracy == null ? 0 : (int) Math.round(session.averageAccuracy);
 
         exerciseDurationValueText.setText(getString(R.string.exercise_duration_format,
-                exerciseDurationSeconds / 60, exerciseDurationSeconds % 60));
+                session.durationSeconds / 60, session.durationSeconds % 60));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
         averageAccuracyValueText.setText(getString(R.string.percent_format, averageAccuracy));
+    }
+
+    private void showSetCompletion() {
+        TextView setCompletionValueText = findViewById(R.id.setCompletionValueText);
         setCompletionValueText.setText(getString(R.string.set_count_format, completedSets, targetSets));
+    }
+
+    private void showError(@StringRes int messageRes) {
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
     }
 }

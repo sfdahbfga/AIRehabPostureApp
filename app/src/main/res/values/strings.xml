@@ -403,4 +403,8 @@
     <string name="error_body_condition_save_failed">신체 상태를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
     <string name="error_goal_save_failed">운동 목표를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
     <string name="error_onboarding_check_failed">초기 설정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 운동 기록 저장 / 조회 -->
+    <string name="error_exercise_save_failed">운동 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_result_load_failed">운동 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
 </resources>

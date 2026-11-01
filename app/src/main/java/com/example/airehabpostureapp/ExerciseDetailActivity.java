@@ -42,8 +42,11 @@ public class ExerciseDetailActivity extends AppCompatActivity {
         // 이전 화면(ExerciseList)으로 돌아가기: 새 Activity를 만들지 않고 현재 화면만 종료
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
-        // 운동 전 컨디션 체크(11_PreCheck)로 이동
-        findViewById(R.id.startExerciseButton).setOnClickListener(v ->
-                startActivity(new Intent(this, PreCheckActivity.class)));
+        // 운동 전 컨디션 체크(11_PreCheck)로 이동 (화면에 표시된 운동 이름을 운동 흐름 끝까지 전달)
+        findViewById(R.id.startExerciseButton).setOnClickListener(v -> {
+            Intent intent = new Intent(this, PreCheckActivity.class);
+            intent.putExtra(ExerciseFlowExtras.EXERCISE_NAME, exerciseTitleText.getText().toString());
+            startActivity(intent);
+        });
     }
 }

@@ -32,8 +32,11 @@ public class CameraSetupActivity extends AppCompatActivity {
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
         // TODO: CameraX PreviewView 연결 후 MediaPipe 결과로 상태 확인 항목(전신/위치/관절 인식) 갱신
-        // 실시간 운동 화면(13_Exercise)으로 이동
-        findViewById(R.id.startExerciseButton).setOnClickListener(v ->
-                startActivity(new Intent(this, ExerciseActivity.class)));
+        // 실시간 운동 화면(13_Exercise)으로 이동 (운동 이름 / PreCheck 입력값은 그대로 전달)
+        findViewById(R.id.startExerciseButton).setOnClickListener(v -> {
+            Intent intent = new Intent(this, ExerciseActivity.class);
+            intent.putExtras(getIntent());
+            startActivity(intent);
+        });
     }
 }
