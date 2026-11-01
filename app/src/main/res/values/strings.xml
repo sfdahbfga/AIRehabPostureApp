@@ -407,4 +407,10 @@
     <!-- 운동 기록 저장 / 조회 -->
     <string name="error_exercise_save_failed">운동 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
     <string name="error_result_load_failed">운동 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 17_AIReport Gemini 요약 -->
+    <string name="ai_report_analyzing">AI가 운동 결과를 분석하고 있어요. 잠시만 기다려주세요.</string>
+    <string name="error_ai_summary_network">네트워크에 연결할 수 없어 AI 분석을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.</string>
+    <string name="error_ai_summary_server">AI 분석 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_ai_summary_delayed">AI 분석이 지연되고 있어요. 잠시 후 다시 시도해 주세요.</string>
 </resources>

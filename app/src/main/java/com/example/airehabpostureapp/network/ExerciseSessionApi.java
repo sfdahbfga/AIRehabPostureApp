@@ -35,6 +35,11 @@ public interface ExerciseSessionApi {
     Call<List<SessionRow>> getSession(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
 
+    // AI 리포트 화면의 분석 결과(관절별 평균 오차 / 전반·후반 정확도). idFilter: "eq.{세션 id}"
+    @GET("rest/v1/exercise_sessions?select=first_half_accuracy,second_half_accuracy,joint_errors")
+    Call<List<ReportMetricsRow>> getReportMetrics(@Header("Authorization") String bearerToken,
+                                                  @Query("id") String idFilter);
+
     class SessionInsert {
         @SerializedName("user_id")
         final String userId;
@@ -115,5 +120,16 @@ public interface ExerciseSessionApi {
         // DB numeric → 소수일 수 있음
         @SerializedName("average_accuracy")
         public Double averageAccuracy;
+    }
+
+    class ReportMetricsRow {
+        // DB numeric → 소수일 수 있음
+        @SerializedName("first_half_accuracy")
+        public Double firstHalfAccuracy;
+        @SerializedName("second_half_accuracy")
+        public Double secondHalfAccuracy;
+        // 관절별 평균 오차 (키: knee, back)
+        @SerializedName("joint_errors")
+        public Map<String, Double> jointErrors;
     }
 }

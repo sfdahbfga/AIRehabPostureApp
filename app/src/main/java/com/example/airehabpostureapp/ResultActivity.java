@@ -53,9 +53,12 @@ public class ResultActivity extends AppCompatActivity {
         showSetCompletion();
         loadSession();
 
-        // AI 분석 리포트(17_AIReport)로 이동 (Back 시 이 화면으로 복귀)
-        findViewById(R.id.viewAnalysisButton).setOnClickListener(v ->
-                startActivity(new Intent(this, AIReportActivity.class)));
+        // AI 분석 리포트(17_AIReport)로 이동 (Back 시 이 화면으로 복귀, 운동 기록 id 전달)
+        findViewById(R.id.viewAnalysisButton).setOnClickListener(v -> {
+            Intent intent = new Intent(this, AIReportActivity.class);
+            intent.putExtra(AIReportActivity.EXTRA_SESSION_ID, getIntent().getStringExtra(EXTRA_SESSION_ID));
+            startActivity(intent);
+        });
 
         // 시스템 Back: 끝난 운동 흐름(CameraSetup 등)으로 돌아가지 않고 기존 Home으로 복귀
         // CLEAR_TOP + SINGLE_TOP: Back Stack에 있는 Home을 재사용하고 그 위의 화면은 모두 종료
