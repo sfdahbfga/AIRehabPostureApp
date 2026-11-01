@@ -121,7 +121,7 @@ public class RecordDetailActivity extends AppCompatActivity {
         Instant startedAt = record.startedAtInstant();
         LocalDate date = startedAt == null ? null
                 : startedAt.atZone(ReportStatsCalculator.KOREA_ZONE).toLocalDate();
-        int durationMinutes = record.durationSeconds == null ? 0 : record.durationSeconds / 60;
+        int durationSeconds = record.durationSeconds == null ? 0 : record.durationSeconds;
         int accuracy = record.averageAccuracy == null ? 0 : (int) Math.round(record.averageAccuracy);
         int completedReps = record.completedRepetitions == null ? 0 : record.completedRepetitions;
         int targetReps = record.targetRepetitions == null ? 0 : record.targetRepetitions;
@@ -130,7 +130,7 @@ public class RecordDetailActivity extends AppCompatActivity {
         exerciseDateText.setText(date == null ? getString(R.string.empty_value)
                 : getString(R.string.record_detail_date_format,
                 date.getYear(), date.getMonthValue(), date.getDayOfMonth()));
-        durationValueText.setText(getString(R.string.duration_minutes_format, durationMinutes));
+        durationValueText.setText(DurationFormatter.formatSecondsAsMinutes(this, durationSeconds));
         accuracyValueText.setText(getString(R.string.percent_format, accuracy));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
     }

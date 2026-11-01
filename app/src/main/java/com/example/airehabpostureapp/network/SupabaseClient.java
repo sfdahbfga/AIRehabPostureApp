@@ -1,5 +1,7 @@
 package com.example.airehabpostureapp.network;
 
+import android.content.Context;
+
 import com.example.airehabpostureapp.BuildConfig;
 
 import okhttp3.OkHttpClient;
@@ -15,19 +17,36 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public final class SupabaseClient {
 
     private static Retrofit retrofit;
+    // 로그인 만료(401) 처리에 필요한 앱 Context. AiRehabApplication에서 설정
+    private static Context appContext;
 
     private SupabaseClient() {
     }
 
+    public static void init(Context context) {
+        appContext = context.getApplicationContext();
+    }
+
     public static synchronized Retrofit getRetrofit() {
         if (retrofit == null) {
-            retrofit = new Retrofit.Builder()
-                    .baseUrl(getBaseUrl())
-                    .client(createOkHttpClient())
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build();
+            OkHttpClient baseClient = createOkHttpClient();
+            OkHttpClient.Builder clientBuilder = baseClient.newBuilder();
+            if (appContext != null) {
+                // 토큰 갱신 요청은 Authenticator가 없는 baseClient로 보낸다.
+                AuthApi refreshApi = createRetrofit(baseClient).create(AuthApi.class);
+                clientBuilder.authenticator(new TokenAuthenticator(appContext, refreshApi));
+            }
+            retrofit = createRetrofit(clientBuilder.build());
         }
         return retrofit;
+    }
+
+    private static Retrofit createRetrofit(OkHttpClient client) {
+        return new Retrofit.Builder()
+                .baseUrl(getBaseUrl())
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
     }
 
     private static String getBaseUrl() {

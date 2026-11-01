@@ -35,6 +35,9 @@ import retrofit2.Response;
 
 public class SignUpActivity extends AppCompatActivity {
 
+    // 생년월일로 입력할 수 있는 가장 이른 날짜
+    private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
+
     private EditText emailInput;
     private EditText passwordInput;
     private EditText passwordConfirmInput;
@@ -85,6 +88,10 @@ public class SignUpActivity extends AppCompatActivity {
                 String birthDate = toDbBirthDate(birthDateInput.getText().toString().trim());
                 if (birthDate == null) {
                     fail(birthDateInput, R.string.error_birth_date_format);
+                    return;
+                }
+                if (!isBirthDateInRange(birthDate)) {
+                    fail(birthDateInput, R.string.error_birth_date_range);
                     return;
                 }
                 signUp(birthDate);
@@ -153,6 +160,12 @@ public class SignUpActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         signUpButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    // 생년월일 허용 범위: 1900-01-01 ~ 오늘. dbBirthDate는 YYYY-MM-DD
+    private boolean isBirthDateInRange(String dbBirthDate) {
+        LocalDate date = LocalDate.parse(dbBirthDate);
+        return !date.isBefore(MIN_BIRTH_DATE) && !date.isAfter(LocalDate.now());
     }
 
     // 입력 형식 YYYY.MM.DD → DB date 형식 YYYY-MM-DD. 존재하지 않는 날짜면 null

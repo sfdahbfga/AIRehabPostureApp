@@ -116,8 +116,9 @@ public class GoalChallengeActivity extends AppCompatActivity {
         showProgressBar(R.id.weeklyExercisePercentText, R.id.weeklyExerciseProgressBar,
                 weeklyExerciseCurrent, WEEKLY_EXERCISE_GOAL);
 
-        setText(R.id.exerciseTimeProgressText,
-                getString(R.string.goal_progress_format, exerciseTimeCurrent, EXERCISE_TIME_GOAL_MINUTES));
+        setText(R.id.exerciseTimeProgressText, getString(R.string.goal_time_progress_format,
+                DurationFormatter.formatMinutes(this, exerciseTimeCurrent),
+                DurationFormatter.formatMinutes(this, EXERCISE_TIME_GOAL_MINUTES)));
         showProgressBar(R.id.exerciseTimePercentText, R.id.exerciseTimeProgressBar,
                 exerciseTimeCurrent, EXERCISE_TIME_GOAL_MINUTES);
 

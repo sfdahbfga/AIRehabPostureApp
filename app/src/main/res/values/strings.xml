@@ -423,4 +423,16 @@
 
     <!-- 22_MyPage 프로필 -->
     <string name="error_profile_load_failed">프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 로그인 만료 / 자동 로그인 / 회원가입 생년월일 -->
+    <string name="error_session_expired">로그인이 만료되었습니다. 다시 로그인해주세요.</string>
+    <string name="error_auto_login_network">인터넷에 연결할 수 없어 자동 로그인하지 못했습니다.</string>
+    <string name="error_birth_date_range">생년월일은 1900.01.01부터 오늘까지만 입력할 수 있습니다.</string>
+
+    <!-- 운동 시간 표시 (DurationFormatter) -->
+    <string name="duration_hours_format">%1$d시간</string>
+    <string name="duration_seconds_format">%1$d초</string>
+    <string name="duration_hours_minutes_seconds_format">%1$d시간 %2$d분 %3$d초</string>
+    <string name="goal_time_progress_format">현재 %1$s / %2$s</string>
+    <string name="record_summary_time_format">%1$s · 정확도 %2$d%%</string>
 </resources>

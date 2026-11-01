@@ -111,8 +111,7 @@ public class ResultActivity extends AppCompatActivity {
         int targetReps = session.targetRepetitions == null ? 0 : session.targetRepetitions;
         int averageAccuracy = session.averageAccuracy == null ? 0 : (int) Math.round(session.averageAccuracy);
 
-        exerciseDurationValueText.setText(getString(R.string.exercise_duration_format,
-                session.durationSeconds / 60, session.durationSeconds % 60));
+        exerciseDurationValueText.setText(DurationFormatter.formatSeconds(this, session.durationSeconds));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
         averageAccuracyValueText.setText(getString(R.string.percent_format, averageAccuracy));
     }

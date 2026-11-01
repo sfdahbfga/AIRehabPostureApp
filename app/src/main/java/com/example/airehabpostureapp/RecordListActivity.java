@@ -158,9 +158,10 @@ public class RecordListActivity extends AppCompatActivity {
             dateText.setText(date == null ? getString(R.string.empty_value)
                     : getString(R.string.record_date_format, date.getMonthValue(), date.getDayOfMonth()));
             nameText.setText(record.exerciseName);
-            int minutes = record.durationSeconds == null ? 0 : record.durationSeconds / 60;
+            int durationSeconds = record.durationSeconds == null ? 0 : record.durationSeconds;
             int accuracy = record.averageAccuracy == null ? 0 : (int) Math.round(record.averageAccuracy);
-            summaryText.setText(getString(R.string.record_summary_format, minutes, accuracy));
+            summaryText.setText(getString(R.string.record_summary_time_format,
+                    DurationFormatter.formatSecondsAsMinutes(this, durationSeconds), accuracy));
             card.setOnClickListener(v -> openRecordDetail(record.id));
 
             recordListContainer.addView(card);

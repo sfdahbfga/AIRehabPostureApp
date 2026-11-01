@@ -141,8 +141,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
         reportPeriodText.setText(formatPeriod(period, today));
         exerciseCountValueText.setText(getString(R.string.count_times_format, stats.exerciseCount));
-        int minutes = stats.totalExerciseMinutes;
-        totalExerciseTimeValueText.setText(getString(R.string.hours_minutes_format, minutes / 60, minutes % 60));
+        totalExerciseTimeValueText.setText(DurationFormatter.formatMinutes(this, stats.totalExerciseMinutes));
         averageAccuracyValueText.setText(getString(R.string.percent_format,
                 (int) Math.round(stats.averageAccuracy)));
 

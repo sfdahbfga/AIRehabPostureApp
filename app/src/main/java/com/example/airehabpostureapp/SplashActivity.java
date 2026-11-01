@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -19,6 +20,8 @@ import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.OnboardingChecker;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+
+import java.io.IOException;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -71,23 +74,32 @@ public class SplashActivity extends AppCompatActivity {
                     public void onResponse(Call<AuthApi.AuthResponse> call,
                                            Response<AuthApi.AuthResponse> response) {
                         AuthApi.AuthResponse body = response.body();
-                        if (!response.isSuccessful() || body == null
-                                || body.accessToken == null || body.user == null) {
+                        if (response.isSuccessful() && body != null
+                                && body.accessToken != null && body.user != null) {
+                            sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
+                            checkOnboarding(body.user.email);
+                            return;
+                        }
+                        // 4xx = 서버가 refresh token을 거부 (만료 등) → 세션 삭제
+                        if (response.code() >= 400 && response.code() < 500) {
                             moveToLogin();
                             return;
                         }
-                        sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
-                        checkOnboarding(body.user.email);
+                        // 5xx 등 서버 일시 오류 → 세션은 유지 (다음 실행 때 다시 자동 로그인 시도)
+                        moveToLoginKeepingSession(R.string.error_auth_unknown);
                     }
 
+                    // 인터넷 끊김 등 서버에 닿지 못함 → 세션은 유지 (다음 실행 때 다시 자동 로그인 시도)
                     @Override
                     public void onFailure(Call<AuthApi.AuthResponse> call, Throwable t) {
-                        moveToLogin();
+                        moveToLoginKeepingSession(t instanceof IOException
+                                ? R.string.error_auto_login_network : R.string.error_auth_unknown);
                     }
                 });
     }
 
-    // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로. 확인에 실패하면 안내 후 로그인 화면으로
+    // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로
+    // 확인에 실패하면(토큰은 갱신된 상태) 세션은 유지하고 안내 후 로그인 화면으로
     private void checkOnboarding(String email) {
         new OnboardingChecker(sessionManager, new OnboardingChecker.Listener() {
             @Override
@@ -97,15 +109,20 @@ public class SplashActivity extends AppCompatActivity {
 
             @Override
             public void onError(int messageRes) {
-                Toast.makeText(SplashActivity.this, messageRes, Toast.LENGTH_SHORT).show();
-                moveToLogin();
+                moveToLoginKeepingSession(messageRes);
             }
         }).check(email);
     }
 
-    // 자동 로그인이 꺼져 있거나 갱신에 실패하면 저장된 세션을 지우고 로그인 화면으로
+    // 자동 로그인이 꺼져 있거나 서버가 토큰을 거부하면 저장된 세션을 지우고 로그인 화면으로
     private void moveToLogin() {
         sessionManager.clear();
+        moveTo(LoginActivity.class);
+    }
+
+    // 세션을 지우지 않고 안내 후 로그인 화면으로
+    private void moveToLoginKeepingSession(@StringRes int messageRes) {
+        Toast.makeText(this, messageRes, Toast.LENGTH_LONG).show();
         moveTo(LoginActivity.class);
     }
 
