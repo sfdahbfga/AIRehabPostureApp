@@ -28,6 +28,11 @@ public interface ProfileApi {
     Call<List<ProfileRow>> getProfile(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
 
+    // 마이페이지 프로필 이름. idFilter: "eq.{사용자 id}". 행이 없으면 빈 목록
+    @GET("rest/v1/profiles?select=name")
+    Call<List<ProfileNameRow>> getProfileName(@Header("Authorization") String bearerToken,
+                                              @Query("id") String idFilter);
+
     // 대상 행이 없어도 204로 성공하므로, 바뀐 행을 돌려받아 비어 있으면 실패로 처리한다.
     @Headers("Prefer: return=representation")
     @PATCH("rest/v1/profiles")
@@ -37,15 +42,16 @@ public interface ProfileApi {
     class ProfileInsert {
         @SerializedName("id")
         final String id;
-        @SerializedName("display_name")
-        final String displayName;
+        // profiles.name (NOT NULL)
+        @SerializedName("name")
+        final String name;
         // DB date 형식 (YYYY-MM-DD)
         @SerializedName("birth_date")
         final String birthDate;
 
-        public ProfileInsert(String id, String displayName, String birthDate) {
+        public ProfileInsert(String id, String name, String birthDate) {
             this.id = id;
-            this.displayName = displayName;
+            this.name = name;
             this.birthDate = birthDate;
         }
     }
@@ -69,5 +75,10 @@ public interface ProfileApi {
     class ProfileRow {
         @SerializedName("exercise_experience")
         public String exerciseExperience;
+    }
+
+    class ProfileNameRow {
+        @SerializedName("name")
+        public String name;
     }
 }

@@ -34,7 +34,7 @@ public class OnboardingChecker {
         this.listener = listener;
     }
 
-    // email: profiles 행이 없을 때 display_name(이메일 앞부분)을 만드는 데 사용
+    // email: profiles 행이 없을 때 name(이메일 앞부분)을 만드는 데 사용
     public void check(String email) {
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
         profileApi.getProfile(sessionManager.getBearerToken(), userIdFilter())
@@ -72,11 +72,11 @@ public class OnboardingChecker {
             return;
         }
         int atIndex = email.indexOf('@');
-        String displayName = atIndex > 0 ? email.substring(0, atIndex) : email;
+        String name = atIndex > 0 ? email.substring(0, atIndex) : email;
 
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
         profileApi.insertProfile(sessionManager.getBearerToken(),
-                new ProfileApi.ProfileInsert(sessionManager.getUserId(), displayName, null))
+                new ProfileApi.ProfileInsert(sessionManager.getUserId(), name, null))
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {

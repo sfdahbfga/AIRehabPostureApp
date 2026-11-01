@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.GET;
 import retrofit2.http.Header;
 import retrofit2.http.POST;
 
@@ -25,6 +26,10 @@ public interface AuthApi {
     // bearerToken: "Bearer {access token}" (SessionManager.getBearerToken())
     @POST("auth/v1/logout")
     Call<Void> logout(@Header("Authorization") String bearerToken);
+
+    // 로그인한 사용자 정보 (이메일 등)
+    @GET("auth/v1/user")
+    Call<User> getUser(@Header("Authorization") String bearerToken);
 
     class Credentials {
         @SerializedName("email")
