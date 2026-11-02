@@ -1,8 +1,7 @@
 <resources>
     <string name="app_name">AIRehabPostureApp</string>
 
-    <!-- 01_Splash (로고/앱 이름 확정 전 Placeholder) -->
-    <string name="splash_logo_placeholder">[LOGO]</string>
+    <!-- 01_Splash (앱 이름 확정 전 Placeholder) -->
     <string name="splash_app_name_placeholder">[APP NAME]</string>
     <string name="splash_footer_placeholder">[FOOTER]</string>
     <string name="splash_loading_description">로딩 중</string>

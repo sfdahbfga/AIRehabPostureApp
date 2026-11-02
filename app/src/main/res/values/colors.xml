@@ -6,4 +6,6 @@
     <color name="gray_medium">#FFBDBDBD</color>
     <color name="gray">#FF9E9E9E</color>
     <color name="gray_dark">#FF424242</color>
+    <!-- Primary: 주요 버튼 / 선택 상태 / Progress / 하단 메뉴 선택 -->
+    <color name="primary">#FF18BFA3</color>
 </resources>
