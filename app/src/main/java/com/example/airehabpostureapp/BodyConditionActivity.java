@@ -8,13 +8,25 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.AuthErrorMapper;
+import com.example.airehabpostureapp.network.BodyConditionApi;
+import com.example.airehabpostureapp.network.SessionManager;
+import com.example.airehabpostureapp.network.SupabaseClient;
+
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class BodyConditionActivity extends AppCompatActivity {
 
@@ -27,6 +39,8 @@ public class BodyConditionActivity extends AppCompatActivity {
     private int selectedDiscomfortLevel = NO_SELECTION;
     // 인덱스 = 불편감 숫자 (0~10)
     private View[] discomfortButtons;
+    private View nextButton;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,12 +83,62 @@ public class BodyConditionActivity extends AppCompatActivity {
         }
         selectDiscomfortLevel(DEFAULT_DISCOMFORT_LEVEL);
 
-        findViewById(R.id.nextButton).setOnClickListener(v -> {
+        sessionManager = new SessionManager(this);
+        nextButton = findViewById(R.id.nextButton);
+        nextButton.setOnClickListener(v -> {
             if (validateInputs()) {
-                // TODO: 입력값 저장(Supabase)
-                startActivity(new Intent(this, GoalSetupActivity.class));
+                saveBodyConditions();
             }
         });
+    }
+
+    // 기존 신체 상태를 모두 지우고 이번 선택만 저장 (뒤로 갔다 다시 골라도 마지막 선택만 남음) → GoalSetup 이동
+    private void saveBodyConditions() {
+        String bearerToken = sessionManager.getBearerToken();
+        String userId = sessionManager.getUserId();
+        List<BodyConditionApi.BodyConditionInsert> rows = new ArrayList<>();
+        for (String bodyPart : selectedBodyParts) {
+            rows.add(new BodyConditionApi.BodyConditionInsert(userId, bodyPart, selectedDiscomfortLevel));
+        }
+
+        // 저장 중 중복 클릭 방지
+        nextButton.setEnabled(false);
+        BodyConditionApi bodyConditionApi = SupabaseClient.getRetrofit().create(BodyConditionApi.class);
+        bodyConditionApi.deleteAll(bearerToken, "eq." + userId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (!response.isSuccessful()) {
+                    showError(R.string.error_body_condition_save_failed);
+                    return;
+                }
+                bodyConditionApi.insert(bearerToken, rows).enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        if (!response.isSuccessful()) {
+                            showError(R.string.error_body_condition_save_failed);
+                            return;
+                        }
+                        nextButton.setEnabled(true);
+                        startActivity(new Intent(BodyConditionActivity.this, GoalSetupActivity.class));
+                    }
+
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        showError(AuthErrorMapper.fromFailure(t, R.string.error_body_condition_save_failed));
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                showError(AuthErrorMapper.fromFailure(t, R.string.error_body_condition_save_failed));
+            }
+        });
+    }
+
+    private void showError(@StringRes int messageRes) {
+        nextButton.setEnabled(true);
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
     }
 
     private void toggleBodyPart(View button) {

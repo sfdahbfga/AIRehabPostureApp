@@ -335,6 +335,11 @@
     <string name="sample_weekly_period">10월 1일 ~ 10월 7일</string>
     <string name="sample_monthly_period">2026년 10월</string>
     <string name="sample_mistake_knee_angle">무릎 각도 부족</string>
+    <string name="report_weekly_period_format">%1$d월 %2$d일 ~ %3$d월 %4$d일</string>
+    <string name="report_monthly_period_format">%1$d년 %2$d월</string>
+    <string name="mistake_joint_knee">무릎 각도</string>
+    <string name="mistake_joint_back">허리 각도</string>
+    <string name="empty_value">-</string>
     <string-array name="weekday_labels">
         <item>월</item>
         <item>화</item>
@@ -383,4 +388,51 @@
     <!-- 22_MyPage 임시 예시 데이터 (Supabase 사용자 정보 연동 전) -->
     <string name="user_name_placeholder">사용자</string>
     <string name="user_email_placeholder">user@example.com</string>
+
+    <!-- Supabase Auth (회원가입 / 로그인 / 로그아웃) -->
+    <string name="error_invalid_credentials">이메일 또는 비밀번호가 올바르지 않습니다.</string>
+    <string name="error_email_already_registered">이미 가입된 이메일입니다.</string>
+    <string name="error_password_too_short">비밀번호가 너무 짧습니다. 6자 이상 입력해주세요.</string>
+    <string name="error_network">네트워크 연결을 확인해주세요.</string>
+    <string name="error_auth_unknown">요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="sign_up_email_confirmation_required">가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인해주세요.</string>
+    <string name="error_birth_date_format">생년월일을 YYYY.MM.DD 형식으로 입력해주세요.</string>
+    <string name="error_profile_save_failed">프로필 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 초기 설정 저장 / 확인 -->
+    <string name="error_body_condition_save_failed">신체 상태를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_goal_save_failed">운동 목표를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_onboarding_check_failed">초기 설정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 운동 기록 저장 / 조회 -->
+    <string name="error_exercise_save_failed">운동 기록을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_result_load_failed">운동 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 17_AIReport Gemini 요약 -->
+    <string name="ai_report_analyzing">AI가 운동 결과를 분석하고 있어요. 잠시만 기다려주세요.</string>
+    <string name="error_ai_summary_network">네트워크에 연결할 수 없어 AI 분석을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.</string>
+    <string name="error_ai_summary_server">AI 분석 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="error_ai_summary_delayed">AI 분석이 지연되고 있어요. 잠시 후 다시 시도해 주세요.</string>
+
+    <!-- 18_RecordList / 19_RecordDetail / 20_WeeklyReport 기록 불러오기 -->
+    <string name="record_date_format">%1$d월 %2$d일</string>
+    <string name="record_detail_date_format">%1$d.%2$02d.%3$02d</string>
+    <string name="record_list_empty_all">아직 운동 기록이 없습니다.\n운동을 마치면 이곳에 기록이 표시됩니다.</string>
+    <string name="record_list_empty_period">이 기간에는 운동 기록이 없습니다.</string>
+    <string name="error_record_load_failed">운동 기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 22_MyPage 프로필 -->
+    <string name="error_profile_load_failed">프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</string>
+
+    <!-- 로그인 만료 / 자동 로그인 / 회원가입 생년월일 -->
+    <string name="error_session_expired">로그인이 만료되었습니다. 다시 로그인해주세요.</string>
+    <string name="error_auto_login_network">인터넷에 연결할 수 없어 자동 로그인하지 못했습니다.</string>
+    <string name="error_birth_date_range">생년월일은 1900.01.01부터 오늘까지만 입력할 수 있습니다.</string>
+
+    <!-- 운동 시간 표시 (DurationFormatter) -->
+    <string name="duration_hours_format">%1$d시간</string>
+    <string name="duration_seconds_format">%1$d초</string>
+    <string name="duration_hours_minutes_seconds_format">%1$d시간 %2$d분 %3$d초</string>
+    <string name="goal_time_progress_format">현재 %1$s / %2$s</string>
+    <string name="record_summary_time_format">%1$s · 정확도 %2$d%%</string>
 </resources>

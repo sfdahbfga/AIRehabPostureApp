@@ -25,13 +25,15 @@ public class ExerciseActivity extends AppCompatActivity {
 
     private static final long TIMER_INTERVAL_MS = 1000L;
 
-    // TODO: MediaPipe + 관절 각도 계산 연동 후 실제 값으로 교체 (현재는 임시 예시 데이터)
+    // TODO: MediaPipe 연동 후 실제 값으로 교체 (반복 횟수 / 목표 횟수 / 정확도 임시 값)
     private int currentReps = 8;
     private int targetReps = 20;
     private int currentAccuracy = 86;
 
     // 운동 진행 시간 (초), 화면이 보이는 동안만 1초씩 증가
     private int elapsedSeconds = 0;
+    // 운동 시작 시각 (epoch milliseconds), "처음부터 다시" 시 다시 기록
+    private long startedAtMillis;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private TextView exerciseTimerText;
     private TextView exerciseNameText;
@@ -75,6 +77,12 @@ public class ExerciseActivity extends AppCompatActivity {
 
         exerciseTimerText = findViewById(R.id.exerciseTimerText);
         exerciseNameText = findViewById(R.id.exerciseNameText);
+        // ExerciseDetail에서 고른 운동 이름이 있으면 표시 (없으면 레이아웃 기본값 유지)
+        String exerciseName = getIntent().getStringExtra(ExerciseFlowExtras.EXERCISE_NAME);
+        if (exerciseName != null) {
+            exerciseNameText.setText(exerciseName);
+        }
+        startedAtMillis = System.currentTimeMillis();
         updateTimerText();
         updateExerciseStatus();
 
@@ -108,9 +116,20 @@ public class ExerciseActivity extends AppCompatActivity {
     }
 
     // 운동 후 컨디션 체크(15_PostCheck)로 이동하고 운동 화면은 종료 (Back Stack에 남기지 않음)
-    // TODO: 운동 기록(시간 / 횟수 / 정확도) 저장 및 16_Result 전달
+    // 운동 결과는 저장하지 않고 넘기기만 함 (PostCheck "완료" 시 한 번에 저장)
     private void endExercise() {
-        startActivity(new Intent(this, PostCheckActivity.class));
+        Intent intent = new Intent(this, PostCheckActivity.class);
+        intent.putExtras(getIntent());
+        intent.putExtra(ExerciseFlowExtras.EXERCISE_NAME, exerciseNameText.getText().toString());
+        intent.putExtra(ExerciseFlowExtras.STARTED_AT_MILLIS, startedAtMillis);
+        intent.putExtra(ExerciseFlowExtras.ENDED_AT_MILLIS, System.currentTimeMillis());
+        // 운동 시간은 Timer로 센 실제 진행 시간 (일시정지 화면이 떠 있던 시간은 제외)
+        intent.putExtra(ExerciseFlowExtras.DURATION_SECONDS, elapsedSeconds);
+        // TODO: MediaPipe 연동 후 실제 값으로 교체 (currentReps / targetReps / currentAccuracy가 아직 임시 값)
+        intent.putExtra(ExerciseFlowExtras.COMPLETED_REPS, currentReps);
+        intent.putExtra(ExerciseFlowExtras.TARGET_REPS, targetReps);
+        intent.putExtra(ExerciseFlowExtras.AVERAGE_ACCURACY, currentAccuracy);
+        startActivity(intent);
         finish();
     }
 
@@ -118,6 +137,7 @@ public class ExerciseActivity extends AppCompatActivity {
     private void restartExercise() {
         currentReps = 0;
         elapsedSeconds = 0;
+        startedAtMillis = System.currentTimeMillis();
         updateTimerText();
         updateExerciseStatus();
     }

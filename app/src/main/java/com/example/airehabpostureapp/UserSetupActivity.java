@@ -15,7 +15,22 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.AuthErrorMapper;
+import com.example.airehabpostureapp.network.ProfileApi;
+import com.example.airehabpostureapp.network.SessionManager;
+import com.example.airehabpostureapp.network.SupabaseClient;
+
+import java.util.Arrays;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class UserSetupActivity extends AppCompatActivity {
+
+    // profiles.exercise_experience 값. experienceButtons와 같은 순서 (없음, 초급, 중급, 고급)
+    private static final String[] EXPERIENCE_CODES = {"none", "beginner", "intermediate", "advanced"};
 
     private EditText ageEditText;
     private EditText heightEditText;
@@ -23,6 +38,8 @@ public class UserSetupActivity extends AppCompatActivity {
     private View[] experienceButtons;
     // 선택된 운동 경험 버튼 (선택 전에는 null)
     private View selectedExperienceButton;
+    private View nextButton;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,12 +75,67 @@ public class UserSetupActivity extends AppCompatActivity {
             button.setOnClickListener(this::selectExperience);
         }
 
-        findViewById(R.id.nextButton).setOnClickListener(v -> {
+        sessionManager = new SessionManager(this);
+        nextButton = findViewById(R.id.nextButton);
+        nextButton.setOnClickListener(v -> {
             if (validateInputs()) {
-                // TODO: 입력값 저장(Supabase)
-                startActivity(new Intent(this, BodyConditionActivity.class));
+                saveProfile();
             }
         });
+    }
+
+    // 키 / 체중 / 운동 경험을 profiles에 저장 (나이는 저장하지 않음) → BodyCondition 이동
+    private void saveProfile() {
+        double height = parsePositive(heightEditText);
+        if (Double.isNaN(height)) {
+            fail(heightEditText, R.string.error_height_invalid);
+            return;
+        }
+        double weight = parsePositive(weightEditText);
+        if (Double.isNaN(weight)) {
+            fail(weightEditText, R.string.error_weight_invalid);
+            return;
+        }
+        String experience = EXPERIENCE_CODES[Arrays.asList(experienceButtons).indexOf(selectedExperienceButton)];
+
+        // 저장 중 중복 클릭 방지
+        nextButton.setEnabled(false);
+        ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
+        profileApi.updateProfile(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
+                new ProfileApi.ProfileUpdate(height, weight, experience))
+                .enqueue(new Callback<List<ProfileApi.ProfileRow>>() {
+                    @Override
+                    public void onResponse(Call<List<ProfileApi.ProfileRow>> call,
+                                           Response<List<ProfileApi.ProfileRow>> response) {
+                        List<ProfileApi.ProfileRow> rows = response.body();
+                        if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
+                            showError(R.string.error_profile_save_failed);
+                            return;
+                        }
+                        nextButton.setEnabled(true);
+                        startActivity(new Intent(UserSetupActivity.this, BodyConditionActivity.class));
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<ProfileApi.ProfileRow>> call, Throwable t) {
+                        showError(AuthErrorMapper.fromFailure(t, R.string.error_profile_save_failed));
+                    }
+                });
+    }
+
+    // 0보다 큰 유한한 숫자면 그 값, 아니면 NaN
+    private double parsePositive(EditText field) {
+        try {
+            double value = Double.parseDouble(field.getText().toString().trim());
+            return value > 0 && !Double.isInfinite(value) ? value : Double.NaN;
+        } catch (NumberFormatException e) {
+            return Double.NaN;
+        }
+    }
+
+    private void showError(@StringRes int messageRes) {
+        nextButton.setEnabled(true);
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
     }
 
     // 단일 선택: 누른 버튼만 selected, 나머지는 해제

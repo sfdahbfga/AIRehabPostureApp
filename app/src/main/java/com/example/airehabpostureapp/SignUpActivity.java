@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.method.PasswordTransformationMethod;
+import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -17,7 +18,25 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.AuthApi;
+import com.example.airehabpostureapp.network.AuthErrorMapper;
+import com.example.airehabpostureapp.network.ProfileApi;
+import com.example.airehabpostureapp.network.SessionManager;
+import com.example.airehabpostureapp.network.SupabaseClient;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class SignUpActivity extends AppCompatActivity {
+
+    // 생년월일로 입력할 수 있는 가장 이른 날짜
+    private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
 
     private EditText emailInput;
     private EditText passwordInput;
@@ -25,6 +44,8 @@ public class SignUpActivity extends AppCompatActivity {
     private EditText nameInput;
     private EditText birthDateInput;
     private CheckBox termsCheckBox;
+    private View signUpButton;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,12 +81,102 @@ public class SignUpActivity extends AppCompatActivity {
         passwordConfirmToggle.setOnClickListener(v ->
                 togglePasswordVisibility(passwordConfirmInput, passwordConfirmToggle));
 
-        findViewById(R.id.sign_up_button).setOnClickListener(v -> {
+        sessionManager = new SessionManager(this);
+        signUpButton = findViewById(R.id.sign_up_button);
+        signUpButton.setOnClickListener(v -> {
             if (validateInputs()) {
-                // TODO: Supabase 회원가입 연동 (현재는 검증 성공 시 바로 이동)
-                startActivity(new Intent(this, UserSetupActivity.class));
+                String birthDate = toDbBirthDate(birthDateInput.getText().toString().trim());
+                if (birthDate == null) {
+                    fail(birthDateInput, R.string.error_birth_date_format);
+                    return;
+                }
+                if (!isBirthDateInRange(birthDate)) {
+                    fail(birthDateInput, R.string.error_birth_date_range);
+                    return;
+                }
+                signUp(birthDate);
             }
         });
+    }
+
+    // 회원가입 → 세션 저장 → profiles insert → UserSetup 이동
+    private void signUp(String birthDate) {
+        String email = emailInput.getText().toString().trim();
+        String password = passwordInput.getText().toString();
+        String name = nameInput.getText().toString().trim();
+
+        // 요청 중 중복 클릭 방지
+        signUpButton.setEnabled(false);
+        AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
+        authApi.signUp(new AuthApi.Credentials(email, password)).enqueue(new Callback<AuthApi.AuthResponse>() {
+            @Override
+            public void onResponse(Call<AuthApi.AuthResponse> call, Response<AuthApi.AuthResponse> response) {
+                AuthApi.AuthResponse body = response.body();
+                if (!response.isSuccessful() || body == null) {
+                    showError(AuthErrorMapper.fromResponse(response));
+                    return;
+                }
+                // 이메일 확인이 켜져 있으면 세션 없이 가입만 된다.
+                if (body.accessToken == null || body.user == null) {
+                    signUpButton.setEnabled(true);
+                    Toast.makeText(SignUpActivity.this, R.string.sign_up_email_confirmation_required,
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
+                // 회원가입 화면에는 자동 로그인 체크박스가 없으므로 꺼둔다.
+                sessionManager.setAutoLogin(false);
+                insertProfile(body.user.id, name, birthDate);
+            }
+
+            @Override
+            public void onFailure(Call<AuthApi.AuthResponse> call, Throwable t) {
+                showError(AuthErrorMapper.fromFailure(t));
+            }
+        });
+    }
+
+    private void insertProfile(String userId, String name, String birthDate) {
+        ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
+        profileApi.insertProfile(sessionManager.getBearerToken(),
+                new ProfileApi.ProfileInsert(userId, name, birthDate)).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (!response.isSuccessful()) {
+                    showError(R.string.error_profile_save_failed);
+                    return;
+                }
+                signUpButton.setEnabled(true);
+                startActivity(new Intent(SignUpActivity.this, UserSetupActivity.class));
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                showError(R.string.error_profile_save_failed);
+            }
+        });
+    }
+
+    private void showError(@StringRes int messageRes) {
+        signUpButton.setEnabled(true);
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    // 생년월일 허용 범위: 1900-01-01 ~ 오늘. dbBirthDate는 YYYY-MM-DD
+    private boolean isBirthDateInRange(String dbBirthDate) {
+        LocalDate date = LocalDate.parse(dbBirthDate);
+        return !date.isBefore(MIN_BIRTH_DATE) && !date.isAfter(LocalDate.now());
+    }
+
+    // 입력 형식 YYYY.MM.DD → DB date 형식 YYYY-MM-DD. 존재하지 않는 날짜면 null
+    private String toDbBirthDate(String input) {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu.MM.dd")
+                    .withResolverStyle(ResolverStyle.STRICT);
+            return LocalDate.parse(input, formatter).toString();
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     // 02_Login과 같은 방식: TransformationMethod 전환 + 커서/선택 위치 유지

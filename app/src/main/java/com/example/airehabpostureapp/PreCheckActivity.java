@@ -77,8 +77,13 @@ public class PreCheckActivity extends AppCompatActivity {
 
         findViewById(R.id.nextButton).setOnClickListener(v -> {
             if (validateInputs()) {
-                // TODO: 불편감 / 몸 상태 / 특이사항 저장 (Supabase 연동 후)
-                startActivity(new Intent(this, CameraSetupActivity.class));
+                // 입력값은 여기서 저장하지 않고 다음 화면으로 넘김 (PostCheck "완료" 시 한 번에 저장)
+                Intent intent = new Intent(this, CameraSetupActivity.class);
+                intent.putExtras(getIntent());
+                intent.putExtra(ExerciseFlowExtras.PRE_DISCOMFORT_LEVEL, selectedDiscomfortLevel);
+                intent.putExtra(ExerciseFlowExtras.PRE_BODY_CONDITION, selectedBodyCondition);
+                intent.putExtra(ExerciseFlowExtras.PRE_NOTE, noteEditText.getText().toString().trim());
+                startActivity(intent);
             }
         });
     }
