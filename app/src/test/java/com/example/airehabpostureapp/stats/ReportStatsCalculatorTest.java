@@ -35,6 +35,7 @@ public class ReportStatsCalculatorTest {
         assertEquals(5, stats.exerciseCount);
         // 600 + 900 + 300 + 420 + 180 = 2400초
         assertEquals(40, stats.totalExerciseMinutes);
+        assertEquals(2400, stats.totalExerciseSeconds);
         // 정확도 null 기록(스쿼트) 제외: (80 + 90 + 85 + 70) / 4
         assertEquals(81.25, stats.averageAccuracy, DELTA);
         // 월: (80 + 70) / 2, 수: 90 (스쿼트는 정확도 없음), 일: 85
@@ -54,6 +55,7 @@ public class ReportStatsCalculatorTest {
         assertEquals(7, stats.exerciseCount);
         // 2400 + 300 + 600 = 3300초
         assertEquals(55, stats.totalExerciseMinutes);
+        assertEquals(3300, stats.totalExerciseSeconds);
         // (80 + 90 + 85 + 70 + 100 + 60) / 6
         assertEquals(485.0 / 6, stats.averageAccuracy, DELTA);
         // 1주차(1~7일): 60, 2주차: 없음, 3주차(15~21일): (80 + 90 + 70) / 3, 4주차(22일~): (85 + 100) / 2

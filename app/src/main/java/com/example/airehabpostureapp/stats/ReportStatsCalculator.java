@@ -95,6 +95,7 @@ public class ReportStatsCalculator {
         return new ReportStats(
                 exerciseCount,
                 totalSeconds / 60,
+                totalSeconds,
                 averageAccuracy,
                 chartAccuracies,
                 mostPerformed == null ? null : mostPerformed.getKey(),
