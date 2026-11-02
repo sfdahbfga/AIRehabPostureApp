@@ -25,8 +25,11 @@ public final class DurationFormatter {
         return context.getString(R.string.hours_minutes_format, hours, minutes);
     }
 
-    // 초 단위를 분까지만: 기록 / 리포트용 (초는 버림)
+    // 초 단위를 분까지만: 기록 / 리포트 / 목표용 (초는 버림, 1~59초는 "1분 미만", 0초는 "0분")
     public static String formatSecondsAsMinutes(Context context, int totalSeconds) {
+        if (totalSeconds > 0 && totalSeconds < SECONDS_PER_MINUTE) {
+            return context.getString(R.string.duration_under_one_minute);
+        }
         return formatMinutes(context, totalSeconds / SECONDS_PER_MINUTE);
     }
 

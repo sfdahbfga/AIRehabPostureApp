@@ -20,15 +20,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/splash_logo_placeholder"
+        <!-- 로고: 아래 앱 이름 Text가 있으므로 접근성에서는 장식 이미지로 처리 -->
+        <ImageView
+            android:id="@+id/splash_logo"
             android:layout_width="96dp"
             android:layout_height="96dp"
-            android:background="@drawable/bg_logo_placeholder"
-            android:gravity="center"
-            android:text="@string/splash_logo_placeholder"
-            android:textColor="@color/gray_dark"
-            android:textSize="14sp" />
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/app_logo" />
 
         <TextView
             android:id="@+id/splash_app_name"

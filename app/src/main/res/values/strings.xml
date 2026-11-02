@@ -1,8 +1,7 @@
 <resources>
     <string name="app_name">AIRehabPostureApp</string>
 
-    <!-- 01_Splash (로고/앱 이름 확정 전 Placeholder) -->
-    <string name="splash_logo_placeholder">[LOGO]</string>
+    <!-- 01_Splash (앱 이름 확정 전 Placeholder) -->
     <string name="splash_app_name_placeholder">[APP NAME]</string>
     <string name="splash_footer_placeholder">[FOOTER]</string>
     <string name="splash_loading_description">로딩 중</string>
@@ -432,6 +431,7 @@
     <!-- 운동 시간 표시 (DurationFormatter) -->
     <string name="duration_hours_format">%1$d시간</string>
     <string name="duration_seconds_format">%1$d초</string>
+    <string name="duration_under_one_minute">1분 미만</string>
     <string name="duration_hours_minutes_seconds_format">%1$d시간 %2$d분 %3$d초</string>
     <string name="goal_time_progress_format">현재 %1$s / %2$s</string>
     <string name="record_summary_time_format">%1$s · 정확도 %2$d%%</string>

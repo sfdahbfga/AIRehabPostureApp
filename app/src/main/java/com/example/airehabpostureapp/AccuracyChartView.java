@@ -31,7 +31,7 @@ public class AccuracyChartView extends View {
         int grayDark = ContextCompat.getColor(context, R.color.gray_dark);
         int gray = ContextCompat.getColor(context, R.color.gray);
 
-        linePaint.setColor(grayDark);
+        linePaint.setColor(ContextCompat.getColor(context, R.color.primary));
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setStrokeWidth(2 * density);
 
