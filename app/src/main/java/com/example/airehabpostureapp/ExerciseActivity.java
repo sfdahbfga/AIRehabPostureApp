@@ -116,6 +116,14 @@ public class ExerciseActivity extends AppCompatActivity {
     private ExecutorService analysisExecutor;
     private long lastDebugLogAtMs = 0;
     private int lastLoggedSkippedFrames = 0;
+    // 디버그용: 지난 1초 기록 이후 받은 MediaPipe 결과 수 (fps), 사람 인식 안 됨 / 다리 visibility 부족 프레임 수
+    private int debugFrameCount = 0;
+    private int debugNoPoseFrames = 0;
+    private int debugLowVisibilityFrames = 0;
+
+    // "천천히 움직여 주세요" 안내를 이 시각(uptime ms)까지 다른 안내 대신 표시
+    private static final long MOVE_SLOWLY_HINT_MS = 2000L;
+    private long moveSlowlyUntilMs = 0;
 
     // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 문구만 표시 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
@@ -333,6 +341,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 }
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
                 LegSelector.LegSample chosen = countRepetition(timestampMs, left, right);
+                countDebugFrame(pose == null, chosen == null);
                 showDebugKneeAngles(left.jointAngle, right.jointAngle, chosen);
             });
         }
@@ -410,11 +419,18 @@ public class ExerciseActivity extends AppCompatActivity {
         if (rejected != null) {
             logRejectedAttempt(rejected);
         }
+        // 동작이 너무 빨랐거나 동작 중 건너뛴 프레임이 많았으면 잠시 "천천히 움직여 주세요"
+        long now = SystemClock.uptimeMillis();
+        if (repetitionCounter.takeMoveSlowlyHint()) {
+            moveSlowlyUntilMs = now + MOVE_SLOWLY_HINT_MS;
+        }
         // L↔R 전환 횟수는 동작 하나 단위로 기록 (서 있는 동안의 전환은 세지 않음)
         if (!repetitionCounter.isRepInProgress()) {
             legSelector.resetSwitchCount();
         }
-        showFeedback(feedbackMessage(repetitionCounter.getFeedback()));
+        showFeedback(now < moveSlowlyUntilMs
+                ? R.string.feedback_move_slowly
+                : feedbackMessage(repetitionCounter.getFeedback()));
         return chosen;
     }
 
@@ -458,10 +474,17 @@ public class ExerciseActivity extends AppCompatActivity {
             return;
         }
         Log.d(DEBUG_TAG, String.format(Locale.US,
-                "rep #%d leg=%s switches=%d minKnee=%.1f kneeErr=%+.1f minHip=%s maxTrunk=%s backErr=%s acc=%.0f dur=%dms",
+                "rep #%d leg=%s switches=%d minKnee=%.1f kneeErr=%+.1f minHip=%s maxTrunk=%s backErr=%s acc=%.0f dur=%dms %s",
                 rep.repNumber, legSelector.getLastLabel(), legSelector.getSwitchCount(),
                 rep.minJointAngle, rep.jointError, formatAngle(rep.minHipAngle),
-                formatAngle(rep.maxTrunkLean), formatAngle(rep.trunkError), rep.accuracy, rep.durationMs));
+                formatAngle(rep.maxTrunkLean), formatAngle(rep.trunkError), rep.accuracy, rep.durationMs,
+                formatFrames(rep.frames)));
+    }
+
+    // frames=판정에 쓴/연속성 검사로 건너뛴/안 보여서 건너뛴 프레임 수, missed=건너뛴 비율
+    private static String formatFrames(RepetitionCounter.FrameStats frames) {
+        return String.format(Locale.US, "frames=%d/%d/%d missed=%.0f%%",
+                frames.accepted, frames.skippedByJump, frames.invisible, frames.missedRatio() * 100);
     }
 
     // 디버그용: 세지 않고 버린 동작과 이유를 Logcat에 기록 (기준값 조정용, DEBUG_LOG_REPS로 끔)
@@ -470,10 +493,20 @@ public class ExerciseActivity extends AppCompatActivity {
             return;
         }
         Log.d(DEBUG_TAG, String.format(Locale.US,
-                "rejected reason=%s leg=%s switches=%d minKnee=%.1f minHip=%s maxTrunk=%s dur=%dms",
+                "rejected reason=%s leg=%s switches=%d minKnee=%.1f minHip=%s maxTrunk=%s dur=%dms %s",
                 attempt.reason, legSelector.getLastLabel(), legSelector.getSwitchCount(),
                 attempt.minJointAngle, formatAngle(attempt.minHipAngle),
-                formatAngle(attempt.maxTrunkLean), attempt.durationMs));
+                formatAngle(attempt.maxTrunkLean), attempt.durationMs, formatFrames(attempt.frames)));
+    }
+
+    // 디버그용: 1초 기록에 쓸 프레임 수 집계 (UI 스레드)
+    private void countDebugFrame(boolean noPose, boolean noCandidateLeg) {
+        debugFrameCount++;
+        if (noPose) {
+            debugNoPoseFrames++;
+        } else if (noCandidateLeg) {
+            debugLowVisibilityFrames++;
+        }
     }
 
     // 세 관절 중 하나라도 잘 안 보이면(visibility < 0.5) NaN
@@ -497,7 +530,9 @@ public class ExerciseActivity extends AppCompatActivity {
     }
 
     // 디버그용: 무릎 각도를 화면 구석에 표시하고 Logcat에 1초에 한 번 기록 (DEBUG_SHOW_KNEE_ANGLE로 끔)
-    // sel = 이번 프레임에 판정에 쓴 다리와 각도, skipped = 지난 기록 이후 연속성 검사로 건너뛴 프레임 수
+    // sel = 이번 프레임에 판정에 쓴 다리와 각도
+    // fps = 지난 기록 이후 초당 MediaPipe 결과 수
+    // noPose = 사람 인식 안 됨, lowVis = 두 다리 모두 visibility 0.5 미만, jump = 연속성 검사로 건너뜀 (지난 기록 이후 프레임 수)
     private void showDebugKneeAngles(double leftKneeAngle, double rightKneeAngle,
                                      @Nullable LegSelector.LegSample chosen) {
         if (!DEBUG_SHOW_KNEE_ANGLE) {
@@ -509,13 +544,21 @@ public class ExerciseActivity extends AppCompatActivity {
         debugKneeAngleText.setText(getString(R.string.debug_knee_angle_format, left, right));
 
         long now = SystemClock.uptimeMillis();
-        if (now - lastDebugLogAtMs >= DEBUG_LOG_INTERVAL_MS) {
-            lastDebugLogAtMs = now;
+        long elapsedMs = now - lastDebugLogAtMs;
+        if (elapsedMs >= DEBUG_LOG_INTERVAL_MS) {
             String selected = chosen == null ? "-" : chosen.label + ":" + formatAngle(chosen.jointAngle);
             int skippedTotal = repetitionCounter == null ? 0 : repetitionCounter.getSkippedFrameCount();
-            int skippedSinceLastLog = skippedTotal - lastLoggedSkippedFrames;
+            int jumpSinceLastLog = skippedTotal - lastLoggedSkippedFrames;
+            double fps = lastDebugLogAtMs == 0 ? 0 : debugFrameCount * 1000.0 / elapsedMs;
+            Log.d(DEBUG_TAG, String.format(Locale.US,
+                    "knee L=%s R=%s sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d jump=%d",
+                    left, right, selected, fps, debugFrameCount,
+                    debugNoPoseFrames, debugLowVisibilityFrames, jumpSinceLastLog));
+            lastDebugLogAtMs = now;
             lastLoggedSkippedFrames = skippedTotal;
-            Log.d(DEBUG_TAG, "knee L=" + left + " R=" + right + " sel=" + selected + " skipped=" + skippedSinceLastLog);
+            debugFrameCount = 0;
+            debugNoPoseFrames = 0;
+            debugLowVisibilityFrames = 0;
         }
     }
 
@@ -590,6 +633,7 @@ public class ExerciseActivity extends AppCompatActivity {
         }
         legSelector.reset();
         lastLoggedSkippedFrames = 0;
+        moveSlowlyUntilMs = 0;
         elapsedSeconds = 0;
         startedAtMillis = System.currentTimeMillis();
         updateTimerText();

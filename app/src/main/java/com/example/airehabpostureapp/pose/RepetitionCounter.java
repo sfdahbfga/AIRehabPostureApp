@@ -18,6 +18,7 @@ import java.util.List;
  * - 각도 연속성 검사: 직전에 받아들인 각도와 비교해 실제 무릎이 움직일 수 없을 만큼 튄 값은
  *   추적 오류(가려진 다리 대신 서 있는 다리 값이 들어온 경우 등)로 보고 그 프레임을 건너뛴다.
  * 세지 않고 버린 동작은 이유와 함께 takeRejectedAttempt()로 꺼낼 수 있다. (기준값 조정용)
+ * 동작이 너무 빠르거나 동작 중 건너뛴 프레임이 많으면 takeMoveSlowlyHint()가 true가 된다. (천천히 안내용)
  *
  * 한 스레드에서만 호출해야 한다. (ExerciseActivity에서는 UI 스레드)
  */
@@ -56,6 +57,32 @@ public class RepetitionCounter {
         LOST_TRACKING
     }
 
+    /** 한 번의 동작 동안 받은 프레임 수 (기준값 조정 / 천천히 안내용) */
+    public static final class FrameStats {
+        // 판정에 쓴 프레임
+        public final int accepted;
+        // 연속성 검사로 건너뛴 프레임 (각도가 실제로 움직일 수 없을 만큼 튐)
+        public final int skippedByJump;
+        // 관절이 안 보여 건너뛴 프레임 (visibility 부족 / 사람 인식 안 됨)
+        public final int invisible;
+
+        FrameStats(int accepted, int skippedByJump, int invisible) {
+            this.accepted = accepted;
+            this.skippedByJump = skippedByJump;
+            this.invisible = invisible;
+        }
+
+        public int total() {
+            return accepted + skippedByJump + invisible;
+        }
+
+        /** 건너뛴 프레임 비율 (0~1) */
+        public double missedRatio() {
+            int total = total();
+            return total == 0 ? 0 : (double) (skippedByJump + invisible) / total;
+        }
+    }
+
     /** 1회 동작 결과 */
     public static final class RepResult {
         public final int repNumber;
@@ -71,9 +98,16 @@ public class RepetitionCounter {
         public final double trunkError;
         public final double accuracy;
         public final long durationMs;
+        public final FrameStats frames;
 
         RepResult(int repNumber, double minJointAngle, double maxTrunkLean, double minHipAngle,
                   double jointError, double trunkError, double accuracy, long durationMs) {
+            this(repNumber, minJointAngle, maxTrunkLean, minHipAngle, jointError, trunkError,
+                    accuracy, durationMs, new FrameStats(0, 0, 0));
+        }
+
+        RepResult(int repNumber, double minJointAngle, double maxTrunkLean, double minHipAngle,
+                  double jointError, double trunkError, double accuracy, long durationMs, FrameStats frames) {
             this.repNumber = repNumber;
             this.minJointAngle = minJointAngle;
             this.maxTrunkLean = maxTrunkLean;
@@ -82,6 +116,7 @@ public class RepetitionCounter {
             this.trunkError = trunkError;
             this.accuracy = accuracy;
             this.durationMs = durationMs;
+            this.frames = frames;
         }
     }
 
@@ -92,14 +127,16 @@ public class RepetitionCounter {
         public final double maxTrunkLean;
         public final double minHipAngle;
         public final long durationMs;
+        public final FrameStats frames;
 
         RejectedAttempt(RejectReason reason, double minJointAngle, double maxTrunkLean,
-                        double minHipAngle, long durationMs) {
+                        double minHipAngle, long durationMs, FrameStats frames) {
             this.reason = reason;
             this.minJointAngle = minJointAngle;
             this.maxTrunkLean = maxTrunkLean;
             this.minHipAngle = minHipAngle;
             this.durationMs = durationMs;
+            this.frames = frames;
         }
     }
 
@@ -117,6 +154,10 @@ public class RepetitionCounter {
     private double minJointAngle;
     private double maxTrunkLean;
     private double minHipAngle;
+    // 진행 중인 동작의 프레임 수
+    private int attemptAcceptedFrames;
+    private int attemptSkippedFrames;
+    private int attemptInvisibleFrames;
     private long lastVisibleAtMs = -1;
     // 연속성 검사 기준: 마지막으로 받아들인 원래 각도 (평균 전)
     private double lastAcceptedAngle = Double.NaN;
@@ -125,6 +166,7 @@ public class RepetitionCounter {
     private double smoothedJointAngle = Double.NaN;
     private Feedback feedback = Feedback.NOT_VISIBLE;
     private RejectedAttempt pendingRejection;
+    private boolean moveSlowlyHint;
 
     public RepetitionCounter(ExerciseCriteria criteria) {
         this.criteria = criteria;
@@ -146,6 +188,9 @@ public class RepetitionCounter {
      */
     public RepResult onFrame(long timestampMs, double jointAngle, double trunkLean, double hipAngle) {
         if (Double.isNaN(jointAngle)) {
+            if (bendStartedAtMs >= 0) {
+                attemptInvisibleFrames++;
+            }
             handleInvisible(timestampMs);
             return null;
         }
@@ -153,6 +198,9 @@ public class RepetitionCounter {
                 && Math.abs(jointAngle - lastAcceptedAngle) > criteria.maxAngleChange(timestampMs - lastVisibleAtMs)) {
             // 실제로 움직일 수 없을 만큼 튐 → 안 보인 프레임과 같이 건너뜀 (오래 이어지면 허용 폭이 커져 다시 받아들임)
             skippedFrameCount++;
+            if (bendStartedAtMs >= 0) {
+                attemptSkippedFrames++;
+            }
             handleInvisible(timestampMs);
             return null;
         }
@@ -176,12 +224,21 @@ public class RepetitionCounter {
             RepResult result = null;
             if (bendStartedAtMs >= 0) {
                 long durationMs = timestampMs - bendStartedAtMs;
+                FrameStats frames = currentFrameStats();
                 RejectReason reason = rejectReason(durationMs);
                 if (reason == null) {
-                    result = completeRep(durationMs);
+                    result = completeRep(durationMs, frames);
+                    if (frames.missedRatio() >= criteria.maxMissedFrameRatio) {
+                        moveSlowlyHint = true;
+                    }
                 } else if (criteria.extendedAngle - minJointAngle >= MIN_ATTEMPT_DEPTH_DEGREES) {
                     pendingRejection = new RejectedAttempt(reason, minJointAngle, maxTrunkLean,
-                            minHipAngle, durationMs);
+                            minHipAngle, durationMs, frames);
+                    if (reason == RejectReason.TOO_FAST
+                            || (reason == RejectReason.SHALLOW
+                            && frames.missedRatio() >= criteria.maxMissedFrameRatio)) {
+                        moveSlowlyHint = true;
+                    }
                 }
             }
             bendStartedAtMs = -1;
@@ -196,7 +253,11 @@ public class RepetitionCounter {
             minJointAngle = smoothedJointAngle;
             maxTrunkLean = Double.NaN;
             minHipAngle = Double.NaN;
+            attemptAcceptedFrames = 0;
+            attemptSkippedFrames = 0;
+            attemptInvisibleFrames = 0;
         }
+        attemptAcceptedFrames++;
         minJointAngle = Math.min(minJointAngle, smoothedJointAngle);
         if (!Double.isNaN(smoothedTrunk)) {
             maxTrunkLean = Double.isNaN(maxTrunkLean) ? smoothedTrunk : Math.max(maxTrunkLean, smoothedTrunk);
@@ -234,13 +295,17 @@ public class RepetitionCounter {
         return null;
     }
 
+    private FrameStats currentFrameStats() {
+        return new FrameStats(attemptAcceptedFrames, attemptSkippedFrames, attemptInvisibleFrames);
+    }
+
     private void handleInvisible(long timestampMs) {
         boolean neverVisible = lastVisibleAtMs < 0;
         if (neverVisible || timestampMs - lastVisibleAtMs > criteria.maxInvisibleMs) {
             // 오래 안 보이면 진행 중이던 동작과 평균값을 버리고 편 상태부터 다시 기다림
             if (bendStartedAtMs >= 0 && criteria.extendedAngle - minJointAngle >= MIN_ATTEMPT_DEPTH_DEGREES) {
                 pendingRejection = new RejectedAttempt(RejectReason.LOST_TRACKING, minJointAngle,
-                        maxTrunkLean, minHipAngle, timestampMs - bendStartedAtMs);
+                        maxTrunkLean, minHipAngle, timestampMs - bendStartedAtMs, currentFrameStats());
             }
             ready = false;
             bendStartedAtMs = -1;
@@ -255,7 +320,7 @@ public class RepetitionCounter {
         // 짧게 안 보인 프레임은 건너뛰고 상태 유지
     }
 
-    private RepResult completeRep(long durationMs) {
+    private RepResult completeRep(long durationMs, FrameStats frames) {
         RepResult result = new RepResult(
                 results.size() + 1,
                 minJointAngle,
@@ -264,7 +329,8 @@ public class RepetitionCounter {
                 criteria.jointError(minJointAngle),
                 criteria.trunkError(maxTrunkLean),
                 criteria.repAccuracy(minJointAngle, maxTrunkLean),
-                durationMs);
+                durationMs,
+                frames);
         results.add(result);
         return result;
     }
@@ -296,6 +362,7 @@ public class RepetitionCounter {
         skippedFrameCount = 0;
         feedback = Feedback.NOT_VISIBLE;
         pendingRejection = null;
+        moveSlowlyHint = false;
     }
 
     /** 각도 연속성 검사로 건너뛴 프레임 수 (누적, 디버그 기록용) */
@@ -308,6 +375,16 @@ public class RepetitionCounter {
         RejectedAttempt rejected = pendingRejection;
         pendingRejection = null;
         return rejected;
+    }
+
+    /**
+     * 방금 끝난 동작이 너무 빨랐거나(TOO_FAST), 동작 중 건너뛴 프레임이 많았으면 true (한 번 꺼내면 false).
+     * 화면에서 "천천히 움직여 주세요" 안내를 잠시 띄우는 데 사용
+     */
+    public boolean takeMoveSlowlyHint() {
+        boolean hint = moveSlowlyHint;
+        moveSlowlyHint = false;
+        return hint;
     }
 
     public int getCompletedReps() {

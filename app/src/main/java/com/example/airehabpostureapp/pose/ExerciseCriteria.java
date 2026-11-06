@@ -70,8 +70,9 @@ public final class ExerciseCriteria {
                     // (2차 측정에서 정상 동작이 0.81초까지 나와 0.8초에서 낮춤)
             1000,   // 관절이 1초 넘게 안 보이면 진행 중인 동작을 버림
             20,     // 각도 연속성: 직전 값과 20도 + (초당 200도 x 지난 시간)보다 크게 다르면 추적 오류로 보고 건너뜀
-            200);   // (한 프레임(30fps) 약 27도: 실제 동작은 프레임당 10도 안팎이라 막지 않음.
+            200,    // (한 프레임(30fps) 약 27도: 실제 동작은 프레임당 10도 안팎이라 막지 않음.
                     //  서 있는 다리 값으로 60도 넘게 튀는 것은 약 0.2초까지 걸러내고, 0.3초 뒤엔 약 80도까지 허용)
+            0.3);   // 한 번의 동작 중 건너뛴 프레임이 30% 이상이면 "천천히 움직여 주세요" 안내
 
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
@@ -106,6 +107,8 @@ public final class ExerciseCriteria {
     // 각도 연속성 검사: 허용 변화량 = maxJumpDegrees + maxDegreesPerSecond x 지난 시간(초)
     public final double maxJumpDegrees;
     public final double maxDegreesPerSecond;
+    // 한 번의 동작 중 건너뛴 프레임(연속성 검사 + 안 보임) 비율이 이 값 이상이면 "천천히" 안내
+    public final double maxMissedFrameRatio;
 
     public ExerciseCriteria(String exerciseName, Side leftSide, Side rightSide,
                             double extendedAngle, double bentAngle, double targetAngle,
@@ -113,7 +116,8 @@ public final class ExerciseCriteria {
                             double maxTrunkLean, double trunkPointsPerDegree, double jointWeight,
                             double minHipAngle,
                             int smoothingWindow, long minRepDurationMs, long maxInvisibleMs,
-                            double maxJumpDegrees, double maxDegreesPerSecond) {
+                            double maxJumpDegrees, double maxDegreesPerSecond,
+                            double maxMissedFrameRatio) {
         this.exerciseName = exerciseName;
         this.leftSide = leftSide;
         this.rightSide = rightSide;
@@ -132,6 +136,7 @@ public final class ExerciseCriteria {
         this.maxInvisibleMs = maxInvisibleMs;
         this.maxJumpDegrees = maxJumpDegrees;
         this.maxDegreesPerSecond = maxDegreesPerSecond;
+        this.maxMissedFrameRatio = maxMissedFrameRatio;
     }
 
     /** 직전 값에서 elapsedMs 동안 바뀔 수 있는 최대 각도 (넘으면 추적 오류로 봄) */

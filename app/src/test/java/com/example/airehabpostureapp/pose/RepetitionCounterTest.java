@@ -248,6 +248,55 @@ public class RepetitionCounterTest {
         assertTrue(counter.getSmoothedJointAngle() < 110);
     }
 
+    // ---------- "천천히 움직여 주세요" 안내 ----------
+
+    @Test
+    public void normalRep_noMoveSlowlyHint_andFramesCounted() {
+        hold(175, 500);
+        rep(90);
+        assertFalse(counter.takeMoveSlowlyHint());
+        RepetitionCounter.FrameStats frames = completed.get(0).frames;
+        assertTrue(frames.accepted > 30);
+        assertEquals(0, frames.skippedByJump);
+        assertEquals(0, frames.invisible);
+    }
+
+    @Test
+    public void tooFastRep_givesMoveSlowlyHint_once() {
+        hold(175, 500);
+        move(175, 90, 150, UPRIGHT_TRUNK, 0, null);
+        move(90, 175, 150, UPRIGHT_TRUNK, 0, null);
+        hold(175, 300);
+        assertTrue(counter.takeMoveSlowlyHint());
+        // 한 번 꺼내면 다시 false
+        assertFalse(counter.takeMoveSlowlyHint());
+    }
+
+    @Test
+    public void repWithManyMissedFrames_isCounted_butGivesMoveSlowlyHint() {
+        hold(175, 500);
+        // 굽히고 펴는 동안 프레임 절반이 안 보임 (빠른 동작에서 다리가 흐려지는 경우)
+        for (int i = 0; i <= 40; i++) {
+            double angle = i <= 20 ? 175 - (175 - 90) * i / 20.0 : 90 + (175 - 90) * (i - 20) / 20.0;
+            frame(i % 2 == 0 ? angle : Double.NaN, i % 2 == 0 ? UPRIGHT_TRUNK : Double.NaN);
+        }
+        hold(175, 400);
+        assertEquals(1, counter.getCompletedReps());
+        RepetitionCounter.FrameStats frames = completed.get(0).frames;
+        assertTrue("missedRatio=" + frames.missedRatio(), frames.missedRatio() >= 0.3);
+        assertTrue(frames.invisible > 0);
+        assertTrue(counter.takeMoveSlowlyHint());
+    }
+
+    @Test
+    public void squatRejection_doesNotGiveMoveSlowlyHint() {
+        hold(175, 500);
+        hipAngle = 100;
+        rep(110, 35, 0, null);
+        assertEquals(RepetitionCounter.RejectReason.HIP_BENT, rejected.get(0).reason);
+        assertFalse(counter.takeMoveSlowlyHint());
+    }
+
     // ---------- 엉덩이 각도 (스쿼트 구분) ----------
 
     @Test

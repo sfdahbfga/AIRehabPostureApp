@@ -456,6 +456,7 @@
     <string name="feedback_good_straighten">좋아요! 천천히 펴주세요.</string>
     <string name="feedback_keep_trunk_upright">상체를 곧게 세워주세요.</string>
     <string name="feedback_thigh_upright">허벅지를 세워주세요.</string>
+    <string name="feedback_move_slowly">천천히 움직여 주세요.</string>
     <string name="feedback_pose_not_supported">아직 자세 인식을 지원하지 않는 운동이에요.</string>
 
     <!-- 정확도 값이 없는 기록 (자세 인식 미지원 운동) 표시 -->
