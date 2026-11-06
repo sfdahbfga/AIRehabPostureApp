@@ -190,7 +190,7 @@ public class PostCheckActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (!response.isSuccessful()) {
-                    showError(R.string.error_exercise_save_failed);
+                    rollbackSession(sessionId, R.string.error_exercise_save_failed);
                     return;
                 }
                 // 운동 결과(16_Result)로 이동하고 이 화면은 Back Stack에서 제거
@@ -202,7 +202,28 @@ public class PostCheckActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
-                showError(AuthErrorMapper.fromFailure(t, R.string.error_exercise_save_failed));
+                rollbackSession(sessionId, AuthErrorMapper.fromFailure(t, R.string.error_exercise_save_failed));
+            }
+        });
+    }
+
+    // 체크인 저장이 실패하면 방금 저장한 운동 기록을 삭제해서 체크인 없는 반쪽짜리 기록이 남지 않게 한다.
+    // - 삭제 성공: savedSessionId를 비워서 다시 "다음"을 누르면 운동 기록부터 새로 저장
+    // - 삭제 실패(인터넷 끊김 등): savedSessionId를 유지해서 다시 "다음"을 누르면 체크인 저장만 재시도
+    private void rollbackSession(String sessionId, @StringRes int errorMessageRes) {
+        ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
+        api.deleteSession(sessionManager.getBearerToken(), "eq." + sessionId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    savedSessionId = null;
+                }
+                showError(errorMessageRes);
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                showError(errorMessageRes);
             }
         });
     }
