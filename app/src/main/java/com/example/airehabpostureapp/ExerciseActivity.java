@@ -1,10 +1,16 @@
 package com.example.airehabpostureapp;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
+import android.util.Size;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
@@ -12,18 +18,63 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.Preview;
+import androidx.camera.core.resolutionselector.AspectRatioStrategy;
+import androidx.camera.core.resolutionselector.ResolutionSelector;
+import androidx.camera.core.resolutionselector.ResolutionStrategy;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.pose.JointAngleCalculator;
+import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
+import com.example.airehabpostureapp.pose.PoseOverlayView;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult;
 
-// 현재는 UI와 화면 흐름만 구현 (CameraX / MediaPipe / 관절 각도 계산 연동 전)
-// 향후 흐름: CameraX → MediaPipe Landmark → Java 관절 각도 계산 → 기준 범위 비교 → 피드백 / 반복 횟수
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+// 자세 인식 1단계: 카메라 영상 + 관절 뼈대 실시간 표시 (+ 디버그용 무릎 각도)
+// 흐름: CameraX → MediaPipe Landmark → Java 관절 각도 계산 → (다음 단계) 기준 범위 비교 → 피드백 / 반복 횟수
+// MediaPipe는 관절 위치 추출에만 사용하고, 판정은 Java 코드에서 한다.
 public class ExerciseActivity extends AppCompatActivity {
 
     private static final long TIMER_INTERVAL_MS = 1000L;
+
+    // 디버그용: 무릎 각도(엉덩이-무릎-발목)를 화면 구석과 Logcat(태그 PoseDebug)에 표시.
+    // 횟수 / 정확도 판정이 들어가는 다음 단계 이후 false로 끄거나 관련 코드를 삭제한다.
+    private static final boolean DEBUG_SHOW_KNEE_ANGLE = true;
+    private static final String DEBUG_TAG = "PoseDebug";
+    private static final long DEBUG_LOG_INTERVAL_MS = 1000L;
+
+    private static final String TAG = "ExerciseActivity";
+
+    // MediaPipe Pose 관절 번호 (엉덩이 / 무릎 / 발목)
+    private static final int LEFT_HIP = 23;
+    private static final int RIGHT_HIP = 24;
+    private static final int LEFT_KNEE = 25;
+    private static final int RIGHT_KNEE = 26;
+    private static final int LEFT_ANKLE = 27;
+    private static final int RIGHT_ANKLE = 28;
+
+    // 기본은 전면 카메라. 전면은 미리보기가 거울처럼 반전되므로 뼈대도 반전해서 그린다.
+    private static final boolean USE_FRONT_CAMERA = true;
+
+    // MediaPipe 분석용 해상도 (센서 기준 가로 x 세로). 미리보기와 같은 4:3 비율이어야 뼈대가 정확히 겹친다.
+    private static final Size ANALYSIS_TARGET_SIZE = new Size(640, 480);
 
     // TODO: MediaPipe 연동 후 실제 값으로 교체 (반복 횟수 / 목표 횟수 / 정확도 임시 값)
     private int currentReps = 8;
@@ -37,6 +88,30 @@ public class ExerciseActivity extends AppCompatActivity {
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private TextView exerciseTimerText;
     private TextView exerciseNameText;
+
+    // 카메라 / 자세 인식
+    private PreviewView cameraPreviewView;
+    private PoseOverlayView skeletonOverlayView;
+    private TextView cameraMessageText;
+    private TextView debugKneeAngleText;
+    @Nullable
+    private ProcessCameraProvider cameraProvider;
+    @Nullable
+    private PoseLandmarkerHelper poseLandmarkerHelper;
+    // MediaPipe 분석 전용 스레드 (UI 스레드를 막지 않도록)
+    @Nullable
+    private ExecutorService analysisExecutor;
+    private long lastDebugLogAtMs = 0;
+
+    // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 문구만 표시 (운동 화면은 그대로 유지)
+    private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    startCamera();
+                } else {
+                    showCameraMessage(R.string.camera_permission_denied_message);
+                }
+            });
 
     // 14_Pause 결과: "처음부터 다시"는 운동 상태 초기화, "운동 종료"는 PostCheck로 이동
     // (계속하기 / Back은 그대로 이어서 진행)
@@ -101,6 +176,191 @@ public class ExerciseActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.endExerciseButton).setOnClickListener(v -> endExercise());
+
+        // 카메라 / 뼈대 표시
+        cameraPreviewView = findViewById(R.id.cameraPreviewView);
+        skeletonOverlayView = findViewById(R.id.skeletonOverlayView);
+        cameraMessageText = findViewById(R.id.cameraMessageText);
+        debugKneeAngleText = findViewById(R.id.debugKneeAngleText);
+        // 카메라 영상이 둥근 모서리 배경(bg_camera_preview) 밖으로 나가지 않도록 잘라냄
+        findViewById(R.id.cameraPreviewContainer).setClipToOutline(true);
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            startCamera();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    // 화면을 나갈 때 카메라와 MediaPipe 정리 (배터리 / 메모리 누수 방지)
+    // 화면이 가려질 때(onStop)는 bindToLifecycle 덕분에 CameraX가 알아서 카메라를 멈춘다.
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (cameraProvider != null) {
+            cameraProvider.unbindAll();
+            cameraProvider = null;
+        }
+        if (analysisExecutor != null) {
+            // landmarker는 분석 스레드에서 닫아야 처리 중인 프레임과 겹치지 않는다.
+            // 대기 중인 작업 뒤에 close를 넣고, 끝나면 스레드도 종료
+            PoseLandmarkerHelper helper = poseLandmarkerHelper;
+            analysisExecutor.execute(() -> {
+                if (helper != null) {
+                    helper.close();
+                }
+            });
+            analysisExecutor.shutdown();
+            analysisExecutor = null;
+        } else if (poseLandmarkerHelper != null) {
+            poseLandmarkerHelper.close();
+        }
+        poseLandmarkerHelper = null;
+    }
+
+    // CameraX 시작: 미리보기(Preview) + MediaPipe 분석(ImageAnalysis)을 이 화면의 Lifecycle에 연결
+    private void startCamera() {
+        cameraMessageText.setVisibility(View.GONE);
+
+        // 모델 로드 실패 시에도 카메라 미리보기는 보여준다 (뼈대만 표시하지 않음)
+        try {
+            poseLandmarkerHelper = new PoseLandmarkerHelper(this, poseListener);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Pose Landmarker 생성 실패", e);
+            poseLandmarkerHelper = null;
+            showCameraMessage(R.string.pose_model_load_failed_message);
+        }
+        if (poseLandmarkerHelper != null) {
+            analysisExecutor = Executors.newSingleThreadExecutor();
+        }
+
+        ListenableFuture<ProcessCameraProvider> providerFuture = ProcessCameraProvider.getInstance(this);
+        providerFuture.addListener(() -> {
+            // 카메라 준비 전에 화면을 나간 경우 바인딩하지 않음
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            try {
+                cameraProvider = providerFuture.get();
+                bindCameraUseCases(cameraProvider);
+            } catch (Exception e) {
+                // 전면 카메라가 없거나 카메라를 다른 앱이 사용 중인 경우 등
+                Log.e(TAG, "카메라 시작 실패", e);
+                showCameraMessage(R.string.camera_start_failed_message);
+            }
+        }, ContextCompat.getMainExecutor(this));
+    }
+
+    private void bindCameraUseCases(ProcessCameraProvider provider) {
+        // Preview와 ImageAnalysis 모두 4:3 비율로 통일 (비율이 다르면 영상과 뼈대 위치가 어긋남)
+        AspectRatioStrategy aspectRatio = AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY;
+
+        Preview preview = new Preview.Builder()
+                .setResolutionSelector(new ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(aspectRatio)
+                        .build())
+                .build();
+        preview.setSurfaceProvider(cameraPreviewView.getSurfaceProvider());
+
+        CameraSelector cameraSelector = USE_FRONT_CAMERA
+                ? CameraSelector.DEFAULT_FRONT_CAMERA
+                : CameraSelector.DEFAULT_BACK_CAMERA;
+
+        provider.unbindAll();
+        if (poseLandmarkerHelper == null || analysisExecutor == null) {
+            provider.bindToLifecycle(this, cameraSelector, preview);
+            return;
+        }
+
+        // 분석은 640x480 정도면 충분 (해상도가 높을수록 MediaPipe 처리 시간과 배터리 소모 증가)
+        // 처리 중에 들어온 프레임은 버리고 가장 최근 프레임만 분석 (지연 누적 방지)
+        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                .setResolutionSelector(new ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(aspectRatio)
+                        .setResolutionStrategy(new ResolutionStrategy(ANALYSIS_TARGET_SIZE,
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
+                        .build())
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .build();
+        PoseLandmarkerHelper helper = poseLandmarkerHelper;
+        imageAnalysis.setAnalyzer(analysisExecutor, helper::detectLiveStream);
+
+        provider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
+    }
+
+    // MediaPipe 결과 / 오류 (MediaPipe 내부 스레드에서 호출됨)
+    private final PoseLandmarkerHelper.Listener poseListener = new PoseLandmarkerHelper.Listener() {
+        @Override
+        public void onPoseResult(PoseLandmarkerResult result, int imageWidth, int imageHeight) {
+            List<NormalizedLandmark> pose = result.landmarks().isEmpty() ? null : result.landmarks().get(0);
+
+            // Java 관절 각도 계산 (다음 단계에서 기준 범위 비교 / 반복 횟수 측정에 사용)
+            double leftKneeAngle = calculateJointAngle(pose, LEFT_HIP, LEFT_KNEE, LEFT_ANKLE, imageWidth, imageHeight);
+            double rightKneeAngle = calculateJointAngle(pose, RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE, imageWidth, imageHeight);
+
+            runOnUiThread(() -> {
+                if (isDestroyed()) {
+                    return;
+                }
+                skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
+                showDebugKneeAngles(leftKneeAngle, rightKneeAngle);
+            });
+        }
+
+        @Override
+        public void onPoseError(RuntimeException error) {
+            Log.e(TAG, "Pose Landmarker 오류", error);
+        }
+    };
+
+    // 세 관절 중 하나라도 잘 안 보이면(visibility < 0.5) NaN
+    // 정규화 좌표(0~1)를 픽셀 좌표로 바꿔 계산 (4:3 이미지에서 가로/세로 비율 왜곡 방지)
+    private static double calculateJointAngle(@Nullable List<NormalizedLandmark> pose,
+                                              int first, int middle, int last,
+                                              int imageWidth, int imageHeight) {
+        if (pose == null || pose.size() <= Math.max(first, Math.max(middle, last))) {
+            return Double.NaN;
+        }
+        NormalizedLandmark a = pose.get(first);
+        NormalizedLandmark b = pose.get(middle);
+        NormalizedLandmark c = pose.get(last);
+        if (!PoseOverlayView.isVisible(a) || !PoseOverlayView.isVisible(b) || !PoseOverlayView.isVisible(c)) {
+            return Double.NaN;
+        }
+        return JointAngleCalculator.calculateAngle(
+                a.x() * imageWidth, a.y() * imageHeight,
+                b.x() * imageWidth, b.y() * imageHeight,
+                c.x() * imageWidth, c.y() * imageHeight);
+    }
+
+    // 디버그용: 무릎 각도를 화면 구석에 표시하고 Logcat에 1초에 한 번 기록 (DEBUG_SHOW_KNEE_ANGLE로 끔)
+    private void showDebugKneeAngles(double leftKneeAngle, double rightKneeAngle) {
+        if (!DEBUG_SHOW_KNEE_ANGLE) {
+            return;
+        }
+        String left = formatAngle(leftKneeAngle);
+        String right = formatAngle(rightKneeAngle);
+        debugKneeAngleText.setVisibility(View.VISIBLE);
+        debugKneeAngleText.setText(getString(R.string.debug_knee_angle_format, left, right));
+
+        long now = SystemClock.uptimeMillis();
+        if (now - lastDebugLogAtMs >= DEBUG_LOG_INTERVAL_MS) {
+            lastDebugLogAtMs = now;
+            Log.d(DEBUG_TAG, "knee L=" + left + " R=" + right);
+        }
+    }
+
+    private String formatAngle(double angle) {
+        return Double.isNaN(angle)
+                ? getString(R.string.debug_angle_unknown)
+                : String.format(Locale.US, "%.1f", angle);
+    }
+
+    private void showCameraMessage(@StringRes int messageRes) {
+        cameraMessageText.setText(messageRes);
+        cameraMessageText.setVisibility(View.VISIBLE);
     }
 
     @Override

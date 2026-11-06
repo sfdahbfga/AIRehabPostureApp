@@ -60,7 +60,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Camera Preview(Placeholder) + Skeleton Overlay
+        <!-- Camera Preview(CameraX) + Skeleton Overlay(MediaPipe Landmark)
              weight=1로 남은 공간을 모두 차지하고, 작은 화면에서도 minHeight 이상 유지 -->
         <FrameLayout
             android:id="@+id/cameraPreviewContainer"
@@ -72,15 +72,44 @@
             android:contentDescription="@string/camera_preview_description"
             android:minHeight="300dp">
 
-            <!-- TODO: MediaPipe Landmark 좌표로 그리는 Skeleton으로 교체 -->
-            <ImageView
+            <!-- CameraX 미리보기 (전면 카메라는 CameraX가 자동으로 좌우 반전해서 보여줌) -->
+            <androidx.camera.view.PreviewView
+                android:id="@+id/cameraPreviewView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- MediaPipe 관절 좌표로 그리는 뼈대 -->
+            <com.example.airehabpostureapp.pose.PoseOverlayView
                 android:id="@+id/skeletonOverlayView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_margin="24dp"
-                android:contentDescription="@string/skeleton_overlay_description"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_skeleton_placeholder" />
+                android:contentDescription="@string/skeleton_overlay_description" />
+
+            <!-- 디버그용: 무릎 각도 실시간 표시 (ExerciseActivity.DEBUG_SHOW_KNEE_ANGLE로 끌 수 있음) -->
+            <TextView
+                android:id="@+id/debugKneeAngleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="8dp"
+                android:background="#99000000"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <!-- 카메라 권한 거부 / 카메라 시작 실패 / 모델 로드 실패 안내 -->
+            <TextView
+                android:id="@+id/cameraMessageText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="24dp"
+                android:textColor="@color/gray"
+                android:textSize="14sp"
+                android:visibility="gone" />
         </FrameLayout>
 
         <!-- 반복 횟수 / 자세 정확도 -->

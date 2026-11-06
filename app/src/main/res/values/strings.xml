@@ -439,4 +439,12 @@
     <!-- 07_Home 기록 연동 -->
     <string name="home_completed_count_format">%1$d개</string>
     <string name="home_recent_exercise_empty">아직 운동 기록이 없어요</string>
+
+    <!-- 13_Exercise 카메라 / 자세 인식 -->
+    <string name="camera_permission_denied_message">카메라 권한이 없어 자세를 인식할 수 없어요.\n설정에서 카메라 권한을 허용한 뒤 다시 들어와 주세요.</string>
+    <string name="camera_start_failed_message">카메라를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="pose_model_load_failed_message">자세 인식 모델을 불러오지 못했어요.</string>
+    <!-- 디버그용: 무릎 각도 표시 (L = 왼쪽, R = 오른쪽) -->
+    <string name="debug_knee_angle_format">L 무릎 %1$s°\nR 무릎 %2$s°</string>
+    <string name="debug_angle_unknown">-</string>
 </resources>
