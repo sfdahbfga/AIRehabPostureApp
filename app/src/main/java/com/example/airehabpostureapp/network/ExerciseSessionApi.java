@@ -80,19 +80,21 @@ public interface ExerciseSessionApi {
         final int completedRepetitions;
         @SerializedName("target_repetitions")
         final int targetRepetitions;
+        // 정확도 / 관절 오차는 측정값이 없으면(0회 / 자세 인식 미지원 운동) null → DB에도 null로 저장
         @SerializedName("average_accuracy")
-        final int averageAccuracy;
+        final Integer averageAccuracy;
         @SerializedName("first_half_accuracy")
-        final int firstHalfAccuracy;
+        final Integer firstHalfAccuracy;
         @SerializedName("second_half_accuracy")
-        final int secondHalfAccuracy;
-        // 관절별 오류 횟수 (예: {"knee": 12, "back": 3})
+        final Integer secondHalfAccuracy;
+        // 관절별 평균 각도 오차 (도). 예: {"knee": 12, "back": 3}
+        // knee: 가장 많이 굽힌 각도 - 목표 각도 (+ 덜 굽힘 / - 더 굽힘), back: 상체 숙임 허용 각도 초과량
         @SerializedName("joint_errors")
         final Map<String, Integer> jointErrors;
 
         public SessionInsert(String userId, String exerciseName, String startedAt, String endedAt,
                              int durationSeconds, int completedRepetitions, int targetRepetitions,
-                             int averageAccuracy, int firstHalfAccuracy, int secondHalfAccuracy,
+                             Integer averageAccuracy, Integer firstHalfAccuracy, Integer secondHalfAccuracy,
                              Map<String, Integer> jointErrors) {
             this.userId = userId;
             this.exerciseName = exerciseName;

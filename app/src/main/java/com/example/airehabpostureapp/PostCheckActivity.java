@@ -38,12 +38,6 @@ public class PostCheckActivity extends AppCompatActivity {
     private static final int DEFAULT_DISCOMFORT_LEVEL = 3;
     private static final int NO_SELECTION = -1;
 
-    // TODO: MediaPipe 연동 후 실제 값으로 교체 (전반부 / 후반부 정확도, 관절별 오류 횟수 임시 값)
-    private static final int TEMP_FIRST_HALF_ACCURACY = 91;
-    private static final int TEMP_SECOND_HALF_ACCURACY = 78;
-    private static final int TEMP_KNEE_ERRORS = 12;
-    private static final int TEMP_BACK_ERRORS = 3;
-
     // 선택된 불편감 정도 (0~10)
     private int selectedDiscomfortLevel = NO_SELECTION;
     // 선택된 몸 상태 키 (레이아웃의 android:tag 값: good, normal, bad / 선택 전에는 null)
@@ -130,9 +124,10 @@ public class PostCheckActivity extends AppCompatActivity {
         }
 
         Intent extras = getIntent();
+        // 운동 화면(자세 인식)에서 측정한 값. 측정값이 없는 항목은 null로 저장
         Map<String, Integer> jointErrors = new LinkedHashMap<>();
-        jointErrors.put("knee", TEMP_KNEE_ERRORS);
-        jointErrors.put("back", TEMP_BACK_ERRORS);
+        putIfPresent(jointErrors, "knee", optionalInt(extras, ExerciseFlowExtras.KNEE_ERROR_DEGREES));
+        putIfPresent(jointErrors, "back", optionalInt(extras, ExerciseFlowExtras.BACK_ERROR_DEGREES));
         ExerciseSessionApi.SessionInsert session = new ExerciseSessionApi.SessionInsert(
                 sessionManager.getUserId(),
                 extras.getStringExtra(ExerciseFlowExtras.EXERCISE_NAME),
@@ -141,10 +136,10 @@ public class PostCheckActivity extends AppCompatActivity {
                 extras.getIntExtra(ExerciseFlowExtras.DURATION_SECONDS, 0),
                 extras.getIntExtra(ExerciseFlowExtras.COMPLETED_REPS, 0),
                 extras.getIntExtra(ExerciseFlowExtras.TARGET_REPS, 0),
-                extras.getIntExtra(ExerciseFlowExtras.AVERAGE_ACCURACY, 0),
-                TEMP_FIRST_HALF_ACCURACY,
-                TEMP_SECOND_HALF_ACCURACY,
-                jointErrors);
+                optionalInt(extras, ExerciseFlowExtras.AVERAGE_ACCURACY),
+                optionalInt(extras, ExerciseFlowExtras.FIRST_HALF_ACCURACY),
+                optionalInt(extras, ExerciseFlowExtras.SECOND_HALF_ACCURACY),
+                jointErrors.isEmpty() ? null : jointErrors);
 
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
         api.insertSession(sessionManager.getBearerToken(), session).enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
@@ -165,6 +160,17 @@ public class PostCheckActivity extends AppCompatActivity {
                 showError(AuthErrorMapper.fromFailure(t, R.string.error_exercise_save_failed));
             }
         });
+    }
+
+    // 운동 화면이 값을 넣지 않은 키(측정값 없음)는 null
+    private static Integer optionalInt(Intent extras, String key) {
+        return extras.hasExtra(key) ? extras.getIntExtra(key, 0) : null;
+    }
+
+    private static void putIfPresent(Map<String, Integer> map, String key, Integer value) {
+        if (value != null) {
+            map.put(key, value);
+        }
     }
 
     private void saveCheckins(String sessionId) {

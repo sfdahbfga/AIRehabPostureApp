@@ -97,6 +97,7 @@ public class ReportStatsCalculator {
                 totalSeconds / 60,
                 totalSeconds,
                 averageAccuracy,
+                accuracyCount > 0,
                 chartAccuracies,
                 mostPerformed == null ? null : mostPerformed.getKey(),
                 mostPerformed == null ? 0 : mostPerformed.getValue(),

@@ -109,11 +109,12 @@ public class ResultActivity extends AppCompatActivity {
 
         int completedReps = session.completedRepetitions == null ? 0 : session.completedRepetitions;
         int targetReps = session.targetRepetitions == null ? 0 : session.targetRepetitions;
-        int averageAccuracy = session.averageAccuracy == null ? 0 : (int) Math.round(session.averageAccuracy);
 
         exerciseDurationValueText.setText(DurationFormatter.formatSeconds(this, session.durationSeconds));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
-        averageAccuracyValueText.setText(getString(R.string.percent_format, averageAccuracy));
+        // 정확도가 없는 기록(자세 인식 미지원 운동 / 0회)은 "-"
+        averageAccuracyValueText.setText(session.averageAccuracy == null ? getString(R.string.empty_value)
+                : getString(R.string.percent_format, (int) Math.round(session.averageAccuracy)));
     }
 
     private void showSetCompletion() {

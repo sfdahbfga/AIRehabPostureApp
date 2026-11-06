@@ -142,8 +142,10 @@ public class WeeklyReportActivity extends AppCompatActivity {
         reportPeriodText.setText(formatPeriod(period, today));
         exerciseCountValueText.setText(getString(R.string.count_times_format, stats.exerciseCount));
         totalExerciseTimeValueText.setText(DurationFormatter.formatSecondsAsMinutes(this, stats.totalExerciseSeconds));
-        averageAccuracyValueText.setText(getString(R.string.percent_format,
-                (int) Math.round(stats.averageAccuracy)));
+        // 정확도가 있는 기록이 없으면(자세 인식 미지원 운동만 한 경우 포함) "-"
+        averageAccuracyValueText.setText(stats.hasAccuracy
+                ? getString(R.string.percent_format, (int) Math.round(stats.averageAccuracy))
+                : getString(R.string.empty_value));
 
         int[] chartValues = new int[stats.chartAccuracies.length];
         for (int i = 0; i < chartValues.length; i++) {

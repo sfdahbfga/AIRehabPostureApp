@@ -14,7 +14,9 @@ import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class ReportStatsCalculatorTest {
 
@@ -117,8 +119,23 @@ public class ReportStatsCalculatorTest {
         assertEquals(1, stats.exerciseCount);
         assertEquals(0, stats.totalExerciseMinutes);
         assertEquals(0, stats.averageAccuracy, DELTA);
+        assertFalse(stats.hasAccuracy);
         assertNull(stats.mostPerformedExerciseName);
         assertNull(stats.frequentMistakeJoint);
+    }
+
+    @Test
+    public void hasAccuracy_onlyWhenSomeRecordHasAccuracy() {
+        // 자세 인식 미지원 운동 기록: 정확도 / 관절 오차 null
+        SessionRecord unsupported = new SessionRecord(SQUAT, kst(2026, 10, 20, 10, 0),
+                300, 0, 20, null, null, null, null);
+        ReportStats onlyUnsupported = calculator.calculate(Collections.singletonList(unsupported),
+                ReportStatsCalculator.Period.WEEKLY, BASE_DATE);
+        assertEquals(1, onlyUnsupported.exerciseCount);
+        assertFalse(onlyUnsupported.hasAccuracy);
+
+        assertTrue(calculator.calculate(sampleRecords(), ReportStatsCalculator.Period.WEEKLY, BASE_DATE).hasAccuracy);
+        assertFalse(calculator.calculate(new ArrayList<>(), ReportStatsCalculator.Period.WEEKLY, BASE_DATE).hasAccuracy);
     }
 
     private List<SessionRecord> sampleRecords() {

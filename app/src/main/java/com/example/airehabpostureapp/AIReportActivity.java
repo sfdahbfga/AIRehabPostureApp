@@ -164,29 +164,25 @@ public class AIReportActivity extends AppCompatActivity {
                 });
     }
 
-    // 값이 없는 항목은 비워 둠
+    // 값이 없는 항목(자세 인식 미지원 운동 / 0회)은 "-"로 표시
     private void showReportMetrics(ExerciseSessionApi.ReportMetricsRow metrics) {
         Map<String, Double> jointErrors = metrics.jointErrors;
-        if (jointErrors != null && jointErrors.get("knee") != null) {
-            TextView kneeAverageErrorText = findViewById(R.id.kneeAverageErrorText);
-            kneeAverageErrorText.setText(getString(R.string.angle_error_format,
-                    (int) Math.round(jointErrors.get("knee"))));
-        }
-        if (jointErrors != null && jointErrors.get("back") != null) {
-            TextView backAverageErrorText = findViewById(R.id.backAverageErrorText);
-            backAverageErrorText.setText(getString(R.string.angle_error_format,
-                    (int) Math.round(jointErrors.get("back"))));
-        }
-        if (metrics.firstHalfAccuracy != null) {
-            TextView overallAccuracyText = findViewById(R.id.overallAccuracyText);
-            overallAccuracyText.setText(getString(R.string.percent_format,
-                    (int) Math.round(metrics.firstHalfAccuracy)));
-        }
-        if (metrics.secondHalfAccuracy != null) {
-            TextView lateAccuracyText = findViewById(R.id.lateAccuracyText);
-            lateAccuracyText.setText(getString(R.string.percent_format,
-                    (int) Math.round(metrics.secondHalfAccuracy)));
-        }
+        showAngleError(R.id.kneeAverageErrorText, jointErrors == null ? null : jointErrors.get("knee"));
+        showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get("back"));
+        showPercent(R.id.overallAccuracyText, metrics.firstHalfAccuracy);
+        showPercent(R.id.lateAccuracyText, metrics.secondHalfAccuracy);
+    }
+
+    private void showAngleError(int textViewId, Double degrees) {
+        TextView textView = findViewById(textViewId);
+        textView.setText(degrees == null ? getString(R.string.empty_value)
+                : getString(R.string.angle_error_format, (int) Math.round(degrees)));
+    }
+
+    private void showPercent(int textViewId, Double percent) {
+        TextView textView = findViewById(textViewId);
+        textView.setText(percent == null ? getString(R.string.empty_value)
+                : getString(R.string.percent_format, (int) Math.round(percent)));
     }
 
     private void showAnalysisResults() {
