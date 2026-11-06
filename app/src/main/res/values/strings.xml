@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">AIRehabPostureApp</string>
+    <string name="app_name">MOVEON</string>
 
-    <!-- 01_Splash (앱 이름 확정 전 Placeholder) -->
-    <string name="splash_app_name_placeholder">[APP NAME]</string>
+    <!-- 01_Splash (Footer는 문구 확정 전 Placeholder) -->
+    <string name="splash_app_name_placeholder">MOVEON</string>
     <string name="splash_footer_placeholder">[FOOTER]</string>
     <string name="splash_loading_description">로딩 중</string>
 
@@ -435,4 +435,8 @@
     <string name="duration_hours_minutes_seconds_format">%1$d시간 %2$d분 %3$d초</string>
     <string name="goal_time_progress_format">현재 %1$s / %2$s</string>
     <string name="record_summary_time_format">%1$s · 정확도 %2$d%%</string>
+
+    <!-- 07_Home 기록 연동 -->
+    <string name="home_completed_count_format">%1$d개</string>
+    <string name="home_recent_exercise_empty">아직 운동 기록이 없어요</string>
 </resources>
