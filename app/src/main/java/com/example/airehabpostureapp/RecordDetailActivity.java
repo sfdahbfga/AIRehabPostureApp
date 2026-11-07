@@ -3,6 +3,7 @@ package com.example.airehabpostureapp;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,12 +19,14 @@ import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.stats.JointAccuracyConverter;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -34,15 +37,6 @@ public class RecordDetailActivity extends AppCompatActivity {
 
     // 18_RecordList에서 전달하는 선택한 기록의 exercise_sessions id
     public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RECORD_SESSION_ID";
-
-    // TODO: 세트 / 관절별 정확도 / 세트별 정확도는 저장하지 않으므로 측정 연동 후 실제 값으로 교체 (현재는 임시 예시 데이터)
-    private int completedSets = 3;
-    private int targetSets = 3;
-    private int kneeAccuracy = 82;
-    private int backAccuracy = 94;
-    private int hipAccuracy = 89;
-    // 인덱스 = 세트 번호 - 1
-    private int[] setAccuracies = {92, 88, 84};
 
     private String sessionId;
     // 조회 후 AI 리포트 화면에 함께 전달 (조회 전에는 null → AI 리포트는 레이아웃 기본 이름 표시)
@@ -66,9 +60,9 @@ public class RecordDetailActivity extends AppCompatActivity {
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
         sessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
-        showSetCompletion();
-        showJointAccuracy();
-        showSetAccuracy();
+        // 세트별 정확도는 저장하지 않으므로 항상 숨김 / 관절별 정확도는 조회 후 값이 있는 항목만 표시
+        setVisible(false, R.id.setAccuracyTitleText, R.id.setAccuracyCard,
+                R.id.jointAccuracyTitleText, R.id.jointAccuracyCard);
         loadRecord();
 
         // 17_AIReport: 이 기록의 session id를 넘겨 Gemini 요약 / 분석 수치를 표시
@@ -133,36 +127,51 @@ public class RecordDetailActivity extends AppCompatActivity {
         durationValueText.setText(DurationFormatter.formatSecondsAsMinutes(this, durationSeconds));
         accuracyValueText.setText(getString(R.string.percent_format, accuracy));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
+        showSetCompletion(record.completedSets, record.targetSets);
+        showJointAccuracy(record.jointErrors);
     }
 
-    private void showSetCompletion() {
+    // 저장된 세트 값이 하나라도 없으면 "-"
+    private void showSetCompletion(Integer completedSets, Integer targetSets) {
         TextView setCompletionValueText = findViewById(R.id.setCompletionValueText);
-        setCompletionValueText.setText(getString(R.string.set_count_format, completedSets, targetSets));
+        setCompletionValueText.setText(completedSets == null || targetSets == null
+                ? getString(R.string.empty_value)
+                : getString(R.string.set_count_format, completedSets, targetSets));
     }
 
-    private void showJointAccuracy() {
+    // joint_errors(평균 오차, 도)를 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
+    // 고관절은 저장하지 않으므로 항상 숨김
+    private void showJointAccuracy(Map<String, Double> jointErrors) {
+        Integer kneeAccuracy = jointErrors == null ? null
+                : JointAccuracyConverter.kneeAccuracy(jointErrors.get("knee"));
+        Integer backAccuracy = jointErrors == null ? null
+                : JointAccuracyConverter.backAccuracy(jointErrors.get("back"));
         showAccuracyRow(R.id.kneeAccuracyText, R.id.kneeProgressBar, kneeAccuracy);
         showAccuracyRow(R.id.backAccuracyText, R.id.backProgressBar, backAccuracy);
-        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, hipAccuracy);
+        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, null);
+        setVisible(kneeAccuracy != null || backAccuracy != null,
+                R.id.jointAccuracyTitleText, R.id.jointAccuracyCard);
     }
 
-    private void showSetAccuracy() {
-        int[] setLabelIds = {R.id.set1LabelText, R.id.set2LabelText, R.id.set3LabelText};
-        int[] setAccuracyTextIds = {R.id.set1AccuracyText, R.id.set2AccuracyText, R.id.set3AccuracyText};
-        int[] setProgressBarIds = {R.id.set1ProgressBar, R.id.set2ProgressBar, R.id.set3ProgressBar};
-        for (int i = 0; i < setAccuracies.length; i++) {
-            TextView setLabelText = findViewById(setLabelIds[i]);
-            setLabelText.setText(getString(R.string.set_label_format, i + 1));
-            showAccuracyRow(setAccuracyTextIds[i], setProgressBarIds[i], setAccuracies[i]);
+    // 정확도 % 텍스트 + Progress Bar 표시. 값이 없으면 그 줄(이름 / % 줄 + Progress Bar)을 숨김
+    // (이름 / % 줄의 LinearLayout에는 id가 없어서 % 텍스트의 부모로 찾음)
+    private void showAccuracyRow(int accuracyTextId, int progressBarId, Integer accuracy) {
+        TextView accuracyText = findViewById(accuracyTextId);
+        LinearProgressIndicator progressBar = findViewById(progressBarId);
+        View labelRow = (View) accuracyText.getParent();
+        int visibility = accuracy == null ? View.GONE : View.VISIBLE;
+        labelRow.setVisibility(visibility);
+        progressBar.setVisibility(visibility);
+        if (accuracy != null) {
+            accuracyText.setText(getString(R.string.percent_format, accuracy));
+            progressBar.setProgress(accuracy);
         }
     }
 
-    // 정확도 % 텍스트 + Progress Bar 표시 (관절별 / 세트별 공통)
-    private void showAccuracyRow(int accuracyTextId, int progressBarId, int accuracy) {
-        TextView accuracyText = findViewById(accuracyTextId);
-        LinearProgressIndicator progressBar = findViewById(progressBarId);
-        accuracyText.setText(getString(R.string.percent_format, accuracy));
-        progressBar.setProgress(accuracy);
+    private void setVisible(boolean visible, int... viewIds) {
+        for (int viewId : viewIds) {
+            findViewById(viewId).setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void showError(@StringRes int messageRes) {
