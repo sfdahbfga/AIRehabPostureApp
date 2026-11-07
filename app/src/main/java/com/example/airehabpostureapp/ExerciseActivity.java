@@ -127,7 +127,7 @@ public class ExerciseActivity extends AppCompatActivity {
     // "천천히 움직여 주세요" 안내를 이 시각(uptime ms)까지 다른 안내 대신 표시
     private static final long MOVE_SLOWLY_HINT_MS = 2000L;
     private long moveSlowlyUntilMs = 0;
-    // 운동하는 다리가 정해진 뒤 "카메라 쪽(오른쪽) 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
+    // 운동하는 다리가 정해진 뒤 "카메라 쪽 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
     private static final long LEG_LOCKED_HINT_MS = 2000L;
     private long legLockedHintUntilMs = 0;
 
@@ -459,24 +459,15 @@ public class ExerciseActivity extends AppCompatActivity {
         }
         RepetitionCounter.Feedback feedback = repetitionCounter.getFeedback();
         if (now < legLockedHintUntilMs && feedback != RepetitionCounter.Feedback.NOT_VISIBLE) {
-            // 다리가 정해진 직후 2초: 정해진 쪽 안내 (다리가 안 보이면 "전신이 보이게"가 우선)
-            showLegLockedFeedback();
+            // 다리가 정해진 직후 2초: "카메라 쪽 다리로 운동해 주세요." (다리가 안 보이면 "전신이 보이게"가 우선)
+            // 왼쪽/오른쪽은 표시하지 않음 (옆모습에서는 MediaPipe의 L/R 이름이 실제 다리와 다를 수 있음)
+            showFeedback(R.string.feedback_use_camera_side_leg);
         } else {
             showFeedback(now < moveSlowlyUntilMs
                     ? R.string.feedback_move_slowly
                     : feedbackMessage(feedback));
         }
         return chosen;
-    }
-
-    // "카메라 쪽(오른쪽) 다리로 운동해 주세요." (L = 왼쪽, R = 오른쪽)
-    private void showLegLockedFeedback() {
-        if (shownFeedbackRes == R.string.feedback_exercise_leg_locked) {
-            return;
-        }
-        shownFeedbackRes = R.string.feedback_exercise_leg_locked;
-        int sideRes = "L".equals(legSelector.getLockedLabel()) ? R.string.leg_side_left : R.string.leg_side_right;
-        postureFeedbackText.setText(getString(R.string.feedback_exercise_leg_locked, getString(sideRes)));
     }
 
     // 디버그용: 운동하는 다리가 정해졌을 때 다리별 평균 visibility 기록
