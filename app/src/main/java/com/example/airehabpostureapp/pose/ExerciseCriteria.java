@@ -160,7 +160,11 @@ public final class ExerciseCriteria {
 
     /** 관절 점수 0~100: 허용 범위 안이면 100, 넘은 만큼 1도당 pointsPerDegree 감점 */
     public double jointScore(double minAngle) {
-        double error = jointError(minAngle);
+        return jointScoreForError(jointError(minAngle));
+    }
+
+    /** 관절 오차(+: 덜 굽힘, -: 더 굽힘)로 관절 점수 계산. 저장된 joint_errors를 점수로 바꿀 때도 사용 */
+    public double jointScoreForError(double error) {
         double overDegrees = error >= 0
                 ? Math.max(0, error - underBendTolerance)
                 : Math.max(0, -error - overBendTolerance);
@@ -182,8 +186,12 @@ public final class ExerciseCriteria {
         if (Double.isNaN(trunkError)) {
             return jointScore;
         }
-        double trunkScore = clampScore(100 - trunkError * trunkPointsPerDegree);
-        return jointScore * jointWeight + trunkScore * (1 - jointWeight);
+        return jointScore * jointWeight + trunkScore(trunkError) * (1 - jointWeight);
+    }
+
+    /** 상체 점수 0~100: 상체 오차(허용 각도 초과량) 1도당 trunkPointsPerDegree 감점 */
+    public double trunkScore(double trunkError) {
+        return clampScore(100 - Math.max(0, trunkError) * trunkPointsPerDegree);
     }
 
     /** 엉덩이를 기준보다 많이 굽혔으면 true (엉덩이가 안 보였거나 검사하지 않는 운동이면 false) */
