@@ -122,8 +122,10 @@ public class GoalChallengeActivity extends AppCompatActivity {
         showProgressBar(R.id.exerciseTimePercentText, R.id.exerciseTimeProgressBar,
                 exerciseTimeCurrent, EXERCISE_TIME_GOAL_MINUTES);
 
-        setText(R.id.accuracyProgressText,
-                getString(R.string.goal_progress_format, accuracyCurrent, ACCURACY_GOAL));
+        // 정확도가 있는 기록이 없으면 "-"로 표시하고 진행률은 0%
+        setText(R.id.accuracyProgressText, weekly.hasAccuracy
+                ? getString(R.string.goal_progress_format, accuracyCurrent, ACCURACY_GOAL)
+                : getString(R.string.goal_progress_no_value_format, ACCURACY_GOAL));
         showProgressBar(R.id.accuracyPercentText, R.id.accuracyProgressBar, accuracyCurrent, ACCURACY_GOAL);
 
         // 챌린지: 연속 운동 일수 / 평균 정확도 달성 (목표 Card와 같은 진행률 표시)
@@ -132,8 +134,9 @@ public class GoalChallengeActivity extends AppCompatActivity {
         showProgressBar(R.id.sevenDayChallengePercentText, R.id.sevenDayChallengeProgressBar,
                 challengeCurrentDays, CHALLENGE_GOAL_DAYS);
 
-        setText(R.id.accuracyChallengeProgressText,
-                getString(R.string.challenge_accuracy_format, accuracyCurrent, ACCURACY_GOAL));
+        setText(R.id.accuracyChallengeProgressText, weekly.hasAccuracy
+                ? getString(R.string.challenge_accuracy_format, accuracyCurrent, ACCURACY_GOAL)
+                : getString(R.string.challenge_accuracy_no_value_format, ACCURACY_GOAL));
         showProgressBar(R.id.accuracyChallengePercentText, R.id.accuracyChallengeProgressBar,
                 accuracyCurrent, ACCURACY_GOAL);
     }

@@ -447,4 +447,22 @@
     <!-- 디버그용: 무릎 각도 표시 (L = 왼쪽, R = 오른쪽) -->
     <string name="debug_knee_angle_format">L 무릎 %1$s°\nR 무릎 %2$s°</string>
     <string name="debug_angle_unknown">-</string>
+
+    <!-- 13_Exercise 자세 인식 안내 (반복 횟수 측정) -->
+    <string name="feedback_full_body_visible">전신이 보이게 서 주세요.</string>
+    <string name="feedback_use_camera_side_leg">카메라 쪽 다리로 운동해 주세요.</string>
+    <string name="feedback_stand_straight">다리를 펴고 바로 서 주세요.</string>
+    <string name="feedback_start_bending">무릎을 천천히 굽혀주세요.</string>
+    <string name="feedback_good_straighten">좋아요! 천천히 펴주세요.</string>
+    <string name="feedback_keep_trunk_upright">상체를 곧게 세워주세요.</string>
+    <string name="feedback_thigh_upright">허벅지를 세워주세요.</string>
+    <string name="feedback_move_slowly">천천히 움직여 주세요.</string>
+    <!-- 운동하는 다리를 정하기 전 안내 (정옆으로 서야 카메라 쪽 다리를 알 수 있음) -->
+    <string name="feedback_stand_sideways">카메라 쪽으로 옆으로 서 주세요.</string>
+    <string name="feedback_pose_not_supported">아직 자세 인식을 지원하지 않는 운동이에요.</string>
+
+    <!-- 정확도 값이 없는 기록 (자세 인식 미지원 운동) 표시 -->
+    <string name="record_summary_time_no_accuracy_format">%1$s · 정확도 -</string>
+    <string name="goal_progress_no_value_format">현재 - / %1$d</string>
+    <string name="challenge_accuracy_no_value_format">현재 - · 목표 %1$d%%</string>
 </resources>

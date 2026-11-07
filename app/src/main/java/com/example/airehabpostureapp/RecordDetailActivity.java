@@ -116,7 +116,6 @@ public class RecordDetailActivity extends AppCompatActivity {
         LocalDate date = startedAt == null ? null
                 : startedAt.atZone(ReportStatsCalculator.KOREA_ZONE).toLocalDate();
         int durationSeconds = record.durationSeconds == null ? 0 : record.durationSeconds;
-        int accuracy = record.averageAccuracy == null ? 0 : (int) Math.round(record.averageAccuracy);
         int completedReps = record.completedRepetitions == null ? 0 : record.completedRepetitions;
         int targetReps = record.targetRepetitions == null ? 0 : record.targetRepetitions;
 
@@ -125,7 +124,9 @@ public class RecordDetailActivity extends AppCompatActivity {
                 : getString(R.string.record_detail_date_format,
                 date.getYear(), date.getMonthValue(), date.getDayOfMonth()));
         durationValueText.setText(DurationFormatter.formatSecondsAsMinutes(this, durationSeconds));
-        accuracyValueText.setText(getString(R.string.percent_format, accuracy));
+        // 정확도가 없는 기록(자세 인식 미지원 운동 / 0회)은 "-"
+        accuracyValueText.setText(record.averageAccuracy == null ? getString(R.string.empty_value)
+                : getString(R.string.percent_format, (int) Math.round(record.averageAccuracy)));
         repetitionValueText.setText(getString(R.string.repetition_count_format, completedReps, targetReps));
         showSetCompletion(record.completedSets, record.targetSets);
         showJointAccuracy(record.jointErrors);

@@ -159,9 +159,12 @@ public class RecordListActivity extends AppCompatActivity {
                     : getString(R.string.record_date_format, date.getMonthValue(), date.getDayOfMonth()));
             nameText.setText(record.exerciseName);
             int durationSeconds = record.durationSeconds == null ? 0 : record.durationSeconds;
-            int accuracy = record.averageAccuracy == null ? 0 : (int) Math.round(record.averageAccuracy);
-            summaryText.setText(getString(R.string.record_summary_time_format,
-                    DurationFormatter.formatSecondsAsMinutes(this, durationSeconds), accuracy));
+            String duration = DurationFormatter.formatSecondsAsMinutes(this, durationSeconds);
+            // 정확도가 없는 기록(자세 인식 미지원 운동 / 0회)은 "정확도 -"
+            summaryText.setText(record.averageAccuracy == null
+                    ? getString(R.string.record_summary_time_no_accuracy_format, duration)
+                    : getString(R.string.record_summary_time_format, duration,
+                    (int) Math.round(record.averageAccuracy)));
             card.setOnClickListener(v -> openRecordDetail(record.id));
 
             recordListContainer.addView(card);

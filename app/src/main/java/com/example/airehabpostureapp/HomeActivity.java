@@ -163,13 +163,16 @@ public class HomeActivity extends AppCompatActivity {
         ExerciseSessionApi.RecordRow recent = records.get(0);
         LocalDate date = koreaDate(recent.startedAtInstant());
         int durationSeconds = recent.durationSeconds == null ? 0 : recent.durationSeconds;
-        int accuracy = recent.averageAccuracy == null ? 0 : (int) Math.round(recent.averageAccuracy);
+        String duration = DurationFormatter.formatSecondsAsMinutes(this, durationSeconds);
 
         recentExerciseTitleText.setText(recent.exerciseName);
         recentExerciseDateText.setText(date == null ? getString(R.string.empty_value)
                 : getString(R.string.record_date_format, date.getMonthValue(), date.getDayOfMonth()));
-        recentExerciseInfoText.setText(getString(R.string.record_summary_time_format,
-                DurationFormatter.formatSecondsAsMinutes(this, durationSeconds), accuracy));
+        // 정확도가 없는 기록(자세 인식 미지원 운동 / 0회)은 "정확도 -"
+        recentExerciseInfoText.setText(recent.averageAccuracy == null
+                ? getString(R.string.record_summary_time_no_accuracy_format, duration)
+                : getString(R.string.record_summary_time_format, duration,
+                (int) Math.round(recent.averageAccuracy)));
         recentExerciseDateText.setVisibility(View.VISIBLE);
         recentExerciseInfoText.setVisibility(View.VISIBLE);
     }

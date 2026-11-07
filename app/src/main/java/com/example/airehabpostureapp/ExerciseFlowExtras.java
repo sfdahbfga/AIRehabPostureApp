@@ -27,4 +27,10 @@ public final class ExerciseFlowExtras {
     public static final String COMPLETED_REPS = PREFIX + "COMPLETED_REPS";
     public static final String TARGET_REPS = PREFIX + "TARGET_REPS";
     public static final String AVERAGE_ACCURACY = PREFIX + "AVERAGE_ACCURACY";
+    // 자세 인식 측정값 (정수). 측정값이 없으면(0회 / 미지원 운동) 키를 넣지 않는다 → 저장 시 null
+    public static final String FIRST_HALF_ACCURACY = PREFIX + "FIRST_HALF_ACCURACY";
+    public static final String SECOND_HALF_ACCURACY = PREFIX + "SECOND_HALF_ACCURACY";
+    // 관절 평균 오차 (도). 무릎: 가장 많이 굽힌 각도 - 목표 각도 (+ 덜 굽힘 / - 더 굽힘), 허리: 상체 숙임 허용 초과량
+    public static final String KNEE_ERROR_DEGREES = PREFIX + "KNEE_ERROR_DEGREES";
+    public static final String BACK_ERROR_DEGREES = PREFIX + "BACK_ERROR_DEGREES";
 }
