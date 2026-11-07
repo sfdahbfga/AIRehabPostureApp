@@ -43,9 +43,12 @@ public class LegSelectorTest {
         return new LegSelector.LegSample("R", angle, TRUNK, HIP, visibility);
     }
 
+    // ExerciseActivity와 같은 규칙: 서 있을 때는 더 많이 굽혀진 다리, 동작 중에는 직전 각도와 가장 가까운 다리
     // 고른 다리의 각도만 카운터에 넘김 (후보가 없으면 NaN → 건너뜀)
     private void frame(LegSelector.LegSample l, LegSelector.LegSample r) {
-        LegSelector.LegSample chosen = selector.select(l, r);
+        LegSelector.LegSample chosen = counter.isRepInProgress()
+                ? selector.selectClosest(l, r, counter.getLastAcceptedAngle())
+                : selector.select(l, r);
         if (chosen == null) {
             counter.onFrame(now, Double.NaN, Double.NaN, Double.NaN);
         } else {
@@ -91,6 +94,18 @@ public class LegSelectorTest {
     public void noCandidate_returnsNull() {
         assertNull(selector.select(left(100, OCCLUDED), right(90, 0.49f)));
         assertNull(selector.select(null, null));
+    }
+
+    @Test
+    public void selectClosest_picksLegNearestToReference() {
+        LegSelector.LegSample l = left(118, VISIBLE);
+        LegSelector.LegSample r = right(170, VISIBLE);
+        assertSame(l, selector.selectClosest(l, r, 122));
+        assertSame(r, selector.selectClosest(l, r, 165));
+        // 기준 각도가 없으면 더 많이 굽혀진 다리
+        assertSame(l, selector.selectClosest(l, r, Double.NaN));
+        // 후보가 하나뿐이면 멀어도 그 다리 (연속성 검사가 거름)
+        assertSame(r, selector.selectClosest(left(118, OCCLUDED), r, 122));
     }
 
     @Test
@@ -140,6 +155,45 @@ public class LegSelectorTest {
         assertEquals(1, counter.getCompletedReps());
         assertTrue("쪼개진 조각이 버려진 동작으로 남으면 안 됨", rejected.isEmpty());
         assertEquals(90, counter.getResults().get(0).minJointAngle, 0.5);
+    }
+
+    @Test
+    public void bendingLegOccluded_atShallowDepth_standingLegValueDoesNotSplitRep() {
+        // 7차 측정에서 본 현상: 굽히는 다리(R)가 120도 근처에서 가려지고, 서 있는 다리(L, 168도)만 보임
+        // (예전 방식은 약 0.14초 뒤 서 있는 다리 값을 받아들여 동작이 둘로 쪼개졌음)
+        frames(20, 172, VISIBLE, 174, VISIBLE);
+        for (int i = 0; i <= 20; i++) {
+            frame(left(172, VISIBLE), right(174 - (174 - 120) * i / 20.0, VISIBLE));
+        }
+        frames(10, 168, VISIBLE, 120, OCCLUDED);   // 0.33초 가려짐
+        for (int i = 0; i <= 10; i++) {
+            frame(left(172, VISIBLE), right(120 - (120 - 95) * i / 10.0, VISIBLE));
+        }
+        frames(8, 172, VISIBLE, 95, VISIBLE);       // 가장 깊은 곳에서 잠깐 멈춤
+        for (int i = 0; i <= 20; i++) {
+            frame(left(172, VISIBLE), right(95 + (174 - 95) * i / 20.0, VISIBLE));
+        }
+        frames(15, 172, VISIBLE, 174, VISIBLE);
+
+        assertEquals(1, counter.getCompletedReps());
+        assertTrue("쪼개진 조각이 버려진 동작으로 남으면 안 됨", rejected.isEmpty());
+        // 가려진 사이 서 있는 다리 값이 섞이지 않아 가장 깊은 각도를 그대로 기록
+        assertEquals(95, counter.getResults().get(0).minJointAngle, 1.0);
+    }
+
+    @Test
+    public void bendingLegOccluded_atDeepAngle_forHalfSecond_doesNotSplitRep() {
+        frames(20, 172, VISIBLE, 174, VISIBLE);
+        for (int i = 0; i <= 20; i++) {
+            frame(left(172, VISIBLE), right(174 - (174 - 90) * i / 20.0, VISIBLE));
+        }
+        frames(15, 168, VISIBLE, 90, OCCLUDED);    // 0.5초 가려짐
+        for (int i = 0; i <= 20; i++) {
+            frame(left(172, VISIBLE), right(90 + (174 - 90) * i / 20.0, VISIBLE));
+        }
+        frames(15, 172, VISIBLE, 174, VISIBLE);
+        assertEquals(1, counter.getCompletedReps());
+        assertTrue(rejected.isEmpty());
     }
 
     @Test

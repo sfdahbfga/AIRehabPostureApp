@@ -72,7 +72,10 @@ public final class ExerciseCriteria {
             20,     // 각도 연속성: 직전 값과 20도 + (초당 200도 x 지난 시간)보다 크게 다르면 추적 오류로 보고 건너뜀
             200,    // (한 프레임(30fps) 약 27도: 실제 동작은 프레임당 10도 안팎이라 막지 않음.
                     //  서 있는 다리 값으로 60도 넘게 튀는 것은 약 0.2초까지 걸러내고, 0.3초 뒤엔 약 80도까지 허용)
-            0.3);   // 한 번의 동작 중 건너뛴 프레임이 30% 이상이면 "천천히 움직여 주세요" 안내
+            0.3,    // 한 번의 동작 중 건너뛴 프레임이 30% 이상이면 "천천히 움직여 주세요" 안내
+            100,    // 동작 진행 중에는 연속성 검사의 허용 폭을 최대 0.1초분(약 40도)까지만 키움
+                    // (굽히는 다리가 가려졌을 때 서 있는 다리 값이 시간이 지나 받아들여지는 것을 막음)
+            200);   // 평균 각도가 편 기준 이상으로 0.2초 이어져야 1회가 끝난 것으로 봄 (짧은 튐으로 동작이 쪼개지는 것 방지)
 
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
@@ -109,6 +112,10 @@ public final class ExerciseCriteria {
     public final double maxDegreesPerSecond;
     // 한 번의 동작 중 건너뛴 프레임(연속성 검사 + 안 보임) 비율이 이 값 이상이면 "천천히" 안내
     public final double maxMissedFrameRatio;
+    // 동작 진행 중 연속성 검사 허용 폭 계산에 쓰는 최대 경과 시간 (이보다 오래 건너뛰어도 허용 폭이 더 커지지 않음)
+    public final long inRepMaxGapMs;
+    // 1회가 끝났다고 보려면 편 기준 이상이 이만큼 이어져야 함
+    public final long extendedHoldMs;
 
     public ExerciseCriteria(String exerciseName, Side leftSide, Side rightSide,
                             double extendedAngle, double bentAngle, double targetAngle,
@@ -117,7 +124,7 @@ public final class ExerciseCriteria {
                             double minHipAngle,
                             int smoothingWindow, long minRepDurationMs, long maxInvisibleMs,
                             double maxJumpDegrees, double maxDegreesPerSecond,
-                            double maxMissedFrameRatio) {
+                            double maxMissedFrameRatio, long inRepMaxGapMs, long extendedHoldMs) {
         this.exerciseName = exerciseName;
         this.leftSide = leftSide;
         this.rightSide = rightSide;
@@ -137,6 +144,8 @@ public final class ExerciseCriteria {
         this.maxJumpDegrees = maxJumpDegrees;
         this.maxDegreesPerSecond = maxDegreesPerSecond;
         this.maxMissedFrameRatio = maxMissedFrameRatio;
+        this.inRepMaxGapMs = inRepMaxGapMs;
+        this.extendedHoldMs = extendedHoldMs;
     }
 
     /** 직전 값에서 elapsedMs 동안 바뀔 수 있는 최대 각도 (넘으면 추적 오류로 봄) */

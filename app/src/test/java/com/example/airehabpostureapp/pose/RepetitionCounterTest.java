@@ -230,12 +230,61 @@ public class RepetitionCounterTest {
     }
 
     @Test
-    public void realValueAfterLongGap_isAcceptedAgain() {
-        // 0.4초 동안 안 보이다가 그사이 실제로 다리를 폈다면, 허용 폭이 커져서 새 값을 받아들임
+    public void briefExtensionMidRep_shorterThanHold_doesNotSplit() {
+        // 평균이 잠깐(0.1초) 160도를 넘었다가 다시 굽혀짐 → 0.2초 유지가 안 됐으므로 같은 동작
+        hold(175, 500);
+        move(175, 95, 700, UPRIGHT_TRUNK, 0, null);
+        // 166도까지 올라갔다 바로 다시 굽힘 (평균이 160도 이상인 시간은 약 0.1초)
+        move(95, 166, 300, UPRIGHT_TRUNK, 0, null);
+        move(166, 90, 300, UPRIGHT_TRUNK, 0, null);
+        hold(90, 200);
+        move(90, 175, 700, UPRIGHT_TRUNK, 0, null);
+        hold(175, 400);
+        assertEquals(1, counter.getCompletedReps());
+        assertTrue(rejected.isEmpty());
+        assertEquals(90, completed.get(0).minJointAngle, 0.5);
+    }
+
+    @Test
+    public void repEndsOnlyAfterHold_andDurationExcludesHold() {
+        hold(175, 500);
+        move(175, 90, 500, UPRIGHT_TRUNK, 0, null);
+        move(90, 175, 500, UPRIGHT_TRUNK, 0, null);
+        // 편 직후 0.1초는 아직 끝나지 않음
+        hold(175, 100);
+        assertEquals(0, counter.getCompletedReps());
+        assertTrue(counter.isRepInProgress());
+        hold(175, 200);
+        assertEquals(1, counter.getCompletedReps());
+        // 동작 시간은 편 기준에 처음 닿은 시각까지 (유지 0.2초는 포함하지 않음)
+        assertTrue("dur=" + completed.get(0).durationMs, completed.get(0).durationMs < 1100);
+    }
+
+    @Test
+    public void bigChangeAfterGapMidRep_isNotAccepted_andRepIsDiscarded() {
+        // 동작 중에는 허용 폭이 0.1초분(약 40도) 이상 커지지 않음 → 서 있는 다리 값이 들어오는 것을 막는 대신,
+        // 다리가 안 보이는 사이 실제로 다 펴 버린 동작은 세지 못하고 "오래 안 보임"으로 버려짐 (의도한 trade-off)
         hold(175, 500);
         move(175, 90, 1000, UPRIGHT_TRUNK, 0, null);
         hold(90, 300);
         hold(Double.NaN, Double.NaN, 400);
+        hold(175, 1000);
+        assertEquals(0, counter.getCompletedReps());
+        assertEquals(1, rejected.size());
+        assertEquals(RepetitionCounter.RejectReason.LOST_TRACKING, rejected.get(0).reason);
+        // 버려진 뒤에는 다시 편 상태부터 정상적으로 셈
+        rep(90);
+        assertEquals(1, counter.getCompletedReps());
+    }
+
+    @Test
+    public void smallChangeAfterGapMidRep_isAccepted() {
+        // 동작 중 0.4초 안 보였어도 각도 변화가 40도 이내면 이어서 받아들임
+        hold(175, 500);
+        move(175, 90, 1000, UPRIGHT_TRUNK, 0, null);
+        hold(Double.NaN, Double.NaN, 400);
+        hold(110, 100);
+        move(110, 175, 800, UPRIGHT_TRUNK, 0, null);
         hold(175, 400);
         assertEquals(1, counter.getCompletedReps());
     }

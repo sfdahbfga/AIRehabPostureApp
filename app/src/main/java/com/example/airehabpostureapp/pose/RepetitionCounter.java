@@ -150,6 +150,8 @@ public class RepetitionCounter {
     private boolean ready;
     // 편 상태에서 벗어나 굽히기 시작한 시각 (-1이면 동작 중 아님)
     private long bendStartedAtMs = -1;
+    // 동작 중 편 기준 이상이 시작된 시각 (-1이면 아님). extendedHoldMs 이상 이어지면 1회 끝
+    private long extendedSinceMs = -1;
     private boolean reachedBent;
     private double minJointAngle;
     private double maxTrunkLean;
@@ -194,8 +196,14 @@ public class RepetitionCounter {
             handleInvisible(timestampMs);
             return null;
         }
+        // 동작 진행 중에는 오래 건너뛰어도 허용 폭이 inRepMaxGapMs분 이상 커지지 않음
+        // (굽히는 다리가 가려진 사이 서 있는 다리 값이 받아들여져 동작이 끊기는 것 방지)
+        long gapMs = timestampMs - lastVisibleAtMs;
+        if (bendStartedAtMs >= 0) {
+            gapMs = Math.min(gapMs, criteria.inRepMaxGapMs);
+        }
         if (!Double.isNaN(lastAcceptedAngle)
-                && Math.abs(jointAngle - lastAcceptedAngle) > criteria.maxAngleChange(timestampMs - lastVisibleAtMs)) {
+                && Math.abs(jointAngle - lastAcceptedAngle) > criteria.maxAngleChange(gapMs)) {
             // 실제로 움직일 수 없을 만큼 튐 → 안 보인 프레임과 같이 건너뜀 (오래 이어지면 허용 폭이 커져 다시 받아들임)
             skippedFrameCount++;
             if (bendStartedAtMs >= 0) {
@@ -221,9 +229,19 @@ public class RepetitionCounter {
         }
 
         if (smoothedJointAngle >= criteria.extendedAngle) {
+            if (bendStartedAtMs >= 0) {
+                // 편 기준을 extendedHoldMs 동안 유지해야 동작이 끝난 것으로 봄 (그 전에 다시 굽혀지면 같은 동작으로 이어짐)
+                if (extendedSinceMs < 0) {
+                    extendedSinceMs = timestampMs;
+                }
+                if (timestampMs - extendedSinceMs < criteria.extendedHoldMs) {
+                    return null;
+                }
+            }
             RepResult result = null;
             if (bendStartedAtMs >= 0) {
-                long durationMs = timestampMs - bendStartedAtMs;
+                // 동작 시간은 편 기준에 처음 닿은 시각까지
+                long durationMs = extendedSinceMs - bendStartedAtMs;
                 FrameStats frames = currentFrameStats();
                 RejectReason reason = rejectReason(durationMs);
                 if (reason == null) {
@@ -242,10 +260,14 @@ public class RepetitionCounter {
                 }
             }
             bendStartedAtMs = -1;
+            extendedSinceMs = -1;
             reachedBent = false;
             feedback = Feedback.START_BENDING;
             return result;
         }
+
+        // 편 기준 아래 → 유지 시간 측정은 처음부터 다시
+        extendedSinceMs = -1;
 
         // 편 상태에서 벗어남 → 동작 진행 중
         if (bendStartedAtMs < 0) {
@@ -309,6 +331,7 @@ public class RepetitionCounter {
             }
             ready = false;
             bendStartedAtMs = -1;
+            extendedSinceMs = -1;
             reachedBent = false;
             jointWindow.clear();
             trunkWindow.clear();
@@ -352,6 +375,7 @@ public class RepetitionCounter {
         results.clear();
         ready = false;
         bendStartedAtMs = -1;
+        extendedSinceMs = -1;
         reachedBent = false;
         lastVisibleAtMs = -1;
         jointWindow.clear();
@@ -368,6 +392,11 @@ public class RepetitionCounter {
     /** 각도 연속성 검사로 건너뛴 프레임 수 (누적, 디버그 기록용) */
     public int getSkippedFrameCount() {
         return skippedFrameCount;
+    }
+
+    /** 마지막으로 받아들인 원래 각도 (평균 전, 없으면 NaN). 동작 중 다리 고르기의 기준으로 사용 */
+    public double getLastAcceptedAngle() {
+        return lastAcceptedAngle;
     }
 
     /** 마지막으로 버려진 동작을 꺼낸다 (한 번 꺼내면 null). 기준값 조정용 디버그 기록에 사용 */
