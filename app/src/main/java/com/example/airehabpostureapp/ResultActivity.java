@@ -32,10 +32,6 @@ public class ResultActivity extends AppCompatActivity {
     // 15_PostCheck에서 저장한 exercise_sessions id
     public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RESULT_SESSION_ID";
 
-    // TODO: 세트 측정 연동 후 실제 값으로 교체 (현재 세트는 저장하지 않으므로 임시 예시 데이터)
-    private int completedSets = 3;
-    private int targetSets = 3;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,7 +46,6 @@ public class ResultActivity extends AppCompatActivity {
             return insets;
         });
 
-        showSetCompletion();
         loadSession();
 
         // AI 분석 리포트(17_AIReport)로 이동 (Back 시 이 화면으로 복귀, 운동 기록 id 전달)
@@ -115,11 +110,15 @@ public class ResultActivity extends AppCompatActivity {
         // 정확도가 없는 기록(자세 인식 미지원 운동 / 0회)은 "-"
         averageAccuracyValueText.setText(session.averageAccuracy == null ? getString(R.string.empty_value)
                 : getString(R.string.percent_format, (int) Math.round(session.averageAccuracy)));
+        showSetCompletion(session.completedSets, session.targetSets);
     }
 
-    private void showSetCompletion() {
+    // 저장된 세트 값이 하나라도 없으면 "-"
+    private void showSetCompletion(Integer completedSets, Integer targetSets) {
         TextView setCompletionValueText = findViewById(R.id.setCompletionValueText);
-        setCompletionValueText.setText(getString(R.string.set_count_format, completedSets, targetSets));
+        setCompletionValueText.setText(completedSets == null || targetSets == null
+                ? getString(R.string.empty_value)
+                : getString(R.string.set_count_format, completedSets, targetSets));
     }
 
     private void showError(@StringRes int messageRes) {

@@ -46,13 +46,14 @@ public interface ExerciseSessionApi {
     Call<Void> deleteSession(@Header("Authorization") String bearerToken, @Query("id") String idFilter);
 
     // idFilter: "eq.{세션 id}". 행이 없으면 빈 목록
-    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,average_accuracy")
+    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,"
+            + "completed_sets,target_sets,average_accuracy")
     Call<List<SessionRow>> getSession(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
 
     // 기록 목록 / 상세 / 주간 리포트에서 쓰는 열
     String RECORD_COLUMNS = "id,exercise_name,started_at,duration_seconds,completed_repetitions,target_repetitions,"
-            + "average_accuracy,first_half_accuracy,second_half_accuracy,joint_errors";
+            + "completed_sets,target_sets,average_accuracy,first_half_accuracy,second_half_accuracy,joint_errors";
 
     // 내 기록 전체를 최신순으로 (RLS로 본인 기록만 오지만 userIdFilter로도 명시). userIdFilter: "eq.{사용자 id}"
     @GET("rest/v1/exercise_sessions?select=" + RECORD_COLUMNS + "&order=started_at.desc")
@@ -154,6 +155,11 @@ public interface ExerciseSessionApi {
         public Integer completedRepetitions;
         @SerializedName("target_repetitions")
         public Integer targetRepetitions;
+        // 앱은 아직 세트를 저장하지 않으므로 null일 수 있음
+        @SerializedName("completed_sets")
+        public Integer completedSets;
+        @SerializedName("target_sets")
+        public Integer targetSets;
         // DB numeric → 소수일 수 있음
         @SerializedName("average_accuracy")
         public Double averageAccuracy;
@@ -173,6 +179,11 @@ public interface ExerciseSessionApi {
         public Integer completedRepetitions;
         @SerializedName("target_repetitions")
         public Integer targetRepetitions;
+        // 앱은 아직 세트를 저장하지 않으므로 null일 수 있음
+        @SerializedName("completed_sets")
+        public Integer completedSets;
+        @SerializedName("target_sets")
+        public Integer targetSets;
         // DB numeric → 소수일 수 있음
         @SerializedName("average_accuracy")
         public Double averageAccuracy;
