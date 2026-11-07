@@ -11,6 +11,7 @@ import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.Header;
 import retrofit2.http.Headers;
@@ -29,19 +30,30 @@ public interface ExerciseSessionApi {
     Call<List<BodyConditionApi.IdRow>> insertSession(@Header("Authorization") String bearerToken,
                                                      @Body SessionInsert body);
 
+    // 체크인 저장 열 목록. CheckinInsert의 @SerializedName과 같아야 한다. (ExerciseSessionApiTest에서 확인)
+    String CHECKIN_COLUMNS = "session_id,check_type,discomfort_level,body_condition,note";
+
     // pre / post 두 행을 한 요청으로 보내므로 둘 다 저장되거나 둘 다 실패한다.
+    // Gson은 null 필드를 JSON에서 빼므로, 한쪽 행만 메모가 있으면 두 행의 키가 달라진다.
+    // columns를 지정해야 PostgREST가 빠진 키를 null로 채워 저장한다. (지정하지 않으면 PGRST102 "All object keys must match")
     @Headers("Prefer: return=minimal")
-    @POST("rest/v1/session_checkins")
+    @POST("rest/v1/session_checkins?columns=" + CHECKIN_COLUMNS)
     Call<Void> insertCheckins(@Header("Authorization") String bearerToken, @Body List<CheckinInsert> body);
 
+    // 체크인 저장이 실패했을 때 방금 저장한 운동 기록을 되돌리는 데 사용 (체크인 / AI 리포트는 DB에서 함께 삭제됨)
+    // idFilter: "eq.{세션 id}". RLS로 본인 기록만 삭제된다.
+    @DELETE("rest/v1/exercise_sessions")
+    Call<Void> deleteSession(@Header("Authorization") String bearerToken, @Query("id") String idFilter);
+
     // idFilter: "eq.{세션 id}". 행이 없으면 빈 목록
-    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,average_accuracy")
+    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,"
+            + "completed_sets,target_sets,average_accuracy")
     Call<List<SessionRow>> getSession(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
 
     // 기록 목록 / 상세 / 주간 리포트에서 쓰는 열
     String RECORD_COLUMNS = "id,exercise_name,started_at,duration_seconds,completed_repetitions,target_repetitions,"
-            + "average_accuracy,first_half_accuracy,second_half_accuracy,joint_errors";
+            + "completed_sets,target_sets,average_accuracy,first_half_accuracy,second_half_accuracy,joint_errors";
 
     // 내 기록 전체를 최신순으로 (RLS로 본인 기록만 오지만 userIdFilter로도 명시). userIdFilter: "eq.{사용자 id}"
     @GET("rest/v1/exercise_sessions?select=" + RECORD_COLUMNS + "&order=started_at.desc")
@@ -141,6 +153,11 @@ public interface ExerciseSessionApi {
         public Integer completedRepetitions;
         @SerializedName("target_repetitions")
         public Integer targetRepetitions;
+        // 앱은 아직 세트를 저장하지 않으므로 null일 수 있음
+        @SerializedName("completed_sets")
+        public Integer completedSets;
+        @SerializedName("target_sets")
+        public Integer targetSets;
         // DB numeric → 소수일 수 있음
         @SerializedName("average_accuracy")
         public Double averageAccuracy;
@@ -160,6 +177,11 @@ public interface ExerciseSessionApi {
         public Integer completedRepetitions;
         @SerializedName("target_repetitions")
         public Integer targetRepetitions;
+        // 앱은 아직 세트를 저장하지 않으므로 null일 수 있음
+        @SerializedName("completed_sets")
+        public Integer completedSets;
+        @SerializedName("target_sets")
+        public Integer targetSets;
         // DB numeric → 소수일 수 있음
         @SerializedName("average_accuracy")
         public Double averageAccuracy;
