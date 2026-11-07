@@ -457,6 +457,12 @@
     <string name="feedback_keep_trunk_upright">상체를 곧게 세워주세요.</string>
     <string name="feedback_thigh_upright">허벅지를 세워주세요.</string>
     <string name="feedback_move_slowly">천천히 움직여 주세요.</string>
+    <!-- 운동하는 다리를 정하기 전 안내 (정옆으로 서야 카메라 쪽 다리를 알 수 있음) -->
+    <string name="feedback_stand_sideways">카메라 쪽으로 옆으로 서 주세요.</string>
+    <!-- 운동하는 다리가 정해졌을 때 2초 안내. %1$s: leg_side_left / leg_side_right -->
+    <string name="feedback_exercise_leg_locked">카메라 쪽(%1$s) 다리로 운동해 주세요.</string>
+    <string name="leg_side_left">왼쪽</string>
+    <string name="leg_side_right">오른쪽</string>
     <string name="feedback_pose_not_supported">아직 자세 인식을 지원하지 않는 운동이에요.</string>
 
     <!-- 정확도 값이 없는 기록 (자세 인식 미지원 운동) 표시 -->

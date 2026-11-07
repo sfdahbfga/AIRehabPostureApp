@@ -88,7 +88,7 @@ public class ExerciseActivity extends AppCompatActivity {
     private ExerciseCriteria exerciseCriteria;
     @Nullable
     private RepetitionCounter repetitionCounter;
-    // 매 프레임 판정할 다리 고르기 (잘 보이는 다리 중 더 많이 굽혀진 쪽)
+    // 운동하는 다리 정하기 / 고르기 (정옆으로 섰을 때 visibility가 더 높은 카메라 쪽 다리로 고정)
     private final LegSelector legSelector = new LegSelector();
     private TextView postureFeedbackText;
     @StringRes
@@ -127,6 +127,9 @@ public class ExerciseActivity extends AppCompatActivity {
     // "천천히 움직여 주세요" 안내를 이 시각(uptime ms)까지 다른 안내 대신 표시
     private static final long MOVE_SLOWLY_HINT_MS = 2000L;
     private long moveSlowlyUntilMs = 0;
+    // 운동하는 다리가 정해진 뒤 "카메라 쪽(오른쪽) 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
+    private static final long LEG_LOCKED_HINT_MS = 2000L;
+    private long legLockedHintUntilMs = 0;
 
     // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 문구만 표시 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
@@ -345,7 +348,8 @@ public class ExerciseActivity extends AppCompatActivity {
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
                 LegSelector.LegSample chosen = countRepetition(timestampMs, left, right);
                 countDebugFrame(pose == null, chosen == null, left.isCandidate() != right.isCandidate());
-                showDebugKneeAngles(left.jointAngle, right.jointAngle, chosen);
+                showDebugKneeAngles(left.jointAngle, right.jointAngle,
+                        left.minVisibility, right.minVisibility, chosen);
             });
         }
 
@@ -365,9 +369,13 @@ public class ExerciseActivity extends AppCompatActivity {
         double jointAngle = calculateJointAngle(pose, side.first, side.middle, side.last, imageWidth, imageHeight);
         double trunkLean = calculateTrunkLean(pose, side.shoulder, side.first, imageWidth, imageHeight);
         double hipAngle = calculateJointAngle(pose, side.shoulder, side.first, side.middle, imageWidth, imageHeight);
-        float minVisibility = Math.min(visibility(pose, side.first),
-                Math.min(visibility(pose, side.middle), visibility(pose, side.last)));
-        return new LegSelector.LegSample(side.label, jointAngle, trunkLean, hipAngle, minVisibility);
+        float hipVisibility = visibility(pose, side.first);
+        float kneeVisibility = visibility(pose, side.middle);
+        float ankleVisibility = visibility(pose, side.last);
+        float minVisibility = Math.min(hipVisibility, Math.min(kneeVisibility, ankleVisibility));
+        float averageVisibility = (hipVisibility + kneeVisibility + ankleVisibility) / 3f;
+        return new LegSelector.LegSample(side.label, jointAngle, trunkLean, hipAngle,
+                minVisibility, averageVisibility);
     }
 
     private static float visibility(List<NormalizedLandmark> pose, int index) {
@@ -396,8 +404,10 @@ public class ExerciseActivity extends AppCompatActivity {
     }
 
     // 반복 횟수 측정 (UI 스레드)
-    // 옆모습에서는 MediaPipe가 L/R 이름을 순간적으로 바꿔 붙일 수 있어, 이름으로 다리를 고정하지 않고
-    // 매 프레임 "잘 보이는 다리 중 더 많이 굽혀진 쪽"을 움직이는 다리로 본다. (LegSelector)
+    // 1) 운동하는 다리 정하기: 정옆으로 서서 두 다리의 visibility 차이가 0.2 이상인 상태가 1초 이어지면
+    //    더 잘 보이는 다리(카메라 쪽)로 정한다. 그동안은 세지 않음 (LegSelector.observeForLock)
+    // 2) 그 뒤로는 정해진 다리만 판정 (카메라에서 먼 다리는 가려져 값이 튀기 쉬우므로 쓰지 않음)
+    //    정해진 다리가 안 보이면 NaN → RepetitionCounter가 1초 넘게 이어질 때 "전신이 보이게" 안내
     // 평균(흔들림 완화)은 고른 뒤의 각도에 RepetitionCounter가 적용한다.
     // 반환값: 이번 프레임에 고른 다리 (디버그 표시용, 측정하지 않거나 후보가 없으면 null)
     @Nullable
@@ -406,18 +416,25 @@ public class ExerciseActivity extends AppCompatActivity {
         if (repetitionCounter == null || exerciseCriteria == null) {
             return null;
         }
-        // 서 있을 때: 더 많이 굽혀진 다리 (동작 시작 감지)
-        // 동작 중: 직전 각도와 가장 가까운 다리 (굽히는 다리가 가려져도 서 있는 다리 값으로 넘어가지 않게)
-        LegSelector.LegSample chosen = repetitionCounter.isRepInProgress()
-                ? legSelector.selectClosest(left, right, repetitionCounter.getLastAcceptedAngle())
-                : legSelector.select(left, right);
+        if (!legSelector.isLocked()) {
+            if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.extendedAngle)) {
+                // 다리를 정하는 중: 사람(다리)이 보이면 정옆으로 서도록, 아니면 전신이 보이도록 안내
+                showFeedback(left.isCandidate() || right.isCandidate()
+                        ? R.string.feedback_stand_sideways
+                        : R.string.feedback_full_body_visible);
+                return null;
+            }
+            legLockedHintUntilMs = SystemClock.uptimeMillis() + LEG_LOCKED_HINT_MS;
+            logLegLocked();
+        }
+        LegSelector.LegSample chosen = legSelector.selectLocked(left, right);
         // 디버그용: 한쪽 다리만 visibility 부족이었던 프레임 수 (동작 단위)
         if (repetitionCounter.isRepInProgress() && left.isCandidate() != right.isCandidate()) {
             oneLegLowVisFramesInRep++;
         }
         RepetitionCounter.RepResult rep;
         if (chosen == null) {
-            // 두 다리 모두 잘 안 보임 → 이 프레임은 건너뜀 (오래 이어지면 카운터가 "전신이 보이게" 안내)
+            // 정해진 다리가 잘 안 보임 → 이 프레임은 건너뜀 (1초 넘게 이어지면 카운터가 "전신이 보이게" 안내)
             rep = repetitionCounter.onFrame(timestampMs, Double.NaN, Double.NaN, Double.NaN);
         } else {
             rep = repetitionCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, chosen.hipAngle);
@@ -440,10 +457,36 @@ public class ExerciseActivity extends AppCompatActivity {
             legSelector.resetSwitchCount();
             oneLegLowVisFramesInRep = 0;
         }
-        showFeedback(now < moveSlowlyUntilMs
-                ? R.string.feedback_move_slowly
-                : feedbackMessage(repetitionCounter.getFeedback()));
+        RepetitionCounter.Feedback feedback = repetitionCounter.getFeedback();
+        if (now < legLockedHintUntilMs && feedback != RepetitionCounter.Feedback.NOT_VISIBLE) {
+            // 다리가 정해진 직후 2초: 정해진 쪽 안내 (다리가 안 보이면 "전신이 보이게"가 우선)
+            showLegLockedFeedback();
+        } else {
+            showFeedback(now < moveSlowlyUntilMs
+                    ? R.string.feedback_move_slowly
+                    : feedbackMessage(feedback));
+        }
         return chosen;
+    }
+
+    // "카메라 쪽(오른쪽) 다리로 운동해 주세요." (L = 왼쪽, R = 오른쪽)
+    private void showLegLockedFeedback() {
+        if (shownFeedbackRes == R.string.feedback_exercise_leg_locked) {
+            return;
+        }
+        shownFeedbackRes = R.string.feedback_exercise_leg_locked;
+        int sideRes = "L".equals(legSelector.getLockedLabel()) ? R.string.leg_side_left : R.string.leg_side_right;
+        postureFeedbackText.setText(getString(R.string.feedback_exercise_leg_locked, getString(sideRes)));
+    }
+
+    // 디버그용: 운동하는 다리가 정해졌을 때 다리별 평균 visibility 기록
+    private void logLegLocked() {
+        if (!DEBUG_LOG_REPS) {
+            return;
+        }
+        Log.d(DEBUG_TAG, String.format(Locale.US, "leg locked=%s avgVis L=%.2f R=%.2f",
+                legSelector.getLockedLabel(), legSelector.getLockedLeftAverage(),
+                legSelector.getLockedRightAverage()));
     }
 
     @StringRes
@@ -550,7 +593,9 @@ public class ExerciseActivity extends AppCompatActivity {
     // fps = 지난 기록 이후 초당 MediaPipe 결과 수
     // noPose = 사람 인식 안 됨, lowVis = 두 다리 모두 visibility 0.5 미만,
     // oneLeg = 한쪽 다리만 visibility 0.5 미만, jump = 연속성 검사로 건너뜀 (지난 기록 이후 프레임 수)
+    // vis = 그 순간 다리별 엉덩이 / 무릎 / 발목 visibility 중 가장 낮은 값 (높은 쪽이 카메라 쪽 다리)
     private void showDebugKneeAngles(double leftKneeAngle, double rightKneeAngle,
+                                     float leftVisibility, float rightVisibility,
                                      @Nullable LegSelector.LegSample chosen) {
         if (!DEBUG_SHOW_KNEE_ANGLE) {
             return;
@@ -568,8 +613,8 @@ public class ExerciseActivity extends AppCompatActivity {
             int jumpSinceLastLog = skippedTotal - lastLoggedSkippedFrames;
             double fps = lastDebugLogAtMs == 0 ? 0 : debugFrameCount * 1000.0 / elapsedMs;
             Log.d(DEBUG_TAG, String.format(Locale.US,
-                    "knee L=%s R=%s sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d oneLeg=%d jump=%d",
-                    left, right, selected, fps, debugFrameCount,
+                    "knee L=%s R=%s vis L=%.2f R=%.2f sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d oneLeg=%d jump=%d",
+                    left, right, leftVisibility, rightVisibility, selected, fps, debugFrameCount,
                     debugNoPoseFrames, debugLowVisibilityFrames, debugOneLegLowVisFrames, jumpSinceLastLog));
             lastDebugLogAtMs = now;
             lastLoggedSkippedFrames = skippedTotal;
@@ -649,9 +694,11 @@ public class ExerciseActivity extends AppCompatActivity {
             repetitionCounter.reset();
             showFeedback(R.string.feedback_full_body_visible);
         }
+        // 운동하는 다리도 처음부터 다시 정함
         legSelector.reset();
         lastLoggedSkippedFrames = 0;
         moveSlowlyUntilMs = 0;
+        legLockedHintUntilMs = 0;
         elapsedSeconds = 0;
         startedAtMillis = System.currentTimeMillis();
         updateTimerText();
