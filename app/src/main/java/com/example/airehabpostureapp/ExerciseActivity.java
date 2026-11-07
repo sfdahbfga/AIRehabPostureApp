@@ -62,7 +62,10 @@ public class ExerciseActivity extends AppCompatActivity {
 
     // 디버그용: 무릎 각도(엉덩이-무릎-발목)를 화면 구석과 Logcat(태그 PoseDebug)에 1초 간격으로 표시.
     // 기준값 조정이 끝나면 false로 끄거나 관련 코드를 삭제한다.
-    private static final boolean DEBUG_SHOW_KNEE_ANGLE = true;
+    // DEBUG_SHOW_KNEE_ANGLE: 화면 구석 표시 (꺼 둠, 측정할 때 true로 켬)
+    // DEBUG_LOG_KNEE_ANGLE: Logcat 1초 기록 (각도 / visibility / fps / 건너뛴 프레임 수)
+    private static final boolean DEBUG_SHOW_KNEE_ANGLE = false;
+    private static final boolean DEBUG_LOG_KNEE_ANGLE = true;
     // 디버그용: 1회가 끝날 때마다 회차 / 가장 많이 굽힌 각도 / 정확도를 Logcat(태그 PoseDebug)에 기록.
     // 기준값 조정이 끝나면 false로 끈다.
     private static final boolean DEBUG_LOG_REPS = true;
@@ -579,7 +582,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 c.x() * imageWidth, c.y() * imageHeight);
     }
 
-    // 디버그용: 무릎 각도를 화면 구석에 표시하고 Logcat에 1초에 한 번 기록 (DEBUG_SHOW_KNEE_ANGLE로 끔)
+    // 디버그용: 무릎 각도를 화면 구석에 표시(DEBUG_SHOW_KNEE_ANGLE)하고 Logcat에 1초에 한 번 기록(DEBUG_LOG_KNEE_ANGLE)
     // sel = 이번 프레임에 판정에 쓴 다리와 각도
     // fps = 지난 기록 이후 초당 MediaPipe 결과 수
     // noPose = 사람 인식 안 됨, lowVis = 두 다리 모두 visibility 0.5 미만,
@@ -588,13 +591,15 @@ public class ExerciseActivity extends AppCompatActivity {
     private void showDebugKneeAngles(double leftKneeAngle, double rightKneeAngle,
                                      float leftVisibility, float rightVisibility,
                                      @Nullable LegSelector.LegSample chosen) {
-        if (!DEBUG_SHOW_KNEE_ANGLE) {
-            return;
-        }
         String left = formatAngle(leftKneeAngle);
         String right = formatAngle(rightKneeAngle);
-        debugKneeAngleText.setVisibility(View.VISIBLE);
-        debugKneeAngleText.setText(getString(R.string.debug_knee_angle_format, left, right));
+        if (DEBUG_SHOW_KNEE_ANGLE) {
+            debugKneeAngleText.setVisibility(View.VISIBLE);
+            debugKneeAngleText.setText(getString(R.string.debug_knee_angle_format, left, right));
+        }
+        if (!DEBUG_LOG_KNEE_ANGLE) {
+            return;
+        }
 
         long now = SystemClock.uptimeMillis();
         long elapsedMs = now - lastDebugLogAtMs;
