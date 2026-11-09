@@ -100,6 +100,11 @@ public class ExerciseActivity extends AppCompatActivity {
     // 지금 표시 중인 안내 문구 (같으면 다시 그리지 않음)
     @Nullable
     private String shownFeedbackText;
+    // 지금 표시 중인 안내 문구의 리소스 (바뀔 때만 로그 / 음성. 유지형의 초 숫자만 바뀌는 경우는 제외)
+    @StringRes
+    private int shownFeedbackRes;
+    // 안내 문구 / 횟수 음성 안내 (한국어 음성이 없으면 아무것도 읽지 않음)
+    private VoiceGuide voiceGuide;
 
     // 운동 진행 시간 (초), 화면이 보이는 동안만 1초씩 증가
     private int elapsedSeconds = 0;
@@ -196,7 +201,8 @@ public class ExerciseActivity extends AppCompatActivity {
 
         // 운동 이름으로 자세 인식 기준을 찾고, 없으면 측정하지 않고 안내만 표시
         postureFeedbackText = findViewById(R.id.postureFeedbackText);
-        exerciseCriteria = ExerciseCriteria.forExercise(exerciseNameText.getText().toString());
+        voiceGuide = new VoiceGuide(this);
+        exerciseCriteria =ExerciseCriteria.forExercise(exerciseNameText.getText().toString());
         if (exerciseCriteria != null) {
             repetitionCounter = createCounter(exerciseCriteria);
             targetReps = exerciseCriteria.targetReps;
@@ -245,6 +251,7 @@ public class ExerciseActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        voiceGuide.shutdown();
         if (cameraProvider != null) {
             cameraProvider.unbindAll();
             cameraProvider = null;
@@ -460,6 +467,8 @@ public class ExerciseActivity extends AppCompatActivity {
         if (rep != null) {
             logRepResult(rep);
             updateExerciseStatus();
+            // 횟수는 안내 문구보다 먼저 (이 뒤에 바뀌는 안내 문구는 횟수 다음에 읽힘)
+            voiceGuide.speakCount(getString(R.string.voice_rep_count, repetitionCounter.getCompletedReps()));
         }
         RepetitionCounter.RejectedAttempt rejected = repetitionCounter.takeRejectedAttempt();
         if (rejected != null) {
@@ -678,6 +687,16 @@ public class ExerciseActivity extends AppCompatActivity {
         }
         shownFeedbackText = text;
         postureFeedbackText.setText(text);
+        if (messageRes != shownFeedbackRes) {
+            shownFeedbackRes = messageRes;
+            Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
+            voiceGuide.speakMessage(speechText(text));
+        }
+    }
+
+    // 음성으로 읽을 문구: 유지형의 "(3/20초)"처럼 괄호 안 숫자는 읽지 않음
+    private static String speechText(String text) {
+        return text.replaceAll("\\s*\\(.*\\)\\s*$", "");
     }
 
     // 디버그용: 회차별 결과를 Logcat에 기록 (기준값 조정용, DEBUG_LOG_REPS로 끔)
@@ -821,12 +840,17 @@ public class ExerciseActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
+        // 일시정지 화면 등에서 돌아오면 지금 안내를 다시 읽음
+        if (shownFeedbackText != null) {
+            voiceGuide.speakMessage(speechText(shownFeedbackText));
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         timerHandler.removeCallbacks(timerRunnable);
+        voiceGuide.stop();
     }
 
     // 운동 후 컨디션 체크(15_PostCheck)로 이동하고 운동 화면은 종료 (Back Stack에 남기지 않음)

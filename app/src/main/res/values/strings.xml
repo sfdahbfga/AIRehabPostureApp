@@ -234,6 +234,8 @@
     <string name="skeleton_overlay_description">자세 인식 Skeleton 표시 영역</string>
     <string name="repetition_count_label">반복 횟수</string>
     <string name="repetition_count_format">%1$d / %2$d회</string>
+    <!-- 운동 화면 음성 안내: 1회가 세어질 때 읽는 횟수 -->
+    <string name="voice_rep_count">%1$d회</string>
     <string name="accuracy_label">자세 정확도</string>
     <string name="percent_format">%1$d%%</string>
     <string name="exercise_progress_label">운동 진행률</string>
