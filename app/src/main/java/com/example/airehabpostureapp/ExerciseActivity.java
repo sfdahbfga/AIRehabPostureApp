@@ -520,6 +520,25 @@ public class ExerciseActivity extends AppCompatActivity {
             return 0;
         }
         switch (exerciseCriteria.id) {
+            case ExerciseCriteria.ID_CHAIR_SQUAT:
+                return chairSquatFeedback(feedback);
+            default:
+                return 0;
+        }
+    }
+
+    // 의자 스쿼트 안내
+    @StringRes
+    private int chairSquatFeedback(RepetitionCounter.Feedback feedback) {
+        switch (feedback) {
+            case BEND_MORE:
+                return R.string.feedback_squat_sit_more;
+            case GOOD_STRAIGHTEN:
+                return R.string.feedback_squat_good_stand_up;
+            case HIPS_BACK:
+                return R.string.feedback_squat_hips_back;
+            case START_BENDING:
+                return R.string.feedback_squat_start;
             default:
                 return 0;
         }
@@ -530,6 +549,8 @@ public class ExerciseActivity extends AppCompatActivity {
     private int sidewaysMessage() {
         if (exerciseCriteria != null) {
             switch (exerciseCriteria.id) {
+                case ExerciseCriteria.ID_CHAIR_SQUAT:
+                    return R.string.feedback_squat_stand_sideways;
                 default:
                     break;
             }
@@ -542,6 +563,9 @@ public class ExerciseActivity extends AppCompatActivity {
     private int legLockedMessage() {
         if (exerciseCriteria != null) {
             switch (exerciseCriteria.id) {
+                case ExerciseCriteria.ID_CHAIR_SQUAT:
+                    // 양쪽 다리로 하는 운동이라 "카메라 쪽 다리" 안내 대신 시작 안내
+                    return R.string.feedback_squat_start;
                 default:
                     break;
             }

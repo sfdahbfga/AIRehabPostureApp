@@ -465,4 +465,25 @@
     <string name="record_summary_time_no_accuracy_format">%1$s · 정확도 -</string>
     <string name="goal_progress_no_value_format">현재 - / %1$d</string>
     <string name="challenge_accuracy_no_value_format">현재 - · 목표 %1$d%%</string>
+
+    <!-- 운동 상세: 의자 스쿼트 -->
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_description_chair_squat">의자를 활용해 앉았다 일어서며 하체 근력을 기르는 기초 재활운동</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_purpose_chair_squat">하체 근력 강화</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_joints_chair_squat">무릎, 엉덩이</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_duration_chair_squat">약 8분</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_repetitions_chair_squat">10회 × 3세트</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_difficulty_chair_squat">초급</string>
+
+    <!-- 13_Exercise 자세 피드백: 의자 스쿼트 -->
+    <string name="feedback_squat_stand_sideways">의자를 몸 뒤에 두고 카메라 쪽으로 옆으로 서 주세요.</string>
+    <string name="feedback_squat_start">의자에 앉듯 천천히 내려가 주세요.</string>
+    <string name="feedback_squat_sit_more">조금 더 앉아 주세요.</string>
+    <string name="feedback_squat_good_stand_up">좋아요! 천천히 일어서 주세요.</string>
+    <string name="feedback_squat_hips_back">엉덩이를 뒤로 빼며 앉아 주세요.</string>
 </resources>

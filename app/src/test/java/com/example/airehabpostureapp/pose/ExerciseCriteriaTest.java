@@ -16,7 +16,7 @@ public class ExerciseCriteriaTest {
     @Test
     public void forExercise_findsKneeFlexion_andNullForUnsupported() {
         assertSame(knee, ExerciseCriteria.forExercise("무릎 굽힘 운동"));
-        assertNull(ExerciseCriteria.forExercise("의자 스쿼트"));
+        assertNull(ExerciseCriteria.forExercise("없는 운동"));
         assertNull(ExerciseCriteria.forExercise(null));
     }
 

@@ -49,6 +49,7 @@ public final class ExerciseCriteria {
 
     // 운동 구분 키 (화면에서 운동별 안내 문구를 고를 때 사용)
     public static final String ID_KNEE_FLEXION = "knee_flexion";
+    public static final String ID_CHAIR_SQUAT = "chair_squat";
 
     /**
      * 무릎 굽힘 운동 (서서 하기): 의자를 잡고 서서 카메라 쪽 다리의 발뒤꿈치를 엉덩이 쪽으로 들어 올린다.
@@ -70,11 +71,33 @@ public final class ExerciseCriteria {
                                        // (2차 측정에서 정상 동작이 0.81초까지 나와 0.8초에서 낮춤)
             .build();
 
+    /**
+     * 의자 스쿼트 (서서 하기, 양쪽 다리): 의자를 몸 뒤에 두고 정옆으로 서서,
+     * 엉덩이가 의자에 살짝 닿을 때까지 앉았다가 일어선다. 판정은 카메라 쪽 다리의 무릎 각도.
+     * - 목표 90도: 표준 의자 높이(약 45cm)에 앉으면 무릎이 약 90도. 재활 스쿼트는 보통 무릎 60~90도 굽힘 범위
+     * - 90도보다 깊게 앉으면 무릎 부담이 커지므로 더 굽힘 허용폭은 무릎 굽힘 운동(20도)보다 좁은 15도
+     * - 스쿼트는 몸의 중심을 맞추려고 상체가 30~45도 앞으로 기우는 것이 정상이라 상체 허용은 45도
+     */
+    public static final ExerciseCriteria CHAIR_SQUAT = new Builder(ID_CHAIR_SQUAT, "의자 스쿼트")
+            .targetReps(10)            // 10회 x 3세트 중 1세트
+            .extendedAngle(160)        // 이 각도 이상이면 일어선 상태
+            .bentAngle(120)            // 이 각도 이하까지 앉아야 1회 동작으로 인정 (목표까지 30도 이내)
+            .targetAngle(90)
+            .underBendTolerance(10)    // 100도까지는 만점
+            .overBendTolerance(15)     // 75도까지는 만점
+            .maxTrunkLean(45)
+            .jointWeight(0.7)          // 회차 정확도 = 무릎 점수 x 0.7 + 상체 점수 x 0.3 (스쿼트는 상체 자세도 중요)
+            .maxHipAngleAtDepth(150)   // 동작 중 엉덩이 각도가 한 번도 150도 아래로 내려가지 않으면 무릎만 접은 것으로 보고 세지 않음
+                                       // (서 있으면 약 170~180도, 무릎 90도 스쿼트에서는 약 80~110도)
+            .minRepDurationMs(1000)    // 앉았다 일어서기가 1초 미만이면 흔들림 / 너무 빠른 동작으로 봄
+            .build();
+
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
     static {
         Map<String, ExerciseCriteria> map = new HashMap<>();
         map.put(KNEE_FLEXION.exerciseName, KNEE_FLEXION);
+        map.put(CHAIR_SQUAT.exerciseName, CHAIR_SQUAT);
         CRITERIA_BY_NAME = Collections.unmodifiableMap(map);
     }
 
@@ -108,6 +131,8 @@ public final class ExerciseCriteria {
     public final double jointWeight;
     // 동작 중 엉덩이 각도가 이 값보다 작아지면 그 동작은 세지 않음 (0이면 검사하지 않음)
     public final double minHipAngle;
+    // 동작 중 가장 작았던 엉덩이 각도가 이 값보다 크면(엉덩이를 굽히지 않음) 그 동작은 세지 않음 (0이면 검사하지 않음)
+    public final double maxHipAngleAtDepth;
     public final int smoothingWindow;
     public final long minRepDurationMs;
     public final long maxInvisibleMs;
@@ -139,6 +164,7 @@ public final class ExerciseCriteria {
         this.trunkPointsPerDegree = b.trunkPointsPerDegree;
         this.jointWeight = b.jointWeight;
         this.minHipAngle = b.minHipAngle;
+        this.maxHipAngleAtDepth = b.maxHipAngleAtDepth;
         this.smoothingWindow = b.smoothingWindow;
         this.minRepDurationMs = b.minRepDurationMs;
         this.maxInvisibleMs = b.maxInvisibleMs;
@@ -172,6 +198,8 @@ public final class ExerciseCriteria {
         private double jointWeight = 0.8;
         // 0이면 엉덩이 규칙을 검사하지 않음
         private double minHipAngle = 0;
+        // 0이면 "엉덩이를 굽혀야 함" 규칙을 검사하지 않음
+        private double maxHipAngleAtDepth = 0;
         // 최근 5프레임 평균 각도로 판정 (흔들림 완화)
         private int smoothingWindow = 5;
         private long minRepDurationMs = 500;
@@ -208,6 +236,7 @@ public final class ExerciseCriteria {
         public Builder trunkPointsPerDegree(double v) { trunkPointsPerDegree = v; return this; }
         public Builder jointWeight(double v) { jointWeight = v; return this; }
         public Builder minHipAngle(double v) { minHipAngle = v; return this; }
+        public Builder maxHipAngleAtDepth(double v) { maxHipAngleAtDepth = v; return this; }
         public Builder smoothingWindow(int v) { smoothingWindow = v; return this; }
         public Builder minRepDurationMs(long v) { minRepDurationMs = v; return this; }
         public Builder maxInvisibleMs(long v) { maxInvisibleMs = v; return this; }
@@ -271,6 +300,11 @@ public final class ExerciseCriteria {
     /** 엉덩이를 기준보다 많이 굽혔으면 true (엉덩이가 안 보였거나 검사하지 않는 운동이면 false) */
     public boolean isHipTooBent(double minHipAngleDegrees) {
         return minHipAngle > 0 && !Double.isNaN(minHipAngleDegrees) && minHipAngleDegrees < minHipAngle;
+    }
+
+    /** 엉덩이를 기준만큼 굽히지 않았으면 true (엉덩이가 안 보였거나 검사하지 않는 운동이면 false) */
+    public boolean isHipNotBent(double minHipAngleDegrees) {
+        return maxHipAngleAtDepth > 0 && !Double.isNaN(minHipAngleDegrees) && minHipAngleDegrees > maxHipAngleAtDepth;
     }
 
     private static double clampScore(double score) {

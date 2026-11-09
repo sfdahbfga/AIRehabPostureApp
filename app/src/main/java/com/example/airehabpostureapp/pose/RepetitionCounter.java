@@ -14,6 +14,8 @@ import java.util.List;
  * - 편 기준과 굽힘 기준 사이에 간격이 있어서, 경계에서 흔들려도 두 번 세지지 않는다.
  * - 굽히기 시작해서 다시 펼 때까지 minRepDurationMs 미만이면 흔들림으로 보고 세지 않는다.
  * - 동작 중 엉덩이 각도가 minHipAngle보다 작아지면(스쿼트처럼 엉덩이를 굽힘) 세지 않는다.
+ * - 반대로 스쿼트처럼 엉덩이를 굽혀야 하는 운동은, 동작 중 엉덩이 각도가 maxHipAngleAtDepth 아래로
+ *   한 번도 내려가지 않으면(무릎만 접음) 세지 않는다.
  * - 관절이 maxInvisibleMs 넘게 안 보이면 진행 중이던 동작은 버리고, 다시 편 상태부터 기다린다.
  * - 각도 연속성 검사: 직전에 받아들인 각도와 비교해 실제 무릎이 움직일 수 없을 만큼 튄 값은
  *   추적 오류(가려진 다리 대신 서 있는 다리 값이 들어온 경우 등)로 보고 그 프레임을 건너뛴다.
@@ -42,7 +44,9 @@ public class RepetitionCounter implements ExerciseCounter {
         // 상체가 허용 각도보다 많이 숙여짐
         KEEP_TRUNK_UPRIGHT,
         // 엉덩이를 굽힘 (스쿼트처럼 허벅지가 기움)
-        THIGH_UPRIGHT
+        THIGH_UPRIGHT,
+        // 굽힘 기준까지 내려갔는데 엉덩이를 굽히지 않음 (스쿼트: 엉덩이를 뒤로 빼야 함)
+        HIPS_BACK
     }
 
     /** 세지 않고 버린 이유 */
@@ -54,7 +58,9 @@ public class RepetitionCounter implements ExerciseCounter {
         // 엉덩이 각도가 minHipAngle보다 작아짐
         HIP_BENT,
         // 동작 중 관절이 maxInvisibleMs 넘게 안 보임
-        LOST_TRACKING
+        LOST_TRACKING,
+        // 엉덩이 각도가 maxHipAngleAtDepth 아래로 내려가지 않음 (무릎만 접음)
+        HIP_NOT_BENT
     }
 
     /** 한 번의 동작 동안 받은 프레임 수 (기준값 조정 / 천천히 안내용) */
@@ -294,6 +300,8 @@ public class RepetitionCounter implements ExerciseCounter {
 
         if (criteria.isHipTooBent(smoothedHip)) {
             feedback = Feedback.THIGH_UPRIGHT;
+        } else if (smoothedJointAngle <= criteria.bentAngle && criteria.isHipNotBent(smoothedHip)) {
+            feedback = Feedback.HIPS_BACK;
         } else if (!Double.isNaN(smoothedTrunk) && smoothedTrunk > criteria.maxTrunkLean) {
             feedback = Feedback.KEEP_TRUNK_UPRIGHT;
         } else if (smoothedJointAngle <= criteria.targetAngle + criteria.underBendTolerance) {
@@ -314,6 +322,9 @@ public class RepetitionCounter implements ExerciseCounter {
         }
         if (criteria.isHipTooBent(minHipAngle)) {
             return RejectReason.HIP_BENT;
+        }
+        if (criteria.isHipNotBent(minHipAngle)) {
+            return RejectReason.HIP_NOT_BENT;
         }
         return null;
     }
