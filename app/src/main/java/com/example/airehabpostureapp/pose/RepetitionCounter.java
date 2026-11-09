@@ -22,7 +22,7 @@ import java.util.List;
  *
  * 한 스레드에서만 호출해야 한다. (ExerciseActivity에서는 UI 스레드)
  */
-public class RepetitionCounter {
+public class RepetitionCounter implements ExerciseCounter {
 
     // 편 상태에서 이만큼도 굽히지 않은 작은 흔들림은 "버려진 동작"으로 기록하지 않음
     private static final double MIN_ATTEMPT_DEPTH_DEGREES = 10;
@@ -188,6 +188,7 @@ public class RepetitionCounter {
      * @param hipAngle    엉덩이 각도(어깨-엉덩이-무릎). 안 보이면 NaN
      * @return 이 프레임에서 1회가 끝났으면 그 결과, 아니면 null
      */
+    @Override
     public RepResult onFrame(long timestampMs, double jointAngle, double trunkLean, double hipAngle) {
         if (Double.isNaN(jointAngle)) {
             if (bendStartedAtMs >= 0) {

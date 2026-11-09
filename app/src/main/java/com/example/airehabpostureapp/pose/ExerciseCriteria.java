@@ -47,35 +47,28 @@ public final class ExerciseCriteria {
     public static final Side LEFT_LEG = new Side("L", LEFT_SHOULDER, LEFT_HIP, LEFT_KNEE, LEFT_ANKLE);
     public static final Side RIGHT_LEG = new Side("R", RIGHT_SHOULDER, RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE);
 
+    // 운동 구분 키 (화면에서 운동별 안내 문구를 고를 때 사용)
+    public static final String ID_KNEE_FLEXION = "knee_flexion";
+
     /**
      * 무릎 굽힘 운동 (서서 하기): 의자를 잡고 서서 카메라 쪽 다리의 발뒤꿈치를 엉덩이 쪽으로 들어 올린다.
      * 무릎 각도 = 엉덩이 - 무릎 - 발목 (똑바로 서면 약 180도, 굽힐수록 작아짐)
+     * 아래 Builder 기본값(흔들림 / 연속성 검사)은 이 운동의 실측으로 정한 값이다.
      */
-    public static final ExerciseCriteria KNEE_FLEXION = new ExerciseCriteria(
-            "무릎 굽힘 운동",
-            LEFT_LEG, RIGHT_LEG,
-            160,    // 이 각도 이상이면 다리를 편 상태
-            130,    // 이 각도 이하까지 굽혀야 1회 동작으로 인정
-            90,     // 목표 각도 (종아리와 허벅지가 직각)
-            10,     // 목표보다 덜 굽혀도 10도까지는 만점
-            20,     // 목표보다 더 굽혀도 20도까지는 만점 (서서 하는 동작이라 더 굽혀도 위험이 적음)
-            2,      // 허용 범위를 넘으면 1도당 감점
-            15,     // 상체 숙임 허용 각도 (의자를 잡으면 살짝 숙여짐)
-            4,      // 상체 허용 각도를 넘으면 1도당 감점
-            0.8,    // 회차 정확도 = 무릎 점수 x 0.8 + 상체 점수 x 0.2
-            140,    // 엉덩이 각도(어깨-엉덩이-무릎)가 이보다 작아지면 스쿼트처럼 엉덩이를 굽힌 것으로 보고 세지 않음
-                    // (A안은 허벅지가 수직이라 약 160~175도, 상체만 숙여도 약 150도 이상 / 2차 측정 기준 추정값)
-            5,      // 최근 5프레임 평균 각도로 판정 (흔들림 완화)
-            500,    // 굽히기 시작해서 다시 펼 때까지 0.5초 미만이면 흔들림으로 보고 세지 않음
-                    // (2차 측정에서 정상 동작이 0.81초까지 나와 0.8초에서 낮춤)
-            1000,   // 관절이 1초 넘게 안 보이면 진행 중인 동작을 버림
-            20,     // 각도 연속성: 직전 값과 20도 + (초당 200도 x 지난 시간)보다 크게 다르면 추적 오류로 보고 건너뜀
-            200,    // (한 프레임(30fps) 약 27도: 실제 동작은 프레임당 10도 안팎이라 막지 않음.
-                    //  서 있는 다리 값으로 60도 넘게 튀는 것은 약 0.2초까지 걸러내고, 0.3초 뒤엔 약 80도까지 허용)
-            0.3,    // 한 번의 동작 중 건너뛴 프레임이 30% 이상이면 "천천히 움직여 주세요" 안내
-            100,    // 동작 진행 중에는 연속성 검사의 허용 폭을 최대 0.1초분(약 40도)까지만 키움
-                    // (굽히는 다리가 가려졌을 때 서 있는 다리 값이 시간이 지나 받아들여지는 것을 막음)
-            200);   // 평균 각도가 편 기준 이상으로 0.2초 이어져야 1회가 끝난 것으로 봄 (짧은 튐으로 동작이 쪼개지는 것 방지)
+    public static final ExerciseCriteria KNEE_FLEXION = new Builder(ID_KNEE_FLEXION, "무릎 굽힘 운동")
+            .targetReps(20)            // 운동 상세의 20회 x 3세트 중 1세트
+            .extendedAngle(160)        // 이 각도 이상이면 다리를 편 상태
+            .bentAngle(130)            // 이 각도 이하까지 굽혀야 1회 동작으로 인정
+            .targetAngle(90)           // 목표 각도 (종아리와 허벅지가 직각)
+            .underBendTolerance(10)    // 목표보다 덜 굽혀도 10도까지는 만점
+            .overBendTolerance(20)     // 목표보다 더 굽혀도 20도까지는 만점 (서서 하는 동작이라 더 굽혀도 위험이 적음)
+            .maxTrunkLean(15)          // 상체 숙임 허용 각도 (의자를 잡으면 살짝 숙여짐)
+            .jointWeight(0.8)          // 회차 정확도 = 무릎 점수 x 0.8 + 상체 점수 x 0.2
+            .minHipAngle(140)          // 엉덩이 각도(어깨-엉덩이-무릎)가 이보다 작아지면 스쿼트처럼 엉덩이를 굽힌 것으로 보고 세지 않음
+                                       // (A안은 허벅지가 수직이라 약 160~175도, 상체만 숙여도 약 150도 이상 / 2차 측정 기준 추정값)
+            .minRepDurationMs(500)     // 굽히기 시작해서 다시 펼 때까지 0.5초 미만이면 흔들림으로 보고 세지 않음
+                                       // (2차 측정에서 정상 동작이 0.81초까지 나와 0.8초에서 낮춤)
+            .build();
 
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
@@ -90,7 +83,18 @@ public final class ExerciseCriteria {
         return exerciseName == null ? null : CRITERIA_BY_NAME.get(exerciseName);
     }
 
+    /** 운동 이름으로 기준 찾기. 없으면 무릎 굽힘 운동 기준 (예전 기록 점수 계산용) */
+    public static ExerciseCriteria forExerciseOrDefault(String exerciseName) {
+        ExerciseCriteria criteria = forExercise(exerciseName);
+        return criteria != null ? criteria : KNEE_FLEXION;
+    }
+
+    public final String id;
     public final String exerciseName;
+    // 1세트 목표 횟수 (유지 시간형은 유지 횟수)
+    public final int targetReps;
+    // 운동하는 다리를 정할 때 "자세를 잡았다"고 보는 판정 각도 (이 각도 이상). 0이면 각도는 보지 않음
+    public final double lockMinAngle;
     public final Side leftSide;
     public final Side rightSide;
     public final double extendedAngle;
@@ -117,35 +121,105 @@ public final class ExerciseCriteria {
     // 1회가 끝났다고 보려면 편 기준 이상이 이만큼 이어져야 함
     public final long extendedHoldMs;
 
-    public ExerciseCriteria(String exerciseName, Side leftSide, Side rightSide,
-                            double extendedAngle, double bentAngle, double targetAngle,
-                            double underBendTolerance, double overBendTolerance, double pointsPerDegree,
-                            double maxTrunkLean, double trunkPointsPerDegree, double jointWeight,
-                            double minHipAngle,
-                            int smoothingWindow, long minRepDurationMs, long maxInvisibleMs,
-                            double maxJumpDegrees, double maxDegreesPerSecond,
-                            double maxMissedFrameRatio, long inRepMaxGapMs, long extendedHoldMs) {
-        this.exerciseName = exerciseName;
-        this.leftSide = leftSide;
-        this.rightSide = rightSide;
-        this.extendedAngle = extendedAngle;
-        this.bentAngle = bentAngle;
-        this.targetAngle = targetAngle;
-        this.underBendTolerance = underBendTolerance;
-        this.overBendTolerance = overBendTolerance;
-        this.pointsPerDegree = pointsPerDegree;
-        this.maxTrunkLean = maxTrunkLean;
-        this.trunkPointsPerDegree = trunkPointsPerDegree;
-        this.jointWeight = jointWeight;
-        this.minHipAngle = minHipAngle;
-        this.smoothingWindow = smoothingWindow;
-        this.minRepDurationMs = minRepDurationMs;
-        this.maxInvisibleMs = maxInvisibleMs;
-        this.maxJumpDegrees = maxJumpDegrees;
-        this.maxDegreesPerSecond = maxDegreesPerSecond;
-        this.maxMissedFrameRatio = maxMissedFrameRatio;
-        this.inRepMaxGapMs = inRepMaxGapMs;
-        this.extendedHoldMs = extendedHoldMs;
+    private ExerciseCriteria(Builder b) {
+        this.id = b.id;
+        this.exerciseName = b.exerciseName;
+        this.targetReps = b.targetReps;
+        // 지정하지 않으면 편 상태 각도 이상일 때 다리를 정함 (무릎 굽힘과 같음)
+        this.lockMinAngle = Double.isNaN(b.lockMinAngle) ? b.extendedAngle : b.lockMinAngle;
+        this.leftSide = b.leftSide;
+        this.rightSide = b.rightSide;
+        this.extendedAngle = b.extendedAngle;
+        this.bentAngle = b.bentAngle;
+        this.targetAngle = b.targetAngle;
+        this.underBendTolerance = b.underBendTolerance;
+        this.overBendTolerance = b.overBendTolerance;
+        this.pointsPerDegree = b.pointsPerDegree;
+        this.maxTrunkLean = b.maxTrunkLean;
+        this.trunkPointsPerDegree = b.trunkPointsPerDegree;
+        this.jointWeight = b.jointWeight;
+        this.minHipAngle = b.minHipAngle;
+        this.smoothingWindow = b.smoothingWindow;
+        this.minRepDurationMs = b.minRepDurationMs;
+        this.maxInvisibleMs = b.maxInvisibleMs;
+        this.maxJumpDegrees = b.maxJumpDegrees;
+        this.maxDegreesPerSecond = b.maxDegreesPerSecond;
+        this.maxMissedFrameRatio = b.maxMissedFrameRatio;
+        this.inRepMaxGapMs = b.inRepMaxGapMs;
+        this.extendedHoldMs = b.extendedHoldMs;
+    }
+
+    /**
+     * 운동별 기준 만들기. 지정하지 않은 값은 아래 기본값(무릎 굽힘 운동 실측 기준)을 쓴다.
+     */
+    public static final class Builder {
+        private final String id;
+        private final String exerciseName;
+        private int targetReps = 10;
+        private double lockMinAngle = Double.NaN;
+        private Side leftSide = LEFT_LEG;
+        private Side rightSide = RIGHT_LEG;
+        private double extendedAngle = 160;
+        private double bentAngle = 130;
+        private double targetAngle = 90;
+        private double underBendTolerance = 10;
+        private double overBendTolerance = 20;
+        // 허용 범위를 넘으면 1도당 감점
+        private double pointsPerDegree = 2;
+        private double maxTrunkLean = 15;
+        // 상체 허용 각도를 넘으면 1도당 감점
+        private double trunkPointsPerDegree = 4;
+        private double jointWeight = 0.8;
+        // 0이면 엉덩이 규칙을 검사하지 않음
+        private double minHipAngle = 0;
+        // 최근 5프레임 평균 각도로 판정 (흔들림 완화)
+        private int smoothingWindow = 5;
+        private long minRepDurationMs = 500;
+        // 관절이 1초 넘게 안 보이면 진행 중인 동작을 버림
+        private long maxInvisibleMs = 1000;
+        // 각도 연속성: 직전 값과 20도 + (초당 200도 x 지난 시간)보다 크게 다르면 추적 오류로 보고 건너뜀
+        // (한 프레임(30fps) 약 27도: 실제 동작은 프레임당 10도 안팎이라 막지 않음.
+        //  서 있는 다리 값으로 60도 넘게 튀는 것은 약 0.2초까지 걸러내고, 0.3초 뒤엔 약 80도까지 허용)
+        private double maxJumpDegrees = 20;
+        private double maxDegreesPerSecond = 200;
+        // 한 번의 동작 중 건너뛴 프레임이 30% 이상이면 "천천히 움직여 주세요" 안내
+        private double maxMissedFrameRatio = 0.3;
+        // 동작 진행 중에는 연속성 검사의 허용 폭을 최대 0.1초분(약 40도)까지만 키움
+        // (굽히는 다리가 가려졌을 때 서 있는 다리 값이 시간이 지나 받아들여지는 것을 막음)
+        private long inRepMaxGapMs = 100;
+        // 평균 각도가 편 기준 이상으로 0.2초 이어져야 1회가 끝난 것으로 봄 (짧은 튐으로 동작이 쪼개지는 것 방지)
+        private long extendedHoldMs = 200;
+
+        public Builder(String id, String exerciseName) {
+            this.id = id;
+            this.exerciseName = exerciseName;
+        }
+
+        public Builder targetReps(int v) { targetReps = v; return this; }
+        public Builder lockMinAngle(double v) { lockMinAngle = v; return this; }
+        public Builder sides(Side left, Side right) { leftSide = left; rightSide = right; return this; }
+        public Builder extendedAngle(double v) { extendedAngle = v; return this; }
+        public Builder bentAngle(double v) { bentAngle = v; return this; }
+        public Builder targetAngle(double v) { targetAngle = v; return this; }
+        public Builder underBendTolerance(double v) { underBendTolerance = v; return this; }
+        public Builder overBendTolerance(double v) { overBendTolerance = v; return this; }
+        public Builder pointsPerDegree(double v) { pointsPerDegree = v; return this; }
+        public Builder maxTrunkLean(double v) { maxTrunkLean = v; return this; }
+        public Builder trunkPointsPerDegree(double v) { trunkPointsPerDegree = v; return this; }
+        public Builder jointWeight(double v) { jointWeight = v; return this; }
+        public Builder minHipAngle(double v) { minHipAngle = v; return this; }
+        public Builder smoothingWindow(int v) { smoothingWindow = v; return this; }
+        public Builder minRepDurationMs(long v) { minRepDurationMs = v; return this; }
+        public Builder maxInvisibleMs(long v) { maxInvisibleMs = v; return this; }
+        public Builder maxJumpDegrees(double v) { maxJumpDegrees = v; return this; }
+        public Builder maxDegreesPerSecond(double v) { maxDegreesPerSecond = v; return this; }
+        public Builder maxMissedFrameRatio(double v) { maxMissedFrameRatio = v; return this; }
+        public Builder inRepMaxGapMs(long v) { inRepMaxGapMs = v; return this; }
+        public Builder extendedHoldMs(long v) { extendedHoldMs = v; return this; }
+
+        public ExerciseCriteria build() {
+            return new ExerciseCriteria(this);
+        }
     }
 
     /** 직전 값에서 elapsedMs 동안 바뀔 수 있는 최대 각도 (넘으면 추적 오류로 봄) */

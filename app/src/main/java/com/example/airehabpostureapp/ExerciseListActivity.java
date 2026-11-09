@@ -102,20 +102,20 @@ public class ExerciseListActivity extends AppCompatActivity {
         };
         emptyText = findViewById(R.id.exerciseListEmptyText);
 
-        // TODO: 운동별 상세 데이터가 준비되면 모든 Card를 상세 화면으로 연결
+        // 상세 데이터가 있는 운동은 상세 화면으로 이동, 없으면 선택한 운동 이름만 안내
         for (ExerciseItem exercise : exercises) {
-            exercise.card.setOnClickListener(v -> Toast.makeText(this,
-                    getString(R.string.exercise_selected, exercise.nameText.getText()),
-                    Toast.LENGTH_SHORT).show());
+            exercise.card.setOnClickListener(v -> {
+                String name = exercise.nameText.getText().toString();
+                if (ExerciseDetailActivity.hasDetail(name)) {
+                    Intent intent = new Intent(this, ExerciseDetailActivity.class);
+                    intent.putExtra(ExerciseDetailActivity.EXTRA_EXERCISE_NAME, name);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, getString(R.string.exercise_selected, name),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
         }
-        // 현재 상세 데이터가 있는 "무릎 굽힘 운동"(첫 번째 Card)만 상세 화면으로 이동
-        ExerciseItem kneeFlexion = exercises[0];
-        kneeFlexion.card.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ExerciseDetailActivity.class);
-            intent.putExtra(ExerciseDetailActivity.EXTRA_EXERCISE_NAME,
-                    kneeFlexion.nameText.getText().toString());
-            startActivity(intent);
-        });
 
         // 검색: 입력할 때마다 이름에 검색어가 포함된 운동만 표시
         EditText searchEditText = findViewById(R.id.exerciseSearchEditText);
