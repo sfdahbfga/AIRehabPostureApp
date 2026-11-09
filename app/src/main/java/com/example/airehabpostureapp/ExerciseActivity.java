@@ -699,8 +699,8 @@ public class ExerciseActivity extends AppCompatActivity {
         Log.d(DEBUG_TAG, String.format(Locale.US,
                 "[%s] rep #%d leg=%s switches=%d min%s=%.1f %sErr=%+.1f minHip=%s maxTrunk=%s backErr=%s acc=%.0f dur=%dms %s",
                 debugExerciseId(), rep.repNumber, legSelector.getLastLabel(), legSelector.getSwitchCount(),
-                capitalize(debugJointName()), debugJointName(),
-                rep.minJointAngle, rep.jointError, formatAngle(rep.minHipAngle),
+                capitalize(debugJointName()), rep.minJointAngle, debugJointName(), rep.jointError,
+                formatAngle(rep.minHipAngle),
                 formatAngle(rep.maxTrunkLean), formatAngle(rep.trunkError), rep.accuracy, rep.durationMs,
                 formatFrames(rep.frames)));
     }
