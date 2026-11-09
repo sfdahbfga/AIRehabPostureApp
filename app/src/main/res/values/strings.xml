@@ -486,4 +486,25 @@
     <string name="feedback_squat_sit_more">조금 더 앉아 주세요.</string>
     <string name="feedback_squat_good_stand_up">좋아요! 천천히 일어서 주세요.</string>
     <string name="feedback_squat_hips_back">엉덩이를 뒤로 빼며 앉아 주세요.</string>
+
+    <!-- 운동 상세: 런지 -->
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_description_lunge">다리를 앞뒤로 벌린 채 천천히 내려갔다 올라오며 하체 근력을 기르는 운동</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_purpose_lunge">하체 근력 강화</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_joints_lunge">무릎, 엉덩이</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_duration_lunge">약 10분</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_repetitions_lunge">한쪽 8회 × 2세트</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_difficulty_lunge">중급</string>
+
+    <!-- 13_Exercise 자세 피드백: 런지 -->
+    <string name="feedback_lunge_stand_sideways">발을 앞뒤로 벌리고 카메라 쪽으로 옆으로 서 주세요.</string>
+    <string name="feedback_lunge_switch_feet">다리를 바꿀 때는 몸을 돌리지 말고 앞뒤 발만 바꿔 주세요.</string>
+    <string name="feedback_lunge_start">상체를 세운 채 천천히 내려가 주세요.</string>
+    <string name="feedback_lunge_lower_more">조금 더 내려가 주세요.</string>
+    <string name="feedback_lunge_good_come_up">좋아요! 천천히 올라와 주세요.</string>
 </resources>

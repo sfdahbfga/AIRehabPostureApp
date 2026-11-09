@@ -50,6 +50,7 @@ public final class ExerciseCriteria {
     // 운동 구분 키 (화면에서 운동별 안내 문구를 고를 때 사용)
     public static final String ID_KNEE_FLEXION = "knee_flexion";
     public static final String ID_CHAIR_SQUAT = "chair_squat";
+    public static final String ID_LUNGE = "lunge";
 
     /**
      * 무릎 굽힘 운동 (서서 하기): 의자를 잡고 서서 카메라 쪽 다리의 발뒤꿈치를 엉덩이 쪽으로 들어 올린다.
@@ -92,12 +93,34 @@ public final class ExerciseCriteria {
             .minRepDurationMs(1000)    // 앉았다 일어서기가 1초 미만이면 흔들림 / 너무 빠른 동작으로 봄
             .build();
 
+    /**
+     * 런지 (제자리 스플릿 스쿼트, 서서 하기): 발을 앞뒤로 벌린 채 정옆으로 서서 위아래로만 움직인다.
+     * 다리를 바꿀 때는 몸을 돌리지 않고 앞뒤 발만 바꾼다. (몸을 돌리면 카메라 쪽 다리가 바뀌어 고정한 다리가 가려짐)
+     * 판정은 카메라 쪽 다리의 무릎 각도. 바르게 내려가면 앞다리 / 뒷다리 무릎이 모두 약 90도가 되므로
+     * 카메라 쪽 다리가 앞다리든 뒷다리든 같은 기준을 쓴다.
+     * - 목표 90도, 더 굽힘 허용 15도: 의자 스쿼트와 같은 근거 (재활 런지는 무릎 90도까지)
+     * - 상체는 세운 채 내려가는 운동이라 상체 허용은 20도
+     * - 뒷다리는 엉덩이가 펴지는 것이 정상이라 엉덩이 규칙은 쓰지 않음
+     */
+    public static final ExerciseCriteria LUNGE = new Builder(ID_LUNGE, "런지")
+            .targetReps(8)             // 한쪽 8회 x 2세트 중 1세트
+            .extendedAngle(160)        // 이 각도 이상이면 올라온 상태
+            .bentAngle(120)            // 이 각도 이하까지 내려가야 1회 동작으로 인정
+            .targetAngle(90)
+            .underBendTolerance(10)
+            .overBendTolerance(15)
+            .maxTrunkLean(20)
+            .jointWeight(0.8)          // 회차 정확도 = 무릎 점수 x 0.8 + 상체 점수 x 0.2
+            .minRepDurationMs(800)     // 중급 운동이라 무릎 굽힘(0.5초)보다 길게, 스쿼트(1초)보다 짧게
+            .build();
+
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
     static {
         Map<String, ExerciseCriteria> map = new HashMap<>();
         map.put(KNEE_FLEXION.exerciseName, KNEE_FLEXION);
         map.put(CHAIR_SQUAT.exerciseName, CHAIR_SQUAT);
+        map.put(LUNGE.exerciseName, LUNGE);
         CRITERIA_BY_NAME = Collections.unmodifiableMap(map);
     }
 

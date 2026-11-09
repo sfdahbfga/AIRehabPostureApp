@@ -57,6 +57,10 @@ public class ExerciseDetailActivity extends AppCompatActivity {
                 R.string.exercise_purpose_chair_squat, R.string.exercise_joints_chair_squat,
                 R.string.exercise_duration_chair_squat, R.string.exercise_repetitions_chair_squat,
                 R.string.exercise_difficulty_chair_squat));
+        map.put("런지", new Detail(R.string.exercise_description_lunge,
+                R.string.exercise_purpose_lunge, R.string.exercise_joints_lunge,
+                R.string.exercise_duration_lunge, R.string.exercise_repetitions_lunge,
+                R.string.exercise_difficulty_lunge));
         DETAILS = Collections.unmodifiableMap(map);
     }
 

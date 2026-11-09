@@ -522,6 +522,8 @@ public class ExerciseActivity extends AppCompatActivity {
         switch (exerciseCriteria.id) {
             case ExerciseCriteria.ID_CHAIR_SQUAT:
                 return chairSquatFeedback(feedback);
+            case ExerciseCriteria.ID_LUNGE:
+                return lungeFeedback(feedback);
             default:
                 return 0;
         }
@@ -544,6 +546,21 @@ public class ExerciseActivity extends AppCompatActivity {
         }
     }
 
+    // 런지 안내
+    @StringRes
+    private int lungeFeedback(RepetitionCounter.Feedback feedback) {
+        switch (feedback) {
+            case BEND_MORE:
+                return R.string.feedback_lunge_lower_more;
+            case GOOD_STRAIGHTEN:
+                return R.string.feedback_lunge_good_come_up;
+            case START_BENDING:
+                return R.string.feedback_lunge_start;
+            default:
+                return 0;
+        }
+    }
+
     // 다리를 정하기 전 "옆으로 서 주세요" 안내 (운동별)
     @StringRes
     private int sidewaysMessage() {
@@ -551,6 +568,8 @@ public class ExerciseActivity extends AppCompatActivity {
             switch (exerciseCriteria.id) {
                 case ExerciseCriteria.ID_CHAIR_SQUAT:
                     return R.string.feedback_squat_stand_sideways;
+                case ExerciseCriteria.ID_LUNGE:
+                    return R.string.feedback_lunge_stand_sideways;
                 default:
                     break;
             }
@@ -566,6 +585,9 @@ public class ExerciseActivity extends AppCompatActivity {
                 case ExerciseCriteria.ID_CHAIR_SQUAT:
                     // 양쪽 다리로 하는 운동이라 "카메라 쪽 다리" 안내 대신 시작 안내
                     return R.string.feedback_squat_start;
+                case ExerciseCriteria.ID_LUNGE:
+                    // 다리가 정해진 직후: 다리를 바꿀 때 몸을 돌리지 않도록 안내 (돌리면 고정한 다리가 가려짐)
+                    return R.string.feedback_lunge_switch_feet;
                 default:
                     break;
             }
