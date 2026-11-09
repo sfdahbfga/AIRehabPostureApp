@@ -54,7 +54,7 @@ public class JointAccuracyConverterTest {
         // 더 굽힘 허용 15도: -20 → 5도 초과 → 90점 (무릎 굽힘 기준이면 100점)
         assertEquals(Integer.valueOf(90), JointAccuracyConverter.kneeAccuracy("의자 스쿼트", -20.0));
         assertEquals(Integer.valueOf(100), JointAccuracyConverter.kneeAccuracy("무릎 굽힘 운동", -20.0));
-        // 상체 오차는 허용(45도) 초과량으로 저장되므로 감점 규칙(1도당 4점)은 같음
+        // 상체 오차는 허용(50도) 초과량으로 저장되므로 감점 규칙(1도당 4점)은 같음
         assertEquals(Integer.valueOf(88), JointAccuracyConverter.backAccuracy("의자 스쿼트", 3.0));
     }
 

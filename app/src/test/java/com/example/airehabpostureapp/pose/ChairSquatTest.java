@@ -11,14 +11,17 @@ import java.util.Random;
 
 /**
  * 의자 스쿼트: 가짜 각도 데이터(30fps)로 반복 횟수 / 보조 규칙 검증
- * 기준: 일어섬 >= 160도, 1회 인정 <= 120도, 목표 90도(허용 덜 10 / 더 15), 상체 45도,
+ * 기준: 일어섬 >= 160도, 1회 인정 <= 120도, 목표 100도(허용 덜 10 / 더 15), 상체 50도,
  *       가장 깊을 때 엉덩이 각도 <= 150도, 최소 동작 시간 1초
+ * 정상 / 얕게 / 무릎만 동작의 값은 1차 실측(2026-11-10) 로그에서 가져옴
  * aux = 엉덩이 각도(어깨-엉덩이-무릎). 서 있으면 약 175도, 스쿼트로 앉으면 무릎과 함께 약 90도까지 작아짐
  */
 public class ChairSquatTest {
 
     private static final double STAND = 175;
     private static final double TRUNK_NORMAL = 35;
+    // 1차 실측 정상 동작: 무릎 103~115도, 엉덩이 66~72도, 상체 최대 46~49도
+    private static final double TRUNK_MEASURED = 48;
     private static final double DELTA = 1e-6;
 
     private final ExerciseCriteria criteria = ExerciseCriteria.CHAIR_SQUAT;
@@ -52,13 +55,15 @@ public class ChairSquatTest {
     @Test
     public void normalFiveSquats_countsFive_withFullAccuracy() {
         stand(500);
-        for (int i = 0; i < 5; i++) {
-            squat(90, 90, TRUNK_NORMAL);
+        double[] knees = {108, 103, 105, 110, 109};
+        for (double knee : knees) {
+            squat(knee, 70, TRUNK_MEASURED);
         }
         assertEquals(5, h.counter.getCompletedReps());
-        for (RepetitionCounter.RepResult r : h.completed) {
-            assertEquals(90, r.minJointAngle, 0.5);
-            assertEquals(0, r.trunkError, DELTA);   // 상체 35도는 스쿼트 허용(45도) 안
+        for (int i = 0; i < knees.length; i++) {
+            RepetitionCounter.RepResult r = h.completed.get(i);
+            assertEquals(knees[i], r.minJointAngle, 0.5);
+            assertEquals(0, r.trunkError, DELTA);   // 상체 48도는 스쿼트 허용(50도) 안
             assertEquals(100, r.accuracy, 0.5);
         }
         assertTrue(h.rejected.isEmpty());
@@ -78,7 +83,7 @@ public class ChairSquatTest {
     @Test
     public void deepSquat_overTolerance_losesPoints() {
         stand(500);
-        squat(70, 70, TRUNK_NORMAL);
+        squat(80, 70, TRUNK_NORMAL);
         // 목표보다 20도 더 앉음 → 허용 15도를 5도 넘음 → 무릎 90점, 상체 100점 → 90 x 0.7 + 100 x 0.3 = 93
         assertEquals(1, h.completed.size());
         assertEquals(-20, h.completed.get(0).jointError, 0.5);
@@ -88,8 +93,8 @@ public class ChairSquatTest {
     @Test
     public void trunkTooFarForward_losesPoints() {
         stand(500);
-        squat(90, 90, 55);
-        // 상체 55도 → 허용 45도를 10도 넘음 → 상체 60점 → 100 x 0.7 + 60 x 0.3 = 88
+        squat(100, 90, 60);
+        // 상체 60도 → 허용 50도를 10도 넘음 → 상체 60점 → 100 x 0.7 + 60 x 0.3 = 88
         assertEquals(1, h.completed.size());
         assertEquals(10, h.completed.get(0).trunkError, 0.5);
         assertEquals(88, h.completed.get(0).accuracy, 0.5);
@@ -100,10 +105,12 @@ public class ChairSquatTest {
 
     @Test
     public void shallowSquat_notCounted() {
+        // 1차 실측 B세트: 엉덩이는 굽혔지만 덜 앉음 (무릎 128~135도, 엉덩이 94~99도)
         stand(500);
-        squat(130, 130, TRUNK_NORMAL);
+        squat(130, 97, TRUNK_NORMAL);
         assertEquals(0, h.counter.getCompletedReps());
         assertEquals(RepetitionCounter.RejectReason.SHALLOW, h.lastRejectReason());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
     }
 
     // ---------- 잘못된 동작 ----------
@@ -116,6 +123,48 @@ public class ChairSquatTest {
         assertEquals(0, h.counter.getCompletedReps());
         assertEquals(RepetitionCounter.RejectReason.HIP_NOT_BENT, h.lastRejectReason());
         assertTrue(h.sawFeedback(RepetitionCounter.Feedback.HIPS_BACK));
+    }
+
+    @Test
+    public void kneeOnlyShallow_hipStaysOpen_judgedByHipRule() {
+        // 1차 실측 C세트: 상체를 세운 채 무릎만 굽히면 무릎은 137~150도에서 멈추고 엉덩이는 155~171도
+        // → 120도까지 못 내려갔어도 "덜 앉음"이 아니라 엉덩이 규칙으로 판정하고, 일어선 뒤 "엉덩이를 뒤로" 안내
+        stand(500);
+        squat(140, 160, 5);
+        assertEquals(0, h.counter.getCompletedReps());
+        assertEquals(RepetitionCounter.RejectReason.HIP_NOT_BENT, h.lastRejectReason());
+        assertEquals(RepetitionCounter.Feedback.HIPS_BACK, h.counter.getFeedback());
+        // 서 있는 동안 안내가 계속 유지됨
+        stand(1000);
+        assertEquals(RepetitionCounter.Feedback.HIPS_BACK, h.counter.getFeedback());
+    }
+
+    @Test
+    public void hipsBackHint_clearsWhenNextSquatStarts_andNextSquatCounts() {
+        stand(500);
+        squat(140, 160, 5);
+        assertEquals(RepetitionCounter.Feedback.HIPS_BACK, h.counter.getFeedback());
+        // 다음 동작을 시작하면 평소 안내로 돌아가고, 제대로 앉으면 셈
+        h.move(STAND, 130, STAND, 100, 700, TRUNK_NORMAL);
+        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        h.move(130, 105, 100, 70, 500, TRUNK_NORMAL);
+        h.hold(105, TRUNK_NORMAL, 70, 300);
+        h.move(105, STAND, 70, STAND, 1200, TRUNK_NORMAL);
+        stand(400);
+        assertEquals(1, h.counter.getCompletedReps());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+    }
+
+    @Test
+    public void kneeOnlyShallow_hipNotVisible_staysShallow() {
+        // 엉덩이 각도를 모르면(NaN) 엉덩이 규칙을 적용하지 않음 → 덜 앉음
+        stand(500);
+        h.move(STAND, 140, Double.NaN, Double.NaN, 1200, 5);
+        h.hold(140, 5, Double.NaN, 300);
+        h.move(140, STAND, Double.NaN, Double.NaN, 1200, 5);
+        stand(400);
+        assertEquals(RepetitionCounter.RejectReason.SHALLOW, h.lastRejectReason());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
     }
 
     @Test

@@ -15,7 +15,8 @@ import java.util.List;
  * - 굽히기 시작해서 다시 펼 때까지 minRepDurationMs 미만이면 흔들림으로 보고 세지 않는다.
  * - 동작 중 엉덩이 각도가 minHipAngle보다 작아지면(스쿼트처럼 엉덩이를 굽힘) 세지 않는다.
  * - 반대로 스쿼트처럼 엉덩이를 굽혀야 하는 운동은, 동작 중 엉덩이 각도가 maxHipAngleAtDepth 아래로
- *   한 번도 내려가지 않으면(무릎만 접음) 세지 않는다.
+ *   한 번도 내려가지 않으면(무릎만 접음) 세지 않는다. 1회 인정 각도까지 못 앉은 동작도 이 경우면
+ *   HIP_NOT_BENT로 보고, 다음 동작을 시작할 때까지 HIPS_BACK 안내를 보여 준다.
  * - 관절이 maxInvisibleMs 넘게 안 보이면 진행 중이던 동작은 버리고, 다시 편 상태부터 기다린다.
  * - 각도 연속성 검사: 직전에 받아들인 각도와 비교해 실제 무릎이 움직일 수 없을 만큼 튄 값은
  *   추적 오류(가려진 다리 대신 서 있는 다리 값이 들어온 경우 등)로 보고 그 프레임을 건너뛴다.
@@ -183,6 +184,8 @@ public class RepetitionCounter implements ExerciseCounter {
     private Feedback feedback = Feedback.NOT_VISIBLE;
     private RejectedAttempt pendingRejection;
     private boolean moveSlowlyHint;
+    // 직전 동작이 HIP_NOT_BENT(무릎만 접음)로 버려짐 → 다음 동작을 시작할 때까지 "엉덩이를 뒤로 빼며" 안내
+    private boolean hipsBackHint;
 
     public RepetitionCounter(ExerciseCriteria criteria) {
         this.criteria = criteria;
@@ -267,6 +270,7 @@ public class RepetitionCounter implements ExerciseCounter {
                 } else if (criteria.extendedAngle - minJointAngle >= MIN_ATTEMPT_DEPTH_DEGREES) {
                     pendingRejection = new RejectedAttempt(reason, minJointAngle, maxTrunkLean,
                             minHipAngle, durationMs, frames);
+                    hipsBackHint = reason == RejectReason.HIP_NOT_BENT;
                     if (reason == RejectReason.TOO_FAST
                             || (reason == RejectReason.SHALLOW
                             && frames.missedRatio() >= criteria.maxMissedFrameRatio)) {
@@ -277,7 +281,10 @@ public class RepetitionCounter implements ExerciseCounter {
             bendStartedAtMs = -1;
             extendedSinceMs = -1;
             reachedBent = false;
-            feedback = Feedback.START_BENDING;
+            if (result != null) {
+                hipsBackHint = false;
+            }
+            feedback = hipsBackHint ? Feedback.HIPS_BACK : Feedback.START_BENDING;
             return result;
         }
 
@@ -287,6 +294,7 @@ public class RepetitionCounter implements ExerciseCounter {
         // 편 상태에서 벗어남 → 동작 진행 중
         if (bendStartedAtMs < 0) {
             bendStartedAtMs = timestampMs;
+            hipsBackHint = false;
             minJointAngle = smoothedJointAngle;
             maxTrunkLean = Double.NaN;
             minHipAngle = Double.NaN;
@@ -323,7 +331,9 @@ public class RepetitionCounter implements ExerciseCounter {
     // 다시 편 상태로 돌아왔을 때 이번 동작을 셀 수 없는 이유 (셀 수 있으면 null)
     private RejectReason rejectReason(long durationMs) {
         if (!reachedBent) {
-            return RejectReason.SHALLOW;
+            // 1회 인정 각도까지 못 앉았어도 엉덩이가 내내 펴져 있었으면 원인은 "무릎만 접음" (의자 스쿼트 실측:
+            // 무릎만 접으면 무릎은 137~150도에서 멈추고 엉덩이는 155~171도) → 덜 앉음보다 엉덩이 규칙으로 판정
+            return criteria.isHipNotBent(minHipAngle) ? RejectReason.HIP_NOT_BENT : RejectReason.SHALLOW;
         }
         if (durationMs < criteria.minRepDurationMs) {
             return RejectReason.TOO_FAST;
@@ -407,6 +417,7 @@ public class RepetitionCounter implements ExerciseCounter {
         feedback = Feedback.NOT_VISIBLE;
         pendingRejection = null;
         moveSlowlyHint = false;
+        hipsBackHint = false;
     }
 
     /** 각도 연속성 검사로 건너뛴 프레임 수 (누적, 디버그 기록용) */
