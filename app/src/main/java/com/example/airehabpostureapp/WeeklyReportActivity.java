@@ -175,13 +175,15 @@ public class WeeklyReportActivity extends AppCompatActivity {
                 range[1].getMonthValue(), range[1].getDayOfMonth());
     }
 
-    // 관절 키(knee, back)를 한글 표시로 변환, 모르는 키는 그대로 표시
+    // 관절 키(knee, back, hip)를 한글 표시로 변환, 모르는 키는 그대로 표시
     private String jointMistakeLabel(String joint) {
         switch (joint) {
             case "knee":
                 return getString(R.string.mistake_joint_knee);
             case "back":
                 return getString(R.string.mistake_joint_back);
+            case "hip":
+                return getString(R.string.mistake_joint_hip);
             default:
                 return joint;
         }

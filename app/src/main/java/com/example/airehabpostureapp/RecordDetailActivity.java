@@ -140,17 +140,19 @@ public class RecordDetailActivity extends AppCompatActivity {
                 : getString(R.string.set_count_format, completedSets, targetSets));
     }
 
-    // joint_errors(평균 오차, 도)를 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
-    // 고관절은 저장하지 않으므로 항상 숨김
+    // joint_errors(평균 오차, 도)를 운동별 기준의 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
+    // (엉덩이(hip)는 하체 스트레칭만 저장)
     private void showJointAccuracy(Map<String, Double> jointErrors) {
         Integer kneeAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.kneeAccuracy(jointErrors.get("knee"));
+                : JointAccuracyConverter.kneeAccuracy(exerciseName, jointErrors.get("knee"));
         Integer backAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.backAccuracy(jointErrors.get("back"));
+                : JointAccuracyConverter.backAccuracy(exerciseName, jointErrors.get("back"));
+        Integer hipAccuracy = jointErrors == null ? null
+                : JointAccuracyConverter.hipAccuracy(exerciseName, jointErrors.get("hip"));
         showAccuracyRow(R.id.kneeAccuracyText, R.id.kneeProgressBar, kneeAccuracy);
         showAccuracyRow(R.id.backAccuracyText, R.id.backProgressBar, backAccuracy);
-        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, null);
-        setVisible(kneeAccuracy != null || backAccuracy != null,
+        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, hipAccuracy);
+        setVisible(kneeAccuracy != null || backAccuracy != null || hipAccuracy != null,
                 R.id.jointAccuracyTitleText, R.id.jointAccuracyCard);
     }
 

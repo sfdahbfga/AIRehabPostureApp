@@ -44,5 +44,36 @@ public class JointAccuracyConverterTest {
     public void missingValue_isNull() {
         assertNull(JointAccuracyConverter.kneeAccuracy(null));
         assertNull(JointAccuracyConverter.backAccuracy(null));
+        assertNull(JointAccuracyConverter.hipAccuracy("하체 스트레칭", null));
+    }
+
+    // ---------- 운동별 기준 ----------
+
+    @Test
+    public void chairSquat_usesSquatTolerances() {
+        // 더 굽힘 허용 15도: -20 → 5도 초과 → 90점 (무릎 굽힘 기준이면 100점)
+        assertEquals(Integer.valueOf(90), JointAccuracyConverter.kneeAccuracy("의자 스쿼트", -20.0));
+        assertEquals(Integer.valueOf(100), JointAccuracyConverter.kneeAccuracy("무릎 굽힘 운동", -20.0));
+        // 상체 오차는 허용(45도) 초과량으로 저장되므로 감점 규칙(1도당 4점)은 같음
+        assertEquals(Integer.valueOf(88), JointAccuracyConverter.backAccuracy("의자 스쿼트", 3.0));
+    }
+
+    @Test
+    public void lunge_usesLungeTolerances() {
+        assertEquals(Integer.valueOf(90), JointAccuracyConverter.kneeAccuracy("런지", -20.0));
+        assertEquals(Integer.valueOf(96), JointAccuracyConverter.kneeAccuracy("런지", 12.0));
+    }
+
+    @Test
+    public void hamstringStretch_hipScore() {
+        // 덜 숙임 허용 5도: +10 → 5도 초과 → 90점, 더 숙임 허용 20도: -20 → 100점
+        assertEquals(Integer.valueOf(90), JointAccuracyConverter.hipAccuracy("하체 스트레칭", 10.0));
+        assertEquals(Integer.valueOf(100), JointAccuracyConverter.hipAccuracy("하체 스트레칭", -20.0));
+    }
+
+    @Test
+    public void unknownOrMissingExerciseName_fallsBackToKneeFlexion() {
+        assertEquals(Integer.valueOf(96), JointAccuracyConverter.kneeAccuracy("허리 강화 운동", 12.0));
+        assertEquals(Integer.valueOf(96), JointAccuracyConverter.kneeAccuracy(null, 12.0));
     }
 }

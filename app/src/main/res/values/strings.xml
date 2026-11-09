@@ -338,6 +338,7 @@
     <string name="report_monthly_period_format">%1$d년 %2$d월</string>
     <string name="mistake_joint_knee">무릎 각도</string>
     <string name="mistake_joint_back">허리 각도</string>
+    <string name="mistake_joint_hip">엉덩이 각도</string>
     <string name="empty_value">-</string>
     <string-array name="weekday_labels">
         <item>월</item>
