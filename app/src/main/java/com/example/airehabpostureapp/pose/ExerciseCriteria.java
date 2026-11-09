@@ -51,6 +51,13 @@ public final class ExerciseCriteria {
     public static final String ID_KNEE_FLEXION = "knee_flexion";
     public static final String ID_CHAIR_SQUAT = "chair_squat";
     public static final String ID_LUNGE = "lunge";
+    public static final String ID_SEATED_HAMSTRING_STRETCH = "seated_hamstring_stretch";
+
+    /** 판정 관절: 무릎(엉덩이-무릎-발목) 또는 엉덩이(어깨-엉덩이-무릎) */
+    public enum JudgedJoint {
+        KNEE,
+        HIP
+    }
 
     /**
      * 무릎 굽힘 운동 (서서 하기): 의자를 잡고 서서 카메라 쪽 다리의 발뒤꿈치를 엉덩이 쪽으로 들어 올린다.
@@ -114,6 +121,36 @@ public final class ExerciseCriteria {
             .minRepDurationMs(800)     // 중급 운동이라 무릎 굽힘(0.5초)보다 길게, 스쿼트(1초)보다 짧게
             .build();
 
+    /**
+     * 하체 스트레칭 (앉아서 하는 허벅지 뒤 스트레칭, 유지 시간형): 의자 끝에 카메라 쪽으로 옆으로 앉아,
+     * 카메라 쪽 다리를 앞으로 쭉 펴고 뒤꿈치를 바닥에 댄 채, 허리를 편 상태로 상체를 앞으로 숙여 유지한다.
+     * 판정은 편 다리 쪽 엉덩이 각도(어깨-엉덩이-무릎). 작을수록 많이 숙인 것 (고관절 굽힘 = 180 - 엉덩이 각도)
+     * - 뒤꿈치를 바닥에 대면 허벅지가 약 20~35도 아래로 기울어, 똑바로 앉았을 때 엉덩이 각도가 약 115~125도
+     * - 목표 95도 (고관절 굽힘 85도): 무릎을 편 채 고관절을 굽히는 정상 범위(다리 들어 올리기 기준 약 70~90도)의 중간
+     *   → 똑바로 앉은 자세에서 상체를 약 20~30도 숙이면 닿는 정도
+     * - 유지 인정 110도 이하 (고관절 굽힘 70도, 정상 범위의 아래쪽): 이보다 덜 숙이면 유지 시간이 쌓이지 않음
+     * - 덜 숙임 허용 5도(100도까지 만점), 더 숙임 허용 20도(75도까지 만점, 스트레칭은 더 숙여도 위험이 적음)
+     * - 편 다리 무릎 160도 이상: 무릎을 20도 넘게 굽히면 허벅지 뒤가 늘어나지 않으므로 유지 시간을 멈춤
+     * - 20초 유지: 정적 스트레칭 권장 시간(15~30초)의 중간값
+     * 상체 기울기는 등을 둥글게 말아도 커지므로 점수에 쓰지 않는다. (back은 저장하지 않음)
+     */
+    public static final ExerciseCriteria SEATED_HAMSTRING_STRETCH =
+            new Builder(ID_SEATED_HAMSTRING_STRETCH, "하체 스트레칭")
+            .judgedJoint(JudgedJoint.HIP)
+            .targetReps(3)             // 20초 유지 x 3회
+            .holdDurationMs(20000)
+            .lockMinAngle(0)           // 앉은 자세라 각도는 보지 않고, 정옆으로 앉아 visibility 차이만으로 다리를 정함
+            .extendedAngle(120)        // 다시 세운 상태 (1회를 마친 뒤 이 각도 이상 또는 직전 유지 평균 + 15도 이상)
+            .releaseRiseDegrees(15)
+            .bentAngle(110)            // 이 각도 이하에서 유지 시간이 쌓임
+            .targetAngle(95)
+            .underBendTolerance(5)
+            .overBendTolerance(20)
+            .minKneeAngle(160)
+            .holdGraceMs(1000)         // 기준 밖으로 1초까지는 유지가 이어짐 (시간은 멈춤)
+            .maxInvisibleMs(1500)      // 발끝 쪽으로 손을 뻗으면 무릎·발목이 가려질 수 있어 무릎 굽힘(1초)보다 길게
+            .build();
+
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
     static {
@@ -121,6 +158,7 @@ public final class ExerciseCriteria {
         map.put(KNEE_FLEXION.exerciseName, KNEE_FLEXION);
         map.put(CHAIR_SQUAT.exerciseName, CHAIR_SQUAT);
         map.put(LUNGE.exerciseName, LUNGE);
+        map.put(SEATED_HAMSTRING_STRETCH.exerciseName, SEATED_HAMSTRING_STRETCH);
         CRITERIA_BY_NAME = Collections.unmodifiableMap(map);
     }
 
@@ -141,6 +179,16 @@ public final class ExerciseCriteria {
     public final int targetReps;
     // 운동하는 다리를 정할 때 "자세를 잡았다"고 보는 판정 각도 (이 각도 이상). 0이면 각도는 보지 않음
     public final double lockMinAngle;
+    // 판정 관절 (joint_errors 저장 키: KNEE → knee, HIP → hip)
+    public final JudgedJoint judgedJoint;
+    // 유지 시간형이면 1회로 인정하는 유지 시간 (0이면 횟수형)
+    public final long holdDurationMs;
+    // 유지 중 기준 밖으로 이 시간까지 벗어나도 유지가 이어짐 (그동안 시간은 멈춤)
+    public final long holdGraceMs;
+    // 유지형: 펴야 하는 다리의 무릎 각도가 이보다 작으면 유지 시간을 멈춤 (0이면 검사하지 않음)
+    public final double minKneeAngle;
+    // 유지형: 1회를 마친 뒤 직전 유지 평균보다 이만큼 올라오면 다시 세운 것으로 봄
+    public final double releaseRiseDegrees;
     public final Side leftSide;
     public final Side rightSide;
     public final double extendedAngle;
@@ -175,6 +223,11 @@ public final class ExerciseCriteria {
         this.targetReps = b.targetReps;
         // 지정하지 않으면 편 상태 각도 이상일 때 다리를 정함 (무릎 굽힘과 같음)
         this.lockMinAngle = Double.isNaN(b.lockMinAngle) ? b.extendedAngle : b.lockMinAngle;
+        this.judgedJoint = b.judgedJoint;
+        this.holdDurationMs = b.holdDurationMs;
+        this.holdGraceMs = b.holdGraceMs;
+        this.minKneeAngle = b.minKneeAngle;
+        this.releaseRiseDegrees = b.releaseRiseDegrees;
         this.leftSide = b.leftSide;
         this.rightSide = b.rightSide;
         this.extendedAngle = b.extendedAngle;
@@ -206,6 +259,11 @@ public final class ExerciseCriteria {
         private final String exerciseName;
         private int targetReps = 10;
         private double lockMinAngle = Double.NaN;
+        private JudgedJoint judgedJoint = JudgedJoint.KNEE;
+        private long holdDurationMs = 0;
+        private long holdGraceMs = 1000;
+        private double minKneeAngle = 0;
+        private double releaseRiseDegrees = 15;
         private Side leftSide = LEFT_LEG;
         private Side rightSide = RIGHT_LEG;
         private double extendedAngle = 160;
@@ -248,6 +306,11 @@ public final class ExerciseCriteria {
 
         public Builder targetReps(int v) { targetReps = v; return this; }
         public Builder lockMinAngle(double v) { lockMinAngle = v; return this; }
+        public Builder judgedJoint(JudgedJoint v) { judgedJoint = v; return this; }
+        public Builder holdDurationMs(long v) { holdDurationMs = v; return this; }
+        public Builder holdGraceMs(long v) { holdGraceMs = v; return this; }
+        public Builder minKneeAngle(double v) { minKneeAngle = v; return this; }
+        public Builder releaseRiseDegrees(double v) { releaseRiseDegrees = v; return this; }
         public Builder sides(Side left, Side right) { leftSide = left; rightSide = right; return this; }
         public Builder extendedAngle(double v) { extendedAngle = v; return this; }
         public Builder bentAngle(double v) { bentAngle = v; return this; }
@@ -323,6 +386,16 @@ public final class ExerciseCriteria {
     /** 엉덩이를 기준보다 많이 굽혔으면 true (엉덩이가 안 보였거나 검사하지 않는 운동이면 false) */
     public boolean isHipTooBent(double minHipAngleDegrees) {
         return minHipAngle > 0 && !Double.isNaN(minHipAngleDegrees) && minHipAngleDegrees < minHipAngle;
+    }
+
+    /** 유지 시간형 운동이면 true (HoldCounter로 측정) */
+    public boolean isHoldType() {
+        return holdDurationMs > 0;
+    }
+
+    /** 유지형: 펴야 하는 무릎이 기준보다 굽었으면 true (무릎이 안 보였거나 검사하지 않는 운동이면 false) */
+    public boolean isKneeBent(double kneeAngleDegrees) {
+        return minKneeAngle > 0 && !Double.isNaN(kneeAngleDegrees) && kneeAngleDegrees < minKneeAngle;
     }
 
     /** 엉덩이를 기준만큼 굽히지 않았으면 true (엉덩이가 안 보였거나 검사하지 않는 운동이면 false) */

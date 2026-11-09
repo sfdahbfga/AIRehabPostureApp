@@ -46,7 +46,13 @@ public class RepetitionCounter implements ExerciseCounter {
         // 엉덩이를 굽힘 (스쿼트처럼 허벅지가 기움)
         THIGH_UPRIGHT,
         // 굽힘 기준까지 내려갔는데 엉덩이를 굽히지 않음 (스쿼트: 엉덩이를 뒤로 빼야 함)
-        HIPS_BACK
+        HIPS_BACK,
+        // 유지형: 기준 안에서 유지 중
+        HOLD,
+        // 유지형: 펴야 하는 다리의 무릎이 굽음
+        STRAIGHTEN_KNEE,
+        // 유지형: 1회를 마쳤으니 자세를 다시 세움
+        RELEASE
     }
 
     /** 세지 않고 버린 이유 */
@@ -60,7 +66,9 @@ public class RepetitionCounter implements ExerciseCounter {
         // 동작 중 관절이 maxInvisibleMs 넘게 안 보임
         LOST_TRACKING,
         // 엉덩이 각도가 maxHipAngleAtDepth 아래로 내려가지 않음 (무릎만 접음)
-        HIP_NOT_BENT
+        HIP_NOT_BENT,
+        // 유지형: 유지 시간을 채우기 전에 기준 밖으로 holdGraceMs 넘게 벗어남
+        RELEASED_EARLY
     }
 
     /** 한 번의 동작 동안 받은 프레임 수 (기준값 조정 / 천천히 안내용) */

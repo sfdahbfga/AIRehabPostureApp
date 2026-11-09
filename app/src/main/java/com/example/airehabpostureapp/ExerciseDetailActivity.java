@@ -61,6 +61,10 @@ public class ExerciseDetailActivity extends AppCompatActivity {
                 R.string.exercise_purpose_lunge, R.string.exercise_joints_lunge,
                 R.string.exercise_duration_lunge, R.string.exercise_repetitions_lunge,
                 R.string.exercise_difficulty_lunge));
+        map.put("하체 스트레칭", new Detail(R.string.exercise_description_hamstring_stretch,
+                R.string.exercise_purpose_hamstring_stretch, R.string.exercise_joints_hamstring_stretch,
+                R.string.exercise_duration_hamstring_stretch, R.string.exercise_repetitions_hamstring_stretch,
+                R.string.exercise_difficulty_hamstring_stretch));
         DETAILS = Collections.unmodifiableMap(map);
     }
 

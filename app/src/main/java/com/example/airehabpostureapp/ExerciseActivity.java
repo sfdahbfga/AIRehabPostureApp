@@ -36,6 +36,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.airehabpostureapp.pose.ExerciseCounter;
 import com.example.airehabpostureapp.pose.ExerciseCriteria;
+import com.example.airehabpostureapp.pose.HoldCounter;
 import com.example.airehabpostureapp.pose.JointAngleCalculator;
 import com.example.airehabpostureapp.pose.LegSelector;
 import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
@@ -96,8 +97,9 @@ public class ExerciseActivity extends AppCompatActivity {
     // 운동하는 다리 정하기 / 고르기 (정옆으로 섰을 때 visibility가 더 높은 카메라 쪽 다리로 고정)
     private final LegSelector legSelector = new LegSelector();
     private TextView postureFeedbackText;
-    @StringRes
-    private int shownFeedbackRes;
+    // 지금 표시 중인 안내 문구 (같으면 다시 그리지 않음)
+    @Nullable
+    private String shownFeedbackText;
 
     // 운동 진행 시간 (초), 화면이 보이는 동안만 1초씩 증가
     private int elapsedSeconds = 0;
@@ -264,9 +266,9 @@ public class ExerciseActivity extends AppCompatActivity {
         poseLandmarkerHelper = null;
     }
 
-    // 운동 방식에 맞는 측정기 (횟수형: RepetitionCounter)
+    // 운동 방식에 맞는 측정기 (횟수형: RepetitionCounter, 유지 시간형: HoldCounter)
     private static ExerciseCounter createCounter(ExerciseCriteria criteria) {
-        return new RepetitionCounter(criteria);
+        return criteria.isHoldType() ? new HoldCounter(criteria) : new RepetitionCounter(criteria);
     }
 
     // CameraX 시작: 미리보기(Preview) + MediaPipe 분석(ImageAnalysis)을 이 화면의 Lifecycle에 연결
@@ -348,8 +350,9 @@ public class ExerciseActivity extends AppCompatActivity {
 
             // Java 관절 각도 계산 (무릎 굽힘 운동 기준이 없어도 디버그 표시용으로 무릎 각도는 계산)
             ExerciseCriteria criteria = exerciseCriteria != null ? exerciseCriteria : ExerciseCriteria.KNEE_FLEXION;
-            LegSelector.LegSample left = measureSide(pose, criteria.leftSide, imageWidth, imageHeight);
-            LegSelector.LegSample right = measureSide(pose, criteria.rightSide, imageWidth, imageHeight);
+            boolean judgeHip = criteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP;
+            LegSelector.LegSample left = measureSide(pose, criteria.leftSide, judgeHip, imageWidth, imageHeight);
+            LegSelector.LegSample right = measureSide(pose, criteria.rightSide, judgeHip, imageWidth, imageHeight);
             long timestampMs = result.timestampMs();
 
             runOnUiThread(() -> {
@@ -370,23 +373,25 @@ public class ExerciseActivity extends AppCompatActivity {
         }
     };
 
-    // 한쪽 다리의 측정값: 무릎 각도 / 상체 기울기 / 엉덩이 각도 + 엉덩이·무릎·발목 중 가장 낮은 visibility
+    // 한쪽 다리의 측정값: 판정 각도 / 상체 기울기 / 엉덩이 각도 / 무릎 각도 + 판정 관절 세 점 중 가장 낮은 visibility
+    // judgeHip: 판정 각도가 엉덩이 각도(어깨-엉덩이-무릎)인 운동 (하체 스트레칭). 아니면 무릎 각도(엉덩이-무릎-발목)
     private static LegSelector.LegSample measureSide(@Nullable List<NormalizedLandmark> pose,
-                                                     ExerciseCriteria.Side side,
+                                                     ExerciseCriteria.Side side, boolean judgeHip,
                                                      int imageWidth, int imageHeight) {
         if (pose == null) {
-            return new LegSelector.LegSample(side.label, Double.NaN, Double.NaN, Double.NaN, 0f);
+            return new LegSelector.LegSample(side.label, Double.NaN, Double.NaN, Double.NaN, 0f, 0f, Double.NaN);
         }
-        double jointAngle = calculateJointAngle(pose, side.first, side.middle, side.last, imageWidth, imageHeight);
+        double kneeAngle = calculateJointAngle(pose, side.first, side.middle, side.last, imageWidth, imageHeight);
         double trunkLean = calculateTrunkLean(pose, side.shoulder, side.first, imageWidth, imageHeight);
         double hipAngle = calculateJointAngle(pose, side.shoulder, side.first, side.middle, imageWidth, imageHeight);
-        float hipVisibility = visibility(pose, side.first);
-        float kneeVisibility = visibility(pose, side.middle);
-        float ankleVisibility = visibility(pose, side.last);
-        float minVisibility = Math.min(hipVisibility, Math.min(kneeVisibility, ankleVisibility));
-        float averageVisibility = (hipVisibility + kneeVisibility + ankleVisibility) / 3f;
-        return new LegSelector.LegSample(side.label, jointAngle, trunkLean, hipAngle,
-                minVisibility, averageVisibility);
+        // 판정 관절 세 점의 visibility (무릎 판정: 엉덩이·무릎·발목, 엉덩이 판정: 어깨·엉덩이·무릎)
+        float firstVisibility = visibility(pose, judgeHip ? side.shoulder : side.first);
+        float middleVisibility = visibility(pose, judgeHip ? side.first : side.middle);
+        float lastVisibility = visibility(pose, judgeHip ? side.middle : side.last);
+        float minVisibility = Math.min(firstVisibility, Math.min(middleVisibility, lastVisibility));
+        float averageVisibility = (firstVisibility + middleVisibility + lastVisibility) / 3f;
+        return new LegSelector.LegSample(side.label, judgeHip ? hipAngle : kneeAngle, trunkLean, hipAngle,
+                minVisibility, averageVisibility, kneeAngle);
     }
 
     private static float visibility(List<NormalizedLandmark> pose, int index) {
@@ -448,7 +453,9 @@ public class ExerciseActivity extends AppCompatActivity {
             // 정해진 다리가 잘 안 보임 → 이 프레임은 건너뜀 (1초 넘게 이어지면 카운터가 "전신이 보이게" 안내)
             rep = repetitionCounter.onFrame(timestampMs, Double.NaN, Double.NaN, Double.NaN);
         } else {
-            rep = repetitionCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, chosen.hipAngle);
+            // 보조 각도: 횟수형은 엉덩이 각도(엉덩이 규칙), 유지형은 펴야 하는 다리의 무릎 각도
+            double auxAngle = exerciseCriteria.isHoldType() ? chosen.kneeAngle : chosen.hipAngle;
+            rep = repetitionCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, auxAngle);
         }
         if (rep != null) {
             logRepResult(rep);
@@ -489,7 +496,18 @@ public class ExerciseActivity extends AppCompatActivity {
 
     // 디버그용: 판정에 쓰는 관절 이름 (로그의 각도 이름)
     private String debugJointName() {
-        return "knee";
+        return exerciseCriteria != null && exerciseCriteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP
+                ? "hip" : "knee";
+    }
+
+    // 디버그용: 유지형이면 1초 기록 끝에 고른 다리의 무릎 각도와 지금까지 유지한 시간을 붙임
+    private String debugHoldSuffix(@Nullable LegSelector.LegSample chosen) {
+        if (!(repetitionCounter instanceof HoldCounter)) {
+            return "";
+        }
+        return String.format(Locale.US, " knee=%s held=%.1fs",
+                chosen == null ? "-" : formatAngle(chosen.kneeAngle),
+                ((HoldCounter) repetitionCounter).getHeldMs() / 1000.0);
     }
 
     private static String capitalize(String text) {
@@ -524,6 +542,8 @@ public class ExerciseActivity extends AppCompatActivity {
                 return chairSquatFeedback(feedback);
             case ExerciseCriteria.ID_LUNGE:
                 return lungeFeedback(feedback);
+            case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
+                return hamstringStretchFeedback(feedback);
             default:
                 return 0;
         }
@@ -561,6 +581,25 @@ public class ExerciseActivity extends AppCompatActivity {
         }
     }
 
+    // 하체 스트레칭 안내 (유지 중 문구에는 유지 시간 표시)
+    @StringRes
+    private int hamstringStretchFeedback(RepetitionCounter.Feedback feedback) {
+        switch (feedback) {
+            case START_BENDING:
+                return R.string.feedback_stretch_start;
+            case BEND_MORE:
+                return R.string.feedback_stretch_lean_more;
+            case HOLD:
+                return R.string.feedback_stretch_hold;
+            case STRAIGHTEN_KNEE:
+                return R.string.feedback_stretch_straighten_knee;
+            case RELEASE:
+                return R.string.feedback_stretch_release;
+            default:
+                return 0;
+        }
+    }
+
     // 다리를 정하기 전 "옆으로 서 주세요" 안내 (운동별)
     @StringRes
     private int sidewaysMessage() {
@@ -570,6 +609,8 @@ public class ExerciseActivity extends AppCompatActivity {
                     return R.string.feedback_squat_stand_sideways;
                 case ExerciseCriteria.ID_LUNGE:
                     return R.string.feedback_lunge_stand_sideways;
+                case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
+                    return R.string.feedback_stretch_sit_sideways;
                 default:
                     break;
             }
@@ -588,6 +629,8 @@ public class ExerciseActivity extends AppCompatActivity {
                 case ExerciseCriteria.ID_LUNGE:
                     // 다리가 정해진 직후: 다리를 바꿀 때 몸을 돌리지 않도록 안내 (돌리면 고정한 다리가 가려짐)
                     return R.string.feedback_lunge_switch_feet;
+                case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
+                    return R.string.feedback_stretch_extend_leg;
                 default:
                     break;
             }
@@ -620,18 +663,37 @@ public class ExerciseActivity extends AppCompatActivity {
     }
 
     // 같은 문구면 다시 그리지 않음 (매 프레임 호출됨)
+    // 유지형의 "유지하세요" 문구는 유지한 시간 / 목표 시간(초)을 넣어 표시
     private void showFeedback(@StringRes int messageRes) {
-        if (messageRes == shownFeedbackRes) {
+        String text;
+        if (messageRes == R.string.feedback_stretch_hold && repetitionCounter instanceof HoldCounter
+                && exerciseCriteria != null) {
+            text = getString(messageRes, (int) (((HoldCounter) repetitionCounter).getHeldMs() / 1000),
+                    (int) (exerciseCriteria.holdDurationMs / 1000));
+        } else {
+            text = getString(messageRes);
+        }
+        if (text.equals(shownFeedbackText)) {
             return;
         }
-        shownFeedbackRes = messageRes;
-        postureFeedbackText.setText(messageRes);
+        shownFeedbackText = text;
+        postureFeedbackText.setText(text);
     }
 
     // 디버그용: 회차별 결과를 Logcat에 기록 (기준값 조정용, DEBUG_LOG_REPS로 끔)
     // (leg = 마지막으로 고른 다리 이름, switches = 이번 동작 중 고른 다리가 L↔R로 바뀐 횟수)
     private void logRepResult(RepetitionCounter.RepResult rep) {
         if (!DEBUG_LOG_REPS) {
+            return;
+        }
+        if (repetitionCounter instanceof HoldCounter) {
+            // 유지형: avg = 유지 중 평균 판정 각도, minKnee = 유지 중 가장 작았던 편 다리 무릎 각도, held = 유지 시간
+            Log.d(DEBUG_TAG, String.format(Locale.US,
+                    "[%s] hold #%d leg=%s avg%s=%.1f %sErr=%+.1f minKnee=%s acc=%.0f held=%dms %s",
+                    debugExerciseId(), rep.repNumber, legSelector.getLastLabel(),
+                    capitalize(debugJointName()), rep.minJointAngle, debugJointName(), rep.jointError,
+                    formatAngle(((HoldCounter) repetitionCounter).getLastHoldMinKneeAngle()),
+                    rep.accuracy, rep.durationMs, formatFrames(rep.frames)));
             return;
         }
         Log.d(DEBUG_TAG, String.format(Locale.US,
@@ -654,6 +716,14 @@ public class ExerciseActivity extends AppCompatActivity {
     // 디버그용: 세지 않고 버린 동작과 이유를 Logcat에 기록 (기준값 조정용, DEBUG_LOG_REPS로 끔)
     private void logRejectedAttempt(RepetitionCounter.RejectedAttempt attempt) {
         if (!DEBUG_LOG_REPS) {
+            return;
+        }
+        if (repetitionCounter instanceof HoldCounter) {
+            Log.d(DEBUG_TAG, String.format(Locale.US,
+                    "[%s] hold rejected reason=%s leg=%s avg%s=%.1f held=%dms %s",
+                    debugExerciseId(), attempt.reason, legSelector.getLastLabel(),
+                    capitalize(debugJointName()), attempt.minJointAngle, attempt.durationMs,
+                    formatFrames(attempt.frames)));
             return;
         }
         Log.d(DEBUG_TAG, String.format(Locale.US,
@@ -723,9 +793,10 @@ public class ExerciseActivity extends AppCompatActivity {
             int jumpSinceLastLog = skippedTotal - lastLoggedSkippedFrames;
             double fps = lastDebugLogAtMs == 0 ? 0 : debugFrameCount * 1000.0 / elapsedMs;
             Log.d(DEBUG_TAG, String.format(Locale.US,
-                    "[%s] %s L=%s R=%s vis L=%.2f R=%.2f sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d oneLeg=%d jump=%d",
+                    "[%s] %s L=%s R=%s vis L=%.2f R=%.2f sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d oneLeg=%d jump=%d%s",
                     debugExerciseId(), debugJointName(), left, right, leftVisibility, rightVisibility, selected, fps, debugFrameCount,
-                    debugNoPoseFrames, debugLowVisibilityFrames, debugOneLegLowVisFrames, jumpSinceLastLog));
+                    debugNoPoseFrames, debugLowVisibilityFrames, debugOneLegLowVisFrames, jumpSinceLastLog,
+                    debugHoldSuffix(chosen)));
             lastDebugLogAtMs = now;
             lastLoggedSkippedFrames = skippedTotal;
             debugFrameCount = 0;
@@ -775,7 +846,12 @@ public class ExerciseActivity extends AppCompatActivity {
         putOptionalInt(intent, ExerciseFlowExtras.AVERAGE_ACCURACY, SessionMetrics.round(metrics.averageAccuracy));
         putOptionalInt(intent, ExerciseFlowExtras.FIRST_HALF_ACCURACY, SessionMetrics.round(metrics.firstHalfAccuracy));
         putOptionalInt(intent, ExerciseFlowExtras.SECOND_HALF_ACCURACY, SessionMetrics.round(metrics.secondHalfAccuracy));
-        putOptionalInt(intent, ExerciseFlowExtras.KNEE_ERROR_DEGREES, SessionMetrics.round(metrics.jointError));
+        // 판정 관절 오차: 무릎을 판정하는 운동은 knee, 엉덩이를 판정하는 운동(하체 스트레칭)은 hip으로 저장
+        boolean judgeHip = exerciseCriteria != null
+                && exerciseCriteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP;
+        Integer jointError = SessionMetrics.round(metrics.jointError);
+        putOptionalInt(intent, ExerciseFlowExtras.KNEE_ERROR_DEGREES, judgeHip ? null : jointError);
+        putOptionalInt(intent, ExerciseFlowExtras.HIP_ERROR_DEGREES, judgeHip ? jointError : null);
         putOptionalInt(intent, ExerciseFlowExtras.BACK_ERROR_DEGREES, SessionMetrics.round(metrics.trunkError));
         startActivity(intent);
         finish();

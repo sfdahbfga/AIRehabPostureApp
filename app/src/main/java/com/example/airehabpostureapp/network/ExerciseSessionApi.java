@@ -99,8 +99,9 @@ public interface ExerciseSessionApi {
         final Integer firstHalfAccuracy;
         @SerializedName("second_half_accuracy")
         final Integer secondHalfAccuracy;
-        // 관절별 평균 각도 오차 (도). 예: {"knee": 12, "back": 3}
+        // 관절별 평균 각도 오차 (도). 예: {"knee": 12, "back": 3}, 하체 스트레칭: {"hip": 8}
         // knee: 가장 많이 굽힌 각도 - 목표 각도 (+ 덜 굽힘 / - 더 굽힘), back: 상체 숙임 허용 각도 초과량
+        // hip: 유지 중 평균 엉덩이 각도 - 목표 각도 (+ 덜 숙임 / - 더 숙임). 목표 / 허용 범위는 운동별 ExerciseCriteria
         @SerializedName("joint_errors")
         final Map<String, Integer> jointErrors;
 
@@ -220,7 +221,7 @@ public interface ExerciseSessionApi {
         public Double firstHalfAccuracy;
         @SerializedName("second_half_accuracy")
         public Double secondHalfAccuracy;
-        // 관절별 평균 오차 (키: knee, back)
+        // 관절별 평균 오차 (키: knee, back, hip)
         @SerializedName("joint_errors")
         public Map<String, Double> jointErrors;
     }

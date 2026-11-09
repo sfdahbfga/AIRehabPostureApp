@@ -33,4 +33,6 @@ public final class ExerciseFlowExtras {
     // 관절 평균 오차 (도). 무릎: 가장 많이 굽힌 각도 - 목표 각도 (+ 덜 굽힘 / - 더 굽힘), 허리: 상체 숙임 허용 초과량
     public static final String KNEE_ERROR_DEGREES = PREFIX + "KNEE_ERROR_DEGREES";
     public static final String BACK_ERROR_DEGREES = PREFIX + "BACK_ERROR_DEGREES";
+    // 엉덩이 각도 오차 (도, 하체 스트레칭): 유지 중 평균 엉덩이 각도 - 목표 각도 (+ 덜 숙임 / - 더 숙임)
+    public static final String HIP_ERROR_DEGREES = PREFIX + "HIP_ERROR_DEGREES";
 }

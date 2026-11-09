@@ -507,4 +507,27 @@
     <string name="feedback_lunge_start">상체를 세운 채 천천히 내려가 주세요.</string>
     <string name="feedback_lunge_lower_more">조금 더 내려가 주세요.</string>
     <string name="feedback_lunge_good_come_up">좋아요! 천천히 올라와 주세요.</string>
+
+    <!-- 운동 상세: 하체 스트레칭 (의자에 앉아 하는 허벅지 뒤 스트레칭) -->
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_description_hamstring_stretch">의자 끝에 앉아 한쪽 다리를 펴고 상체를 숙여 허벅지 뒤쪽과 허리를 늘이는 스트레칭</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_purpose_hamstring_stretch">유연성 향상</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_joints_hamstring_stretch">엉덩이, 무릎, 허리</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_duration_hamstring_stretch">약 5분</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_repetitions_hamstring_stretch">20초 유지 × 3회</string>
+    <!-- TODO: 임시 설명, 프론트엔드 확인 필요 -->
+    <string name="exercise_difficulty_hamstring_stretch">초급</string>
+
+    <!-- 13_Exercise 자세 피드백: 하체 스트레칭 -->
+    <string name="feedback_stretch_sit_sideways">의자 끝에 카메라 쪽으로 옆으로 앉아 주세요.</string>
+    <string name="feedback_stretch_extend_leg">카메라 쪽 다리를 앞으로 쭉 펴고 뒤꿈치를 바닥에 대 주세요.</string>
+    <string name="feedback_stretch_start">허리를 편 채 상체를 천천히 앞으로 숙여 주세요.</string>
+    <string name="feedback_stretch_lean_more">조금 더 숙여 주세요.</string>
+    <string name="feedback_stretch_hold">좋아요! 그대로 유지하세요. (%1$d/%2$d초)</string>
+    <string name="feedback_stretch_straighten_knee">앞으로 편 다리의 무릎을 펴 주세요.</string>
+    <string name="feedback_stretch_release">천천히 상체를 세워 주세요.</string>
 </resources>

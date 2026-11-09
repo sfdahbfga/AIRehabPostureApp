@@ -128,6 +128,7 @@ public class PostCheckActivity extends AppCompatActivity {
         Map<String, Integer> jointErrors = new LinkedHashMap<>();
         putIfPresent(jointErrors, "knee", optionalInt(extras, ExerciseFlowExtras.KNEE_ERROR_DEGREES));
         putIfPresent(jointErrors, "back", optionalInt(extras, ExerciseFlowExtras.BACK_ERROR_DEGREES));
+        putIfPresent(jointErrors, "hip", optionalInt(extras, ExerciseFlowExtras.HIP_ERROR_DEGREES));
         ExerciseSessionApi.SessionInsert session = new ExerciseSessionApi.SessionInsert(
                 sessionManager.getUserId(),
                 extras.getStringExtra(ExerciseFlowExtras.EXERCISE_NAME),

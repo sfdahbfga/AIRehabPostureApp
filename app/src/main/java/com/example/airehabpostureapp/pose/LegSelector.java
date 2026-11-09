@@ -35,6 +35,8 @@ public class LegSelector {
         public final float minVisibility;
         // 엉덩이 / 무릎 / 발목 visibility 평균 (운동하는 다리를 정할 때 사용)
         public final float averageVisibility;
+        // 무릎 각도 (엉덩이-무릎-발목, 안 보이면 NaN). 무릎을 판정하는 운동이면 jointAngle과 같음
+        public final double kneeAngle;
 
         public LegSample(String label, double jointAngle, double trunkLean, double hipAngle, float minVisibility) {
             this(label, jointAngle, trunkLean, hipAngle, minVisibility, minVisibility);
@@ -42,12 +44,18 @@ public class LegSelector {
 
         public LegSample(String label, double jointAngle, double trunkLean, double hipAngle,
                          float minVisibility, float averageVisibility) {
+            this(label, jointAngle, trunkLean, hipAngle, minVisibility, averageVisibility, jointAngle);
+        }
+
+        public LegSample(String label, double jointAngle, double trunkLean, double hipAngle,
+                         float minVisibility, float averageVisibility, double kneeAngle) {
             this.label = label;
             this.jointAngle = jointAngle;
             this.trunkLean = trunkLean;
             this.hipAngle = hipAngle;
             this.minVisibility = minVisibility;
             this.averageVisibility = averageVisibility;
+            this.kneeAngle = kneeAngle;
         }
 
         /** 엉덩이 / 무릎 / 발목이 모두 잘 보이고 각도를 계산할 수 있으면 true */
