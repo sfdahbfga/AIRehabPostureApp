@@ -10,3 +10,39 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# ---------------------------------------------------------------------------
+# M8: release 빌드(R8)에서 리플렉션 / 네이티브로 쓰는 클래스 유지
+# 지금은 build.gradle.kts의 optimization.packageScope가 androidx / kotlin만 최적화하므로
+# 앱 코드와 아래 라이브러리는 원래 이름 그대로 남는다. 범위를 넓혀도 깨지지 않도록 미리 둔다.
+# ---------------------------------------------------------------------------
+
+# 제네릭 타입 / 어노테이션 정보 (Retrofit의 Call<List<...>>, Gson의 Map<String, Integer> 필드 해석에 필요)
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, AnnotationDefault
+
+# Gson: @SerializedName 필드는 리플렉션으로 읽고 쓰므로 필드를 지우거나 이름을 바꾸지 않는다
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+# 앱의 Gson 모델: Supabase 요청 / 응답 (network 패키지의 내부 클래스), 운동 결과 임시 저장(PendingWorkout)
+# 기본 생성자와 필드를 유지 (R8 full mode는 생성자를 지울 수 있음)
+-keep class com.example.airehabpostureapp.network.** {
+    <init>(...);
+    <fields>;
+}
+-keep class com.example.airehabpostureapp.workout.PendingWorkout {
+    <init>(...);
+    <fields>;
+}
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# Retrofit: 라이브러리에 규칙이 포함돼 있음. API 인터페이스 메서드와 어노테이션만 추가로 유지
+-keep,allowobfuscation interface com.example.airehabpostureapp.network.*Api
+
+# MediaPipe Tasks: JNI(libmediapipe_tasks_jni.so)가 Java 클래스 / 메서드를 이름으로 찾고, 설정은 protobuf로 전달
+-keep class com.google.mediapipe.** { *; }
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.mediapipe.**
+-dontwarn com.google.protobuf.**
