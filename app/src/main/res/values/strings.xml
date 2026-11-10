@@ -553,4 +553,8 @@
 
 (개발자 안내) local.properties에 SUPABASE_URL과 SUPABASE_PUBLISHABLE_KEY를 넣고 다시 빌드해 주세요.</string>
     <string name="config_missing_close">닫기</string>
+    <!-- L1: 카메라 권한 거부 후 안내 (운동 화면 Snackbar) -->
+    <string name="camera_permission_snackbar">운동 자세를 인식하려면 카메라 권한이 필요해요.</string>
+    <string name="camera_permission_retry">다시 요청</string>
+    <string name="camera_permission_open_settings">설정 열기</string>
 </resources>

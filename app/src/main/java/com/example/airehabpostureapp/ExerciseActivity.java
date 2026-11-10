@@ -4,10 +4,12 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
@@ -49,6 +51,7 @@ import com.example.airehabpostureapp.pose.SessionMetrics;
 import com.example.airehabpostureapp.workout.PendingWorkout;
 import com.example.airehabpostureapp.workout.PendingWorkoutStore;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult;
@@ -148,15 +151,19 @@ public class ExerciseActivity extends AppCompatActivity {
     private static final long LEG_LOCKED_HINT_MS = 2000L;
     private long legLockedHintUntilMs = 0;
 
-    // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 문구만 표시 (운동 화면은 그대로 유지)
+    // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 + 다시 요청 / 설정 열기 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(), granted -> {
                 if (granted) {
                     startCamera();
                 } else {
-                    showCameraMessage(R.string.camera_permission_denied_message);
+                    onCameraPermissionDenied();
                 }
             });
+    // startCamera를 이미 불렀으면 true (권한 결과 / 설정 화면 복귀 때 중복 시작 방지)
+    private boolean cameraStarted = false;
+    @Nullable
+    private Snackbar cameraPermissionSnackbar;
 
     // 14_Pause 결과: "처음부터 다시"는 운동 상태 초기화, "운동 종료"는 PostCheck로 이동
     // (계속하기 / Back은 그대로 이어서 진행)
@@ -255,8 +262,7 @@ public class ExerciseActivity extends AppCompatActivity {
         // 카메라 영상이 둥근 모서리 배경(bg_camera_preview) 밖으로 나가지 않도록 잘라냄
         findViewById(R.id.cameraPreviewContainer).setClipToOutline(true);
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (hasCameraPermission()) {
             startCamera();
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
@@ -330,6 +336,15 @@ public class ExerciseActivity extends AppCompatActivity {
 
     // CameraX 시작: 미리보기(Preview) + MediaPipe 분석(ImageAnalysis)을 이 화면의 Lifecycle에 연결
     private void startCamera() {
+        if (cameraStarted) {
+            return;
+        }
+        cameraStarted = true;
+        if (cameraPermissionSnackbar != null) {
+            cameraPermissionSnackbar.dismiss();
+            cameraPermissionSnackbar = null;
+        }
+        cameraMessageText.setOnClickListener(null);
         cameraMessageText.setVisibility(View.GONE);
 
         // 모델 로드 실패 시에도 카메라 미리보기는 보여준다 (뼈대만 표시하지 않음)
@@ -890,6 +905,37 @@ public class ExerciseActivity extends AppCompatActivity {
                 : String.format(Locale.US, "%.1f", angle);
     }
 
+    // L1: 권한 거부 → 다시 물을 수 있으면 "다시 요청", "다시 묻지 않음" 상태면 "설정 열기"
+    // (설정에서 허용하고 돌아오면 onResume에서 카메라 시작)
+    private void onCameraPermissionDenied() {
+        showCameraMessage(R.string.camera_permission_denied_message);
+        boolean canAskAgain = shouldShowRequestPermissionRationale(Manifest.permission.CAMERA);
+        View.OnClickListener action = v -> {
+            if (canAskAgain) {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+            } else {
+                openAppSettings();
+            }
+        };
+        cameraMessageText.setOnClickListener(action);
+        cameraPermissionSnackbar = Snackbar.make(findViewById(R.id.exerciseRoot),
+                        R.string.camera_permission_snackbar, Snackbar.LENGTH_INDEFINITE)
+                .setAction(canAskAgain ? R.string.camera_permission_retry : R.string.camera_permission_open_settings,
+                        action);
+        cameraPermissionSnackbar.show();
+    }
+
+    private void openAppSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", getPackageName(), null));
+        startActivity(intent);
+    }
+
+    private boolean hasCameraPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private void showCameraMessage(@StringRes int messageRes) {
         cameraMessageText.setText(messageRes);
         cameraMessageText.setVisibility(View.VISIBLE);
@@ -899,6 +945,10 @@ public class ExerciseActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
+        // L1: 설정 화면에서 카메라 권한을 허용하고 돌아온 경우
+        if (!cameraStarted && hasCameraPermission()) {
+            startCamera();
+        }
         // 일시정지 화면 등에서 돌아오면 지금 안내를 다시 읽음
         if (shownFeedbackText != null) {
             voiceGuide.speakMessage(speechText(shownFeedbackText));
