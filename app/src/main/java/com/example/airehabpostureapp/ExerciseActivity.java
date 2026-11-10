@@ -1,6 +1,7 @@
 package com.example.airehabpostureapp;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -355,17 +356,21 @@ public class ExerciseActivity extends AppCompatActivity {
         cameraMessageText.setOnClickListener(null);
         cameraMessageText.setVisibility(View.GONE);
 
-        // 모델 로드 실패 시에도 카메라 미리보기는 보여준다 (뼈대만 표시하지 않음)
-        try {
-            poseLandmarkerHelper = new PoseLandmarkerHelper(this, poseListener);
-        } catch (RuntimeException e) {
-            Log.e(TAG, "Pose Landmarker 생성 실패", e);
-            poseLandmarkerHelper = null;
-            showCameraMessage(R.string.pose_model_load_failed_message);
-        }
-        if (poseLandmarkerHelper != null) {
-            analysisExecutor = Executors.newSingleThreadExecutor();
-        }
+        // L9: 모델(약 5.7MB)은 분석 전용 스레드에서 불러오고, 그동안 카메라 미리보기는 먼저 보여준다.
+        // 다 불러오면 메인 스레드에서 분석(ImageAnalysis)을 붙인다. 실패해도 미리보기는 유지 (뼈대만 표시하지 않음)
+        analysisExecutor = Executors.newSingleThreadExecutor();
+        Context appContext = getApplicationContext();
+        analysisExecutor.execute(() -> {
+            PoseLandmarkerHelper loaded;
+            try {
+                loaded = new PoseLandmarkerHelper(appContext, poseListener);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Pose Landmarker 생성 실패", e);
+                loaded = null;
+            }
+            PoseLandmarkerHelper helper = loaded;
+            runOnUiThread(() -> onPoseModelLoaded(helper));
+        });
 
         ListenableFuture<ProcessCameraProvider> providerFuture = ProcessCameraProvider.getInstance(this);
         providerFuture.addListener(() -> {
@@ -382,6 +387,30 @@ public class ExerciseActivity extends AppCompatActivity {
                 showCameraMessage(R.string.camera_start_failed_message);
             }
         }, ContextCompat.getMainExecutor(this));
+    }
+
+    // 메인 스레드: 모델 로드가 끝난 뒤 분석을 카메라에 연결 (카메라가 아직 준비 전이면 준비될 때 함께 연결됨)
+    private void onPoseModelLoaded(@Nullable PoseLandmarkerHelper helper) {
+        if (isDestroyed()) {
+            // 화면이 먼저 닫힘: 분석 스레드는 이미 종료됐으므로 여기서 닫음 (프레임을 받은 적 없음)
+            if (helper != null) {
+                helper.close();
+            }
+            return;
+        }
+        if (helper == null) {
+            showCameraMessage(R.string.pose_model_load_failed_message);
+            return;
+        }
+        poseLandmarkerHelper = helper;
+        if (cameraProvider != null) {
+            try {
+                bindCameraUseCases(cameraProvider);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "자세 분석 연결 실패", e);
+                showCameraMessage(R.string.camera_start_failed_message);
+            }
+        }
     }
 
     private void bindCameraUseCases(ProcessCameraProvider provider) {

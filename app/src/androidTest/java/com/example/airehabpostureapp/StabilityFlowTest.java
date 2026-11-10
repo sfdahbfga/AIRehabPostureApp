@@ -96,6 +96,22 @@ public class StabilityFlowTest {
         }
     }
 
+    // L9: 모델을 분석 스레드에서 불러온 뒤 카메라에 연결 (모델 / 카메라 오류 문구가 없어야 함)
+    @Test
+    public void exercise_loadsPoseModelInBackground_withoutErrorMessage() throws InterruptedException {
+        try (ActivityScenario<ExerciseActivity> scenario = ActivityScenario.launch(exerciseIntent())) {
+            Thread.sleep(5000);
+            AtomicBoolean messageShown = new AtomicBoolean(true);
+            AtomicReference<String> message = new AtomicReference<>();
+            scenario.onActivity(activity -> {
+                TextView cameraMessage = activity.findViewById(R.id.cameraMessageText);
+                messageShown.set(cameraMessage.getVisibility() == android.view.View.VISIBLE);
+                message.set(cameraMessage.getText().toString());
+            });
+            assertFalse("카메라 / 모델 오류 문구가 보임: " + message.get(), messageShown.get());
+        }
+    }
+
     // H3: 시스템 Back / 뒤로가기 버튼 → 확인 창, 취소하면 운동 화면 유지
     @Test
     public void exercise_back_showsConfirmDialog_andCancelKeepsScreen() {
