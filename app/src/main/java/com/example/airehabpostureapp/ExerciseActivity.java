@@ -211,6 +211,12 @@ public class ExerciseActivity extends AppCompatActivity {
             showFeedback(R.string.feedback_pose_not_supported);
         }
 
+        // 화면 재생성 / 시스템이 앱을 종료했다가 되살린 경우: 끝난 회차 결과, 경과 시간, 시작 시각 복구
+        // (진행 중이던 1회 동작과 운동하는 다리 고정은 복구하지 않음 → 다시 정옆으로 서면 다리를 다시 고름)
+        if (savedInstanceState != null) {
+            restoreState(savedInstanceState);
+        }
+
         updateTimerText();
         updateExerciseStatus();
 
@@ -271,6 +277,30 @@ public class ExerciseActivity extends AppCompatActivity {
             poseLandmarkerHelper.close();
         }
         poseLandmarkerHelper = null;
+    }
+
+    private static final String STATE_ELAPSED_SECONDS = "state_elapsed_seconds";
+    private static final String STATE_STARTED_AT_MILLIS = "state_started_at_millis";
+    private static final String STATE_REP_RESULTS = "state_rep_results";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_ELAPSED_SECONDS, elapsedSeconds);
+        outState.putLong(STATE_STARTED_AT_MILLIS, startedAtMillis);
+        if (repetitionCounter != null) {
+            outState.putDoubleArray(STATE_REP_RESULTS,
+                    RepetitionCounter.RepResult.toArray(repetitionCounter.getResults()));
+        }
+    }
+
+    private void restoreState(Bundle savedInstanceState) {
+        elapsedSeconds = savedInstanceState.getInt(STATE_ELAPSED_SECONDS, 0);
+        startedAtMillis = savedInstanceState.getLong(STATE_STARTED_AT_MILLIS, startedAtMillis);
+        if (repetitionCounter != null) {
+            repetitionCounter.restoreResults(RepetitionCounter.RepResult.listFromArray(
+                    savedInstanceState.getDoubleArray(STATE_REP_RESULTS)));
+        }
     }
 
     // 운동 방식에 맞는 측정기 (횟수형: RepetitionCounter, 유지 시간형: HoldCounter)

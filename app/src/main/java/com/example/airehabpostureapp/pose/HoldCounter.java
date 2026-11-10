@@ -229,6 +229,12 @@ public class HoldCounter implements ExerciseCounter {
     }
 
     @Override
+    public void restoreResults(List<RepetitionCounter.RepResult> savedResults) {
+        reset();
+        results.addAll(savedResults);
+    }
+
+    @Override
     public void reset() {
         results.clear();
         window.clear();

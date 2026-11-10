@@ -133,6 +133,44 @@ public class RepetitionCounter implements ExerciseCounter {
             this.durationMs = durationMs;
             this.frames = frames;
         }
+
+        // 화면 재생성 / 프로세스 종료 후 복구용: 회차 결과 1개 = double 값 ARRAY_SIZE개
+        public static final int ARRAY_SIZE = 11;
+
+        /** 저장용 값 배열 (fromArray로 되돌림) */
+        public double[] toArray() {
+            return new double[]{repNumber, minJointAngle, maxTrunkLean, minHipAngle, jointError, trunkError,
+                    accuracy, durationMs, frames.accepted, frames.skippedByJump, frames.invisible};
+        }
+
+        /** toArray로 만든 값 배열에서 offset 위치의 회차 결과를 되살림 */
+        public static RepResult fromArray(double[] values, int offset) {
+            return new RepResult((int) values[offset], values[offset + 1], values[offset + 2],
+                    values[offset + 3], values[offset + 4], values[offset + 5], values[offset + 6],
+                    (long) values[offset + 7],
+                    new FrameStats((int) values[offset + 8], (int) values[offset + 9], (int) values[offset + 10]));
+        }
+
+        /** 회차 결과 목록 → 하나의 값 배열 (Bundle 저장용) */
+        public static double[] toArray(List<RepResult> results) {
+            double[] values = new double[results.size() * ARRAY_SIZE];
+            for (int i = 0; i < results.size(); i++) {
+                System.arraycopy(results.get(i).toArray(), 0, values, i * ARRAY_SIZE, ARRAY_SIZE);
+            }
+            return values;
+        }
+
+        /** toArray(List)로 만든 값 배열 → 회차 결과 목록 (null이나 길이가 맞지 않으면 빈 목록) */
+        public static List<RepResult> listFromArray(double[] values) {
+            List<RepResult> results = new ArrayList<>();
+            if (values == null || values.length % ARRAY_SIZE != 0) {
+                return results;
+            }
+            for (int offset = 0; offset < values.length; offset += ARRAY_SIZE) {
+                results.add(fromArray(values, offset));
+            }
+            return results;
+        }
     }
 
     /** 세지 않고 버린 동작 (기준값 조정용 기록) */
@@ -398,6 +436,12 @@ public class RepetitionCounter implements ExerciseCounter {
             sum += v;
         }
         return sum / window.size();
+    }
+
+    @Override
+    public void restoreResults(List<RepResult> savedResults) {
+        reset();
+        results.addAll(savedResults);
     }
 
     /** "처음부터 다시": 센 횟수와 진행 상태를 모두 초기화 */

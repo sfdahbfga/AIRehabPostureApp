@@ -36,4 +36,10 @@ public interface ExerciseCounter {
     int getSkippedFrameCount();
 
     void reset();
+
+    /**
+     * 화면 재생성 / 프로세스 종료 후 복구: 진행 상태를 초기화하고 이미 끝난 회차 결과만 되살린다.
+     * (진행 중이던 1회 동작은 복구하지 않음)
+     */
+    void restoreResults(List<RepetitionCounter.RepResult> savedResults);
 }
