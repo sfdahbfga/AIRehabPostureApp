@@ -23,7 +23,6 @@ public final class SupabaseClient {
     private static Context appContext;
     // 세션이 만료 처리됐을 때 알릴 곳 (AiRehabApplication에서 SessionExpiryWatcher 연결). 메인 스레드에서 호출
     private static Runnable onSessionExpired;
-    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     private SupabaseClient() {
     }
@@ -44,7 +43,8 @@ public final class SupabaseClient {
                 // 토큰 갱신 요청은 Authenticator가 없는 baseClient로 보낸다.
                 AuthApi refreshApi = createRetrofit(baseClient).create(AuthApi.class);
                 clientBuilder.authenticator(new TokenAuthenticator(new SessionManager(appContext), refreshApi,
-                        () -> MAIN_HANDLER.post(() -> {
+                        // Handler는 여기서 만든다 (static 필드로 두면 JVM 단위 테스트에서 클래스 초기화가 실패함)
+                        () -> new Handler(Looper.getMainLooper()).post(() -> {
                             if (onSessionExpired != null) {
                                 onSessionExpired.run();
                             }
