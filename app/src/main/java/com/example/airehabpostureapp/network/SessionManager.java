@@ -10,14 +10,14 @@ import android.content.SharedPreferences;
  */
 public class SessionManager implements TokenStore {
 
-    private static final String PREFS_NAME = "auth_session";
+    public static final String PREFS_NAME = "auth_session";
     private static final String KEY_ACCESS_TOKEN = "access_token";
     private static final String KEY_REFRESH_TOKEN = "refresh_token";
     private static final String KEY_USER_ID = "user_id";
     private static final String KEY_AUTO_LOGIN = "auto_login";
 
     // 로그인 만료 표시 (TokenAuthenticator가 남기고, 화면이 보일 때 SessionExpiryWatcher가 확인)
-    private static final String EVENTS_PREFS_NAME = "auth_events";
+    public static final String EVENTS_PREFS_NAME = "auth_events";
     private static final String KEY_SESSION_EXPIRED = "session_expired";
 
     private final SharedPreferences prefs;

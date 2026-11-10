@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   자동 백업 규칙 (Android 11 이하. Android 12 이상은 data_extraction_rules.xml)
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+
+   M10: 로그인 토큰과 건강 정보는 백업에서 제외한다. (나머지는 기본대로 백업)
+   - auth_session.xml: access / refresh token, 사용자 id (SessionManager)
+   - auth_events.xml: 로그인 만료 표시 (SessionManager)
+   - pending_workouts.xml: 서버에 아직 저장하지 못한 운동 결과 (PendingWorkoutStore, 건강 정보)
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="auth_session.xml" />
+    <exclude domain="sharedpref" path="auth_events.xml" />
+    <exclude domain="sharedpref" path="pending_workouts.xml" />
 </full-backup-content>
