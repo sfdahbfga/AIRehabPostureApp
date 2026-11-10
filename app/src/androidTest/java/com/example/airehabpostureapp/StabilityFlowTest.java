@@ -10,6 +10,9 @@ import android.app.Activity;
 import android.app.UiAutomation;
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.SystemClock;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.TextView;
@@ -135,6 +138,23 @@ public class StabilityFlowTest {
         }
     }
 
+    // 네트워크를 다시 켜고 인터넷 연결이 확인될 때까지 기다림 (다음 테스트가 DNS 실패를 겪지 않도록)
+    private void restoreNetwork() {
+        shell("svc wifi enable");
+        shell("svc data enable");
+        ConnectivityManager connectivity = context.getSystemService(ConnectivityManager.class);
+        long deadline = SystemClock.uptimeMillis() + 20_000;
+        while (SystemClock.uptimeMillis() < deadline) {
+            Network network = connectivity.getActiveNetwork();
+            NetworkCapabilities capabilities = network == null ? null : connectivity.getNetworkCapabilities(network);
+            if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                SystemClock.sleep(1000);
+                return;
+            }
+            SystemClock.sleep(500);
+        }
+    }
+
     private void shell(String command) {
         try {
             uiAutomation.executeShellCommand(command).close();
@@ -159,8 +179,7 @@ public class StabilityFlowTest {
                 assertNotNull("다시 시도 후 실패했는데 Snackbar가 다시 뜨지 않음", waitForText(retry));
             }
         } finally {
-            shell("svc wifi enable");
-            shell("svc data enable");
+            restoreNetwork();
         }
     }
 
@@ -183,8 +202,7 @@ public class StabilityFlowTest {
                 });
             }
         } finally {
-            shell("svc wifi enable");
-            shell("svc data enable");
+            restoreNetwork();
         }
     }
 
