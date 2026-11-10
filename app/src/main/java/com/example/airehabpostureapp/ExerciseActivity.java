@@ -42,10 +42,11 @@ import androidx.core.view.WindowInsetsCompat;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.pose.ExerciseCounter;
 import com.example.airehabpostureapp.pose.ExerciseCriteria;
+import com.example.airehabpostureapp.pose.FeedbackMessages;
 import com.example.airehabpostureapp.pose.HoldCounter;
-import com.example.airehabpostureapp.pose.JointAngleCalculator;
 import com.example.airehabpostureapp.pose.LegSelector;
 import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
+import com.example.airehabpostureapp.pose.PoseMeasurer;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
 import com.example.airehabpostureapp.pose.RepetitionCounter;
 import com.example.airehabpostureapp.pose.SessionMetrics;
@@ -92,9 +93,6 @@ public class ExerciseActivity extends AppCompatActivity {
 
     // MediaPipe 분석용 해상도 (센서 기준 가로 x 세로). 미리보기와 같은 4:3 비율이어야 뼈대가 정확히 겹친다.
     private static final Size ANALYSIS_TARGET_SIZE = new Size(640, 480);
-
-    // 상체 기울기 계산용: 엉덩이 바로 위 가상의 점까지 거리 (픽셀, 방향만 쓰므로 값은 상관없음)
-    private static final double VERTICAL_REFERENCE_PX = 100;
 
     // 목표 횟수: 운동 상세의 권장 횟수 중 1세트 기준 (운동별 값은 ExerciseCriteria.targetReps)
     private int targetReps = ExerciseCriteria.KNEE_FLEXION.targetReps;
@@ -471,8 +469,8 @@ public class ExerciseActivity extends AppCompatActivity {
             // Java 관절 각도 계산 (무릎 굽힘 운동 기준이 없어도 디버그 표시용으로 무릎 각도는 계산)
             ExerciseCriteria criteria = exerciseCriteria != null ? exerciseCriteria : ExerciseCriteria.KNEE_FLEXION;
             boolean judgeHip = criteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP;
-            LegSelector.LegSample left = measureSide(pose, criteria.leftSide, judgeHip, imageWidth, imageHeight);
-            LegSelector.LegSample right = measureSide(pose, criteria.rightSide, judgeHip, imageWidth, imageHeight);
+            LegSelector.LegSample left = PoseMeasurer.measureSide(pose, criteria.leftSide, judgeHip, imageWidth, imageHeight);
+            LegSelector.LegSample right = PoseMeasurer.measureSide(pose, criteria.rightSide, judgeHip, imageWidth, imageHeight);
             long timestampMs = result.timestampMs();
 
             runOnUiThread(() -> {
@@ -493,52 +491,6 @@ public class ExerciseActivity extends AppCompatActivity {
         }
     };
 
-    // 한쪽 다리의 측정값: 판정 각도 / 상체 기울기 / 엉덩이 각도 / 무릎 각도 + 판정 관절 세 점 중 가장 낮은 visibility
-    // judgeHip: 판정 각도가 엉덩이 각도(어깨-엉덩이-무릎)인 운동 (하체 스트레칭). 아니면 무릎 각도(엉덩이-무릎-발목)
-    private static LegSelector.LegSample measureSide(@Nullable List<NormalizedLandmark> pose,
-                                                     ExerciseCriteria.Side side, boolean judgeHip,
-                                                     int imageWidth, int imageHeight) {
-        if (pose == null) {
-            return new LegSelector.LegSample(side.label, Double.NaN, Double.NaN, Double.NaN, 0f, 0f, Double.NaN);
-        }
-        double kneeAngle = calculateJointAngle(pose, side.first, side.middle, side.last, imageWidth, imageHeight);
-        double trunkLean = calculateTrunkLean(pose, side.shoulder, side.first, imageWidth, imageHeight);
-        double hipAngle = calculateJointAngle(pose, side.shoulder, side.first, side.middle, imageWidth, imageHeight);
-        // 판정 관절 세 점의 visibility (무릎 판정: 엉덩이·무릎·발목, 엉덩이 판정: 어깨·엉덩이·무릎)
-        float firstVisibility = visibility(pose, judgeHip ? side.shoulder : side.first);
-        float middleVisibility = visibility(pose, judgeHip ? side.first : side.middle);
-        float lastVisibility = visibility(pose, judgeHip ? side.middle : side.last);
-        float minVisibility = Math.min(firstVisibility, Math.min(middleVisibility, lastVisibility));
-        float averageVisibility = (firstVisibility + middleVisibility + lastVisibility) / 3f;
-        return new LegSelector.LegSample(side.label, judgeHip ? hipAngle : kneeAngle, trunkLean, hipAngle,
-                minVisibility, averageVisibility, kneeAngle);
-    }
-
-    private static float visibility(List<NormalizedLandmark> pose, int index) {
-        return index < pose.size() ? pose.get(index).visibility().orElse(0f) : 0f;
-    }
-
-    // 상체 기울기: 엉덩이 → 어깨 선이 수직선과 이루는 각도 (똑바로 서면 0도)
-    // 엉덩이 바로 위에 가상의 점을 두고 어깨 - 엉덩이 - 가상의 점 각도를 계산 (휴대폰을 세워 둔다고 가정)
-    private static double calculateTrunkLean(List<NormalizedLandmark> pose, int shoulderIndex, int hipIndex,
-                                             int imageWidth, int imageHeight) {
-        if (pose.size() <= Math.max(shoulderIndex, hipIndex)) {
-            return Double.NaN;
-        }
-        NormalizedLandmark shoulder = pose.get(shoulderIndex);
-        NormalizedLandmark hip = pose.get(hipIndex);
-        if (!PoseOverlayView.isVisible(shoulder) || !PoseOverlayView.isVisible(hip)) {
-            return Double.NaN;
-        }
-        double hipX = hip.x() * imageWidth;
-        double hipY = hip.y() * imageHeight;
-        // 이미지 좌표는 y가 아래로 증가하므로 "위"는 y가 작은 쪽
-        return JointAngleCalculator.calculateAngle(
-                shoulder.x() * imageWidth, shoulder.y() * imageHeight,
-                hipX, hipY,
-                hipX, hipY - VERTICAL_REFERENCE_PX);
-    }
-
     // 반복 횟수 측정 (UI 스레드)
     // 1) 운동하는 다리 정하기: 정옆으로 서서 두 다리의 visibility 차이가 0.2 이상인 상태가 1초 이어지면
     //    더 잘 보이는 다리(카메라 쪽)로 정한다. 그동안은 세지 않음 (LegSelector.observeForLock)
@@ -556,7 +508,7 @@ public class ExerciseActivity extends AppCompatActivity {
             if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.lockMinAngle)) {
                 // 다리를 정하는 중: 사람(다리)이 보이면 정옆으로 서도록(앉는 운동은 앉도록), 아니면 전신이 보이도록 안내
                 showFeedback(left.isCandidate() || right.isCandidate()
-                        ? sidewaysMessage()
+                        ? FeedbackMessages.sideways(exerciseCriteria)
                         : R.string.feedback_full_body_visible);
                 return null;
             }
@@ -602,11 +554,11 @@ public class ExerciseActivity extends AppCompatActivity {
             // 다리가 정해진 직후 2초: 운동별 첫 안내 (무릎 굽힘: "카메라 쪽 다리로 운동해 주세요.")
             // (다리가 안 보이면 "전신이 보이게"가 우선)
             // 왼쪽/오른쪽은 표시하지 않음 (옆모습에서는 MediaPipe의 L/R 이름이 실제 다리와 다를 수 있음)
-            showFeedback(legLockedMessage());
+            showFeedback(FeedbackMessages.legLocked(exerciseCriteria));
         } else {
             showFeedback(now < moveSlowlyUntilMs
                     ? R.string.feedback_move_slowly
-                    : feedbackMessage(feedback));
+                    : FeedbackMessages.forFeedback(exerciseCriteria, feedback, getCompletedReps()));
         }
         return chosen;
     }
@@ -644,144 +596,6 @@ public class ExerciseActivity extends AppCompatActivity {
         Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] leg locked=%s avgVis L=%.2f R=%.2f",
                 debugExerciseId(), legSelector.getLockedLabel(), legSelector.getLockedLeftAverage(),
                 legSelector.getLockedRightAverage()));
-    }
-
-    // 운동별 안내 문구. 운동마다 다른 문구가 있으면 그 문구, 없으면 공통(무릎 굽힘) 문구
-    @StringRes
-    private int feedbackMessage(RepetitionCounter.Feedback feedback) {
-        int exerciseMessage = exerciseFeedbackMessage(feedback);
-        return exerciseMessage != 0 ? exerciseMessage : defaultFeedbackMessage(feedback);
-    }
-
-    // 운동별로 바꿔 쓰는 안내 문구 (없으면 0 → 공통 문구 사용)
-    @StringRes
-    private int exerciseFeedbackMessage(RepetitionCounter.Feedback feedback) {
-        if (exerciseCriteria == null) {
-            return 0;
-        }
-        switch (exerciseCriteria.id) {
-            case ExerciseCriteria.ID_CHAIR_SQUAT:
-                return chairSquatFeedback(feedback);
-            case ExerciseCriteria.ID_LUNGE:
-                return lungeFeedback(feedback);
-            case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
-                return hamstringStretchFeedback(feedback);
-            default:
-                return 0;
-        }
-    }
-
-    // 의자 스쿼트 안내
-    @StringRes
-    private int chairSquatFeedback(RepetitionCounter.Feedback feedback) {
-        switch (feedback) {
-            case BEND_MORE:
-                return R.string.feedback_squat_sit_more;
-            case GOOD_STRAIGHTEN:
-                return R.string.feedback_squat_good_stand_up;
-            case HIPS_BACK:
-                return R.string.feedback_squat_hips_back;
-            case START_BENDING:
-                return R.string.feedback_squat_start;
-            default:
-                return 0;
-        }
-    }
-
-    // 런지 안내
-    @StringRes
-    private int lungeFeedback(RepetitionCounter.Feedback feedback) {
-        switch (feedback) {
-            case BEND_MORE:
-                return R.string.feedback_lunge_lower_more;
-            case GOOD_STRAIGHTEN:
-                return R.string.feedback_lunge_good_come_up;
-            case START_BENDING:
-                return R.string.feedback_lunge_start;
-            default:
-                return 0;
-        }
-    }
-
-    // 하체 스트레칭 안내 (유지 중 문구에는 유지 시간 표시)
-    @StringRes
-    private int hamstringStretchFeedback(RepetitionCounter.Feedback feedback) {
-        switch (feedback) {
-            case START_BENDING:
-                return R.string.feedback_stretch_start;
-            case BEND_MORE:
-                return R.string.feedback_stretch_lean_more;
-            case HOLD:
-                return R.string.feedback_stretch_hold;
-            case STRAIGHTEN_KNEE:
-                return R.string.feedback_stretch_straighten_knee;
-            case RELEASE:
-                return R.string.feedback_stretch_release;
-            default:
-                return 0;
-        }
-    }
-
-    // 다리를 정하기 전 "옆으로 서 주세요" 안내 (운동별)
-    @StringRes
-    private int sidewaysMessage() {
-        if (exerciseCriteria != null) {
-            switch (exerciseCriteria.id) {
-                case ExerciseCriteria.ID_CHAIR_SQUAT:
-                    return R.string.feedback_squat_stand_sideways;
-                case ExerciseCriteria.ID_LUNGE:
-                    return R.string.feedback_lunge_stand_sideways;
-                case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
-                    return R.string.feedback_stretch_sit_sideways;
-                default:
-                    break;
-            }
-        }
-        return R.string.feedback_stand_sideways;
-    }
-
-    // 다리가 정해진 직후 / 첫 동작 전 안내 (운동별)
-    @StringRes
-    private int legLockedMessage() {
-        if (exerciseCriteria != null) {
-            switch (exerciseCriteria.id) {
-                case ExerciseCriteria.ID_CHAIR_SQUAT:
-                    // 양쪽 다리로 하는 운동이라 "카메라 쪽 다리" 안내 대신 시작 안내
-                    return R.string.feedback_squat_start;
-                case ExerciseCriteria.ID_LUNGE:
-                    // 다리가 정해진 직후: 다리를 바꿀 때 몸을 돌리지 않도록 안내 (돌리면 고정한 다리가 가려짐)
-                    return R.string.feedback_lunge_switch_feet;
-                case ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH:
-                    return R.string.feedback_stretch_extend_leg;
-                default:
-                    break;
-            }
-        }
-        return R.string.feedback_use_camera_side_leg;
-    }
-
-    @StringRes
-    private int defaultFeedbackMessage(RepetitionCounter.Feedback feedback) {
-        switch (feedback) {
-            case NOT_VISIBLE:
-                return R.string.feedback_full_body_visible;
-            case STAND_STRAIGHT:
-                return R.string.feedback_stand_straight;
-            case BEND_MORE:
-                return R.string.feedback_bend_knee_more;
-            case GOOD_STRAIGHTEN:
-                return R.string.feedback_good_straighten;
-            case KEEP_TRUNK_UPRIGHT:
-                return R.string.feedback_keep_trunk_upright;
-            case THIGH_UPRIGHT:
-                return R.string.feedback_thigh_upright;
-            case START_BENDING:
-            default:
-                // 첫 동작 전에는 어느 다리로 할지 안내
-                return getCompletedReps() == 0
-                        ? legLockedMessage()
-                        : R.string.feedback_start_bending;
-        }
     }
 
     // 같은 문구면 다시 그리지 않음 (매 프레임 호출됨)
@@ -878,26 +692,6 @@ public class ExerciseActivity extends AppCompatActivity {
         } else if (oneLegLowVis) {
             debugOneLegLowVisFrames++;
         }
-    }
-
-    // 세 관절 중 하나라도 잘 안 보이면(visibility < 0.5) NaN
-    // 정규화 좌표(0~1)를 픽셀 좌표로 바꿔 계산 (4:3 이미지에서 가로/세로 비율 왜곡 방지)
-    private static double calculateJointAngle(@Nullable List<NormalizedLandmark> pose,
-                                              int first, int middle, int last,
-                                              int imageWidth, int imageHeight) {
-        if (pose == null || pose.size() <= Math.max(first, Math.max(middle, last))) {
-            return Double.NaN;
-        }
-        NormalizedLandmark a = pose.get(first);
-        NormalizedLandmark b = pose.get(middle);
-        NormalizedLandmark c = pose.get(last);
-        if (!PoseOverlayView.isVisible(a) || !PoseOverlayView.isVisible(b) || !PoseOverlayView.isVisible(c)) {
-            return Double.NaN;
-        }
-        return JointAngleCalculator.calculateAngle(
-                a.x() * imageWidth, a.y() * imageHeight,
-                b.x() * imageWidth, b.y() * imageHeight,
-                c.x() * imageWidth, c.y() * imageHeight);
     }
 
     // 디버그용: 무릎 각도를 화면 구석에 표시(DEBUG_SHOW_KNEE_ANGLE)하고 Logcat에 1초에 한 번 기록(DEBUG_LOG_KNEE_ANGLE)
