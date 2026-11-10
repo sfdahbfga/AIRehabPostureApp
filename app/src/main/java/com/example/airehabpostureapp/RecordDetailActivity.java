@@ -21,6 +21,7 @@ import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 import com.example.airehabpostureapp.stats.JointAccuracyConverter;
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
@@ -148,11 +149,11 @@ public class RecordDetailActivity extends AppCompatActivity {
     // (엉덩이(hip)는 하체 스트레칭만 저장)
     private void showJointAccuracy(Map<String, Double> jointErrors) {
         Integer kneeAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.kneeAccuracy(exerciseName, jointErrors.get("knee"));
+                : JointAccuracyConverter.kneeAccuracy(exerciseName, jointErrors.get(JointKeys.KNEE));
         Integer backAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.backAccuracy(exerciseName, jointErrors.get("back"));
+                : JointAccuracyConverter.backAccuracy(exerciseName, jointErrors.get(JointKeys.BACK));
         Integer hipAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.hipAccuracy(exerciseName, jointErrors.get("hip"));
+                : JointAccuracyConverter.hipAccuracy(exerciseName, jointErrors.get(JointKeys.HIP));
         showAccuracyRow(R.id.kneeAccuracyText, R.id.kneeProgressBar, kneeAccuracy);
         showAccuracyRow(R.id.backAccuracyText, R.id.backProgressBar, backAccuracy);
         showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, hipAccuracy);

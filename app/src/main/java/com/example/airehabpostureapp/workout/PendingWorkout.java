@@ -1,5 +1,6 @@
 package com.example.airehabpostureapp.workout;
 
+import com.example.airehabpostureapp.network.CheckType;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 
 import java.time.Instant;
@@ -89,14 +90,5 @@ public final class PendingWorkout {
 
     private static String emptyToNull(String text) {
         return text == null || text.trim().isEmpty() ? null : text.trim();
-    }
-
-    /** session_checkins.check_type 값 */
-    public static final class CheckType {
-        public static final String PRE = "pre";
-        public static final String POST = "post";
-
-        private CheckType() {
-        }
     }
 }

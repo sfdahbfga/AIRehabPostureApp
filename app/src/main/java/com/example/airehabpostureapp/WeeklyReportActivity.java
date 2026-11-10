@@ -17,6 +17,7 @@ import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.stats.ReportStats;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator.Period;
@@ -181,11 +182,11 @@ public class WeeklyReportActivity extends AppCompatActivity {
     // 관절 키(knee, back, hip)를 한글 표시로 변환, 모르는 키는 그대로 표시
     private String jointMistakeLabel(String joint) {
         switch (joint) {
-            case "knee":
+            case JointKeys.KNEE:
                 return getString(R.string.mistake_joint_knee);
-            case "back":
+            case JointKeys.BACK:
                 return getString(R.string.mistake_joint_back);
-            case "hip":
+            case JointKeys.HIP:
                 return getString(R.string.mistake_joint_hip);
             default:
                 return joint;

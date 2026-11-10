@@ -4,6 +4,7 @@ import android.content.Intent;
 
 import androidx.annotation.Nullable;
 
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.workout.PendingWorkout;
 
 import java.util.LinkedHashMap;
@@ -65,9 +66,9 @@ public final class ExerciseFlowExtras {
         workout.firstHalfAccuracy = optionalInt(extras, FIRST_HALF_ACCURACY);
         workout.secondHalfAccuracy = optionalInt(extras, SECOND_HALF_ACCURACY);
         Map<String, Integer> jointErrors = new LinkedHashMap<>();
-        putIfPresent(jointErrors, "knee", optionalInt(extras, KNEE_ERROR_DEGREES));
-        putIfPresent(jointErrors, "back", optionalInt(extras, BACK_ERROR_DEGREES));
-        putIfPresent(jointErrors, "hip", optionalInt(extras, HIP_ERROR_DEGREES));
+        putIfPresent(jointErrors, JointKeys.KNEE, optionalInt(extras, KNEE_ERROR_DEGREES));
+        putIfPresent(jointErrors, JointKeys.BACK, optionalInt(extras, BACK_ERROR_DEGREES));
+        putIfPresent(jointErrors, JointKeys.HIP, optionalInt(extras, HIP_ERROR_DEGREES));
         workout.jointErrors = jointErrors.isEmpty() ? null : jointErrors;
         workout.preDiscomfortLevel = extras.getIntExtra(PRE_DISCOMFORT_LEVEL, 0);
         workout.preBodyCondition = extras.getStringExtra(PRE_BODY_CONDITION);

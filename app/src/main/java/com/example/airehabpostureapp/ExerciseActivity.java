@@ -50,6 +50,7 @@ import com.example.airehabpostureapp.pose.PoseMeasurer;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
 import com.example.airehabpostureapp.pose.RepetitionCounter;
 import com.example.airehabpostureapp.pose.SessionMetrics;
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.workout.PendingWorkout;
 import com.example.airehabpostureapp.workout.PendingWorkoutStore;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -571,7 +572,7 @@ public class ExerciseActivity extends AppCompatActivity {
     // 디버그용: 판정에 쓰는 관절 이름 (로그의 각도 이름)
     private String debugJointName() {
         return exerciseCriteria != null && exerciseCriteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP
-                ? "hip" : "knee";
+                ? JointKeys.HIP : JointKeys.KNEE;
     }
 
     // 디버그용: 유지형이면 1초 기록 끝에 고른 다리의 무릎 각도와 지금까지 유지한 시간을 붙임

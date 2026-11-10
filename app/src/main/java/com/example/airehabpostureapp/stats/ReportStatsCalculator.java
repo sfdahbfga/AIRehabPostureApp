@@ -114,7 +114,7 @@ public class ReportStatsCalculator {
      * 기준이 없는 운동 / 이름이 없는 기록은 무릎 굽힘 운동 기준 (JointAccuracyConverter와 같음)
      */
     static boolean isMistake(ExerciseCriteria criteria, String joint, double error) {
-        if ("back".equals(joint)) {
+        if (JointKeys.BACK.equals(joint)) {
             return error > 0;
         }
         return criteria.jointScoreForError(error) < 100;

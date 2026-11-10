@@ -17,6 +17,7 @@ import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 import com.example.airehabpostureapp.stats.ExerciseStreak;
+import com.example.airehabpostureapp.stats.GoalTargets;
 import com.example.airehabpostureapp.stats.ReportStats;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.example.airehabpostureapp.stats.SessionRecord;
@@ -37,11 +38,11 @@ public class GoalChallengeActivity extends AppCompatActivity {
     // L7: 화면이 닫힐 때 진행 중인 요청 취소
     private final ApiCalls apiCalls = ApiCalls.bind(this);
 
-    // 목표 기준
-    private static final int WEEKLY_EXERCISE_GOAL = 3;
-    private static final int EXERCISE_TIME_GOAL_MINUTES = 60;
-    private static final int ACCURACY_GOAL = 90;
-    private static final int CHALLENGE_GOAL_DAYS = 7;
+    // 목표 기준 (L12: GoalTargets에 모음)
+    private static final int WEEKLY_EXERCISE_GOAL = GoalTargets.WEEKLY_EXERCISE_COUNT;
+    private static final int EXERCISE_TIME_GOAL_MINUTES = GoalTargets.WEEKLY_EXERCISE_MINUTES;
+    private static final int ACCURACY_GOAL = GoalTargets.AVERAGE_ACCURACY;
+    private static final int CHALLENGE_GOAL_DAYS = GoalTargets.CHALLENGE_STREAK_DAYS;
 
     private final ReportStatsCalculator calculator = new ReportStatsCalculator();
 

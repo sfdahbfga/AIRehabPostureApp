@@ -20,6 +20,7 @@ import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.stats.JointKeys;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -202,8 +203,8 @@ public class AIReportActivity extends AppCompatActivity {
         Map<String, Double> jointErrors = metrics.jointErrors;
         // M6: 엉덩이(hip)를 판정하는 운동(하체 스트레칭)은 레이아웃에 엉덩이 줄이 없으므로
         // 무릎 줄의 이름을 "엉덩이 평균 오차"로 바꿔 hip 값을 표시 (프론트엔드에 엉덩이 줄 추가 요청)
-        Double hipError = jointErrors == null ? null : jointErrors.get("hip");
-        Double kneeError = jointErrors == null ? null : jointErrors.get("knee");
+        Double hipError = jointErrors == null ? null : jointErrors.get(JointKeys.HIP);
+        Double kneeError = jointErrors == null ? null : jointErrors.get(JointKeys.KNEE);
         if (hipError != null && kneeError == null) {
             TextView kneeLabel = findViewById(R.id.kneeAverageErrorLabelText);
             kneeLabel.setText(R.string.hip_average_error);
@@ -211,7 +212,7 @@ public class AIReportActivity extends AppCompatActivity {
         } else {
             showAngleError(R.id.kneeAverageErrorText, kneeError);
         }
-        showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get("back"));
+        showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get(JointKeys.BACK));
         showPercent(R.id.overallAccuracyText, metrics.firstHalfAccuracy);
         showPercent(R.id.lateAccuracyText, metrics.secondHalfAccuracy);
     }
