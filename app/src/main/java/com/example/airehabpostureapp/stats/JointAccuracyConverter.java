@@ -21,16 +21,6 @@ public final class JointAccuracyConverter {
     private JointAccuracyConverter() {
     }
 
-    /** 무릎 오차(도, 부호 있음) → 정확도 (무릎 굽힘 운동 기준). 값이 없으면 null */
-    public static Integer kneeAccuracy(Double kneeError) {
-        return kneeAccuracy(null, kneeError);
-    }
-
-    /** 허리 오차(허용 각도 초과량, 도) → 정확도 (무릎 굽힘 운동 기준). 값이 없으면 null */
-    public static Integer backAccuracy(Double backError) {
-        return backAccuracy(null, backError);
-    }
-
     /** 무릎 오차(도, 부호 있음) → 운동별 기준의 정확도. 값이 없으면 null */
     public static Integer kneeAccuracy(String exerciseName, Double kneeError) {
         return kneeError == null ? null
