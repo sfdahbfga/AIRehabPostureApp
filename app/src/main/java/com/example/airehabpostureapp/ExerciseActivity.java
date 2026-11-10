@@ -403,6 +403,15 @@ public class ExerciseActivity extends AppCompatActivity {
     private final PoseLandmarkerHelper.Listener poseListener = new PoseLandmarkerHelper.Listener() {
         @Override
         public void onPoseResult(PoseLandmarkerResult result, int imageWidth, int imageHeight) {
+            // M1: 결과 처리 중 예외가 나면 그 프레임만 건너뜀 (MediaPipe 스레드에서 예외가 새면 앱이 종료됨)
+            try {
+                handlePoseResult(result, imageWidth, imageHeight);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "자세 결과 처리 실패, 이 프레임은 건너뜀", e);
+            }
+        }
+
+        private void handlePoseResult(PoseLandmarkerResult result, int imageWidth, int imageHeight) {
             List<NormalizedLandmark> pose = result.landmarks().isEmpty() ? null : result.landmarks().get(0);
 
             // Java 관절 각도 계산 (무릎 굽힘 운동 기준이 없어도 디버그 표시용으로 무릎 각도는 계산)

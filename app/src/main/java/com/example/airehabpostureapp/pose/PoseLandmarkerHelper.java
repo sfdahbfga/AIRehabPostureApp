@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.os.SystemClock;
+import android.util.Log;
 
 import androidx.camera.core.ImageProxy;
 
@@ -63,8 +64,24 @@ public class PoseLandmarkerHelper {
      * (CameraX 분석 스레드에서만 호출)
      */
     public void detectLiveStream(ImageProxy imageProxy) {
-        if (poseLandmarker == null) {
+        // M1: 분석 중 예외가 나면 그 프레임만 건너뜀 (분석 스레드에서 예외가 새면 앱이 종료됨)
+        try {
+            detect(imageProxy);
+        } catch (RuntimeException e) {
+            skippedErrorFrames++;
+            Log.w(TAG, "프레임 분석 실패, 이 프레임은 건너뜀 (누적 " + skippedErrorFrames + "개)", e);
+        } finally {
+            // 이미 닫힌 경우에도 다시 close해도 안전함
             imageProxy.close();
+        }
+    }
+
+    private static final String TAG = "PoseLandmarkerHelper";
+    // 예외로 건너뛴 프레임 수 (로그용)
+    private int skippedErrorFrames = 0;
+
+    private void detect(ImageProxy imageProxy) {
+        if (poseLandmarker == null) {
             return;
         }
         int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
