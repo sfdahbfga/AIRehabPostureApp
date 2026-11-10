@@ -93,6 +93,8 @@ dependencies {
     // 관절 위치(Landmark) 추출 전용. 자세 판정은 Java 코드에서 한다.
     implementation(libs.mediapipe.tasks.vision)
     testImplementation(libs.junit)
+    // 단위 테스트용 가짜 서버 (TokenAuthenticator / WorkoutUploader / OnboardingChecker 테스트)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
 }
