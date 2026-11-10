@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- L10: 카메라가 없는 기기(Chromebook 등)도 설치는 가능하도록 (운동 화면에서 카메라 시작 실패 안내) -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <!-- 운동 화면 음성 안내: Android 11+에서 TTS 엔진에 연결하려면 필요 -->
     <queries>
         <intent>
