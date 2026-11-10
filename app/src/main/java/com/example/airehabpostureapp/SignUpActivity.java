@@ -39,6 +39,8 @@ public class SignUpActivity extends AppCompatActivity {
     // L7: 화면이 닫힐 때 진행 중인 요청 취소
     private final ApiCalls apiCalls = ApiCalls.bind(this);
 
+    private static final int HTTP_CONFLICT = 409;
+
     // 생년월일로 입력할 수 있는 가장 이른 날짜
     private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
 
@@ -86,6 +88,10 @@ public class SignUpActivity extends AppCompatActivity {
                 togglePasswordVisibility(passwordConfirmInput, passwordConfirmToggle));
 
         sessionManager = new SessionManager(this);
+        if (savedInstanceState != null) {
+            signedUpEmail = savedInstanceState.getString(STATE_SIGNED_UP_EMAIL);
+            signedUpUserId = savedInstanceState.getString(STATE_SIGNED_UP_USER_ID);
+        }
         signUpButton = findViewById(R.id.sign_up_button);
         signUpButton.setOnClickListener(v -> {
             if (validateInputs()) {
@@ -103,11 +109,32 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
+    // L5: 이 화면에서 가입에 성공한 이메일 / 사용자 id (프로필 저장만 실패한 뒤 다시 누르면 가입은 건너뜀)
+    private static final String STATE_SIGNED_UP_EMAIL = "state_signed_up_email";
+    private static final String STATE_SIGNED_UP_USER_ID = "state_signed_up_user_id";
+    private String signedUpEmail;
+    private String signedUpUserId;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SIGNED_UP_EMAIL, signedUpEmail);
+        outState.putString(STATE_SIGNED_UP_USER_ID, signedUpUserId);
+    }
+
     // 회원가입 → 세션 저장 → profiles insert → UserSetup 이동
     private void signUp(String birthDate) {
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
         String name = nameInput.getText().toString().trim();
+
+        // L5: 가입은 이미 됐고 프로필 저장만 실패한 경우 → 프로필 저장만 다시 시도 ("이미 가입된 이메일" 오류 방지)
+        if (signedUpUserId != null && email.equals(signedUpEmail)
+                && signedUpUserId.equals(sessionManager.getUserId())) {
+            signUpButton.setEnabled(false);
+            insertProfile(signedUpUserId, name, birthDate);
+            return;
+        }
 
         // 요청 중 중복 클릭 방지
         signUpButton.setEnabled(false);
@@ -130,6 +157,8 @@ public class SignUpActivity extends AppCompatActivity {
                 sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
                 // 회원가입 화면에는 자동 로그인 체크박스가 없으므로 꺼둔다.
                 sessionManager.setAutoLogin(false);
+                signedUpEmail = email;
+                signedUpUserId = body.user.id;
                 insertProfile(body.user.id, name, birthDate);
             }
 
@@ -146,7 +175,8 @@ public class SignUpActivity extends AppCompatActivity {
                 new ProfileApi.ProfileInsert(userId, name, birthDate))).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
-                if (!response.isSuccessful()) {
+                // 409: 프로필이 이미 있음 (저장은 됐는데 응답을 못 받은 뒤 다시 시도한 경우) → 성공으로 처리
+                if (!response.isSuccessful() && response.code() != HTTP_CONFLICT) {
                     showError(R.string.error_profile_save_failed);
                     return;
                 }
