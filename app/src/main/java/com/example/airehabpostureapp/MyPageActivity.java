@@ -15,6 +15,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
@@ -121,8 +123,14 @@ public class MyPageActivity extends AppCompatActivity {
         });
     }
 
+    // M4: 불러오기 실패 → "다시 시도" (이름 / 이메일 요청이 둘 다 실패해도 Snackbar는 하나만)
+    private Snackbar profileRetrySnackbar;
+
     private void showProfileError(@StringRes int messageRes) {
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+        if (profileRetrySnackbar != null && profileRetrySnackbar.isShownOrQueued()) {
+            return;
+        }
+        profileRetrySnackbar = RetrySnackbar.show(this, messageRes, this::loadProfile);
     }
 
     private void setNotReadyMenu(int rowId, @StringRes int menuNameResId) {

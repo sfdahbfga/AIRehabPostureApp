@@ -88,7 +88,7 @@ public class ResultActivity extends AppCompatActivity {
                                            Response<List<ExerciseSessionApi.SessionRow>> response) {
                         List<ExerciseSessionApi.SessionRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            showError(R.string.error_result_load_failed);
+                            showLoadError(R.string.error_result_load_failed);
                             return;
                         }
                         showResult(rows.get(0));
@@ -96,7 +96,7 @@ public class ResultActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.SessionRow>> call, Throwable t) {
-                        showError(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
+                        showLoadError(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
                     }
                 });
     }
@@ -123,6 +123,11 @@ public class ResultActivity extends AppCompatActivity {
         setCompletionValueText.setText(completedSets == null || targetSets == null
                 ? getString(R.string.empty_value)
                 : getString(R.string.set_count_format, completedSets, targetSets));
+    }
+
+    // M4: 불러오기 실패 → "다시 시도"
+    private void showLoadError(@StringRes int messageRes) {
+        RetrySnackbar.show(this, messageRes, this::loadSession);
     }
 
     private void showError(@StringRes int messageRes) {

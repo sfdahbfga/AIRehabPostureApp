@@ -4,7 +4,6 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -95,8 +94,8 @@ public class WeeklyReportActivity extends AppCompatActivity {
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         if (!response.isSuccessful() || response.body() == null) {
-                            Toast.makeText(WeeklyReportActivity.this, R.string.error_record_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            RetrySnackbar.show(WeeklyReportActivity.this, R.string.error_record_load_failed,
+                                    WeeklyReportActivity.this::loadSessionRecords);
                             return;
                         }
                         List<SessionRecord> loaded = new ArrayList<>();
@@ -109,9 +108,9 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        Toast.makeText(WeeklyReportActivity.this,
+                        RetrySnackbar.show(WeeklyReportActivity.this,
                                 AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                                WeeklyReportActivity.this::loadSessionRecords);
                     }
                 });
     }

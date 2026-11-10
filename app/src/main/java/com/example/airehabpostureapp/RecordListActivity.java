@@ -10,7 +10,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -112,8 +111,8 @@ public class RecordListActivity extends AppCompatActivity {
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         if (!response.isSuccessful() || response.body() == null) {
-                            Toast.makeText(RecordListActivity.this, R.string.error_record_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            RetrySnackbar.show(RecordListActivity.this, R.string.error_record_load_failed,
+                                    RecordListActivity.this::loadRecords);
                             return;
                         }
                         records = response.body();
@@ -122,9 +121,9 @@ public class RecordListActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        Toast.makeText(RecordListActivity.this,
+                        RetrySnackbar.show(RecordListActivity.this,
                                 AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                                RecordListActivity.this::loadRecords);
                     }
                 });
     }

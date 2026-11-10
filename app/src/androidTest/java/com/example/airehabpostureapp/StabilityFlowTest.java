@@ -135,6 +135,35 @@ public class StabilityFlowTest {
         }
     }
 
+    private void shell(String command) {
+        try {
+            uiAutomation.executeShellCommand(command).close();
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    // M4: 불러오기 실패(네트워크 끊김) → "다시 시도" Snackbar, 누르면 다시 요청 (여전히 실패하면 다시 표시)
+    @Test
+    public void recordList_networkError_showsRetrySnackbar() {
+        String retry = context.getString(R.string.retry);
+        shell("svc wifi disable");
+        shell("svc data disable");
+        try {
+            SystemClock.sleep(1500);
+            try (ActivityScenario<RecordListActivity> ignored = ActivityScenario.launch(RecordListActivity.class)) {
+                AccessibilityNodeInfo retryButton = waitForText(retry);
+                assertNotNull("다시 시도 Snackbar가 뜨지 않음", retryButton);
+                retryButton.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                SystemClock.sleep(1000);
+                assertNotNull("다시 시도 후 실패했는데 Snackbar가 다시 뜨지 않음", waitForText(retry));
+            }
+        } finally {
+            shell("svc wifi enable");
+            shell("svc data enable");
+        }
+    }
+
     // L9: 모델을 분석 스레드에서 불러온 뒤 카메라에 연결 (모델 / 카메라 오류 문구가 없어야 함)
     @Test
     public void exercise_loadsPoseModelInBackground_withoutErrorMessage() throws InterruptedException {

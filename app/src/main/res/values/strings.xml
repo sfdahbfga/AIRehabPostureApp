@@ -560,4 +560,6 @@
     <!-- M3: 로그인 만료 안내 (메시지는 기존 error_session_expired 사용) -->
     <string name="session_expired_title">다시 로그인해 주세요</string>
     <string name="session_expired_login">로그인</string>
+    <!-- M4: 불러오기 실패 Snackbar -->
+    <string name="retry">다시 시도</string>
 </resources>

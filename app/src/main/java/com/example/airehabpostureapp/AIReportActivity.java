@@ -3,7 +3,6 @@ package com.example.airehabpostureapp;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -12,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+
+import com.google.android.material.snackbar.Snackbar;
 
 import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AiSummaryApi;
@@ -140,6 +141,30 @@ public class AIReportActivity extends AppCompatActivity {
     private void showAiSummaryError(@StringRes int messageRes) {
         aiSummaryText.setText(messageRes);
         nextExerciseTipText.setText(messageRes);
+        summaryFailed = true;
+        showRetry(messageRes);
+    }
+
+    // M4: 요약 / 분석 수치 중 실패한 것만 다시 불러오는 "다시 시도" (Snackbar는 하나만)
+    private boolean summaryFailed;
+    private boolean metricsFailed;
+    private Snackbar retrySnackbar;
+
+    private void showRetry(@StringRes int messageRes) {
+        if (retrySnackbar != null && retrySnackbar.isShownOrQueued()) {
+            return;
+        }
+        retrySnackbar = RetrySnackbar.show(this, messageRes, () -> {
+            String sessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
+            if (summaryFailed) {
+                summaryFailed = false;
+                loadAiSummary(sessionId);
+            }
+            if (metricsFailed) {
+                metricsFailed = false;
+                loadReportMetrics(sessionId);
+            }
+        });
     }
 
     // 관절별 평균 오차 / 전반·후반 정확도를 exercise_sessions에서 조회 (실패하면 값 칸은 비워 두고 안내)
@@ -152,8 +177,8 @@ public class AIReportActivity extends AppCompatActivity {
                                            Response<List<ExerciseSessionApi.ReportMetricsRow>> response) {
                         List<ExerciseSessionApi.ReportMetricsRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            Toast.makeText(AIReportActivity.this, R.string.error_result_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            metricsFailed = true;
+                            showRetry(R.string.error_result_load_failed);
                             return;
                         }
                         showReportMetrics(rows.get(0));
@@ -161,9 +186,8 @@ public class AIReportActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.ReportMetricsRow>> call, Throwable t) {
-                        Toast.makeText(AIReportActivity.this,
-                                AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                        metricsFailed = true;
+                        showRetry(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
                     }
                 });
     }

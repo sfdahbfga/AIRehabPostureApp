@@ -93,7 +93,7 @@ public class RecordDetailActivity extends AppCompatActivity {
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         List<ExerciseSessionApi.RecordRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            showError(R.string.error_record_load_failed);
+                            showLoadError(R.string.error_record_load_failed);
                             return;
                         }
                         showRecordSummary(rows.get(0));
@@ -101,7 +101,7 @@ public class RecordDetailActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        showError(AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed));
+                        showLoadError(AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed));
                     }
                 });
     }
@@ -179,6 +179,11 @@ public class RecordDetailActivity extends AppCompatActivity {
         for (int viewId : viewIds) {
             findViewById(viewId).setVisibility(visible ? View.VISIBLE : View.GONE);
         }
+    }
+
+    // M4: 불러오기 실패 → "다시 시도"
+    private void showLoadError(@StringRes int messageRes) {
+        RetrySnackbar.show(this, messageRes, this::loadRecord);
     }
 
     private void showError(@StringRes int messageRes) {
