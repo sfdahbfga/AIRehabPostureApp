@@ -74,6 +74,13 @@ public class UserSetupActivity extends AppCompatActivity {
         for (View button : experienceButtons) {
             button.setOnClickListener(this::selectExperience);
         }
+        // L3: 화면 재생성 때 운동 경험 선택 복원 (나이 / 키 / 체중 입력칸은 EditText가 스스로 유지)
+        if (savedInstanceState != null) {
+            int index = savedInstanceState.getInt(STATE_EXPERIENCE_INDEX, -1);
+            if (index >= 0 && index < experienceButtons.length) {
+                selectExperience(experienceButtons[index]);
+            }
+        }
 
         sessionManager = new SessionManager(this);
         nextButton = findViewById(R.id.nextButton);
@@ -136,6 +143,14 @@ public class UserSetupActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         nextButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    private static final String STATE_EXPERIENCE_INDEX = "state_experience_index";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_EXPERIENCE_INDEX, Arrays.asList(experienceButtons).indexOf(selectedExperienceButton));
     }
 
     // 단일 선택: 누른 버튼만 selected, 나머지는 해제

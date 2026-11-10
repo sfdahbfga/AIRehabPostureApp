@@ -100,6 +100,9 @@ public class PostCheckActivity extends AppCompatActivity {
         for (View button : conditionButtons) {
             button.setOnClickListener(this::selectBodyCondition);
         }
+        if (savedInstanceState != null) {
+            restoreSelections(savedInstanceState);
+        }
 
         sessionManager = new SessionManager(this);
         pendingStore = PendingWorkoutStore.create(this);
@@ -185,6 +188,30 @@ public class PostCheckActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         nextButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    // L3: 화면 재생성(회전 / 시스템 종료 후 복구) 때 선택값 유지
+    private static final String STATE_DISCOMFORT_LEVEL = "state_discomfort_level";
+    private static final String STATE_BODY_CONDITION = "state_body_condition";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_DISCOMFORT_LEVEL, selectedDiscomfortLevel);
+        outState.putString(STATE_BODY_CONDITION, selectedBodyCondition);
+    }
+
+    private void restoreSelections(Bundle savedInstanceState) {
+        int level = savedInstanceState.getInt(STATE_DISCOMFORT_LEVEL, NO_SELECTION);
+        if (level >= 0 && level < discomfortButtons.length) {
+            selectDiscomfortLevel(level);
+        }
+        String condition = savedInstanceState.getString(STATE_BODY_CONDITION);
+        for (View button : conditionButtons) {
+            if (button.getTag() != null && button.getTag().equals(condition)) {
+                selectBodyCondition(button);
+            }
+        }
     }
 
     // 선택한 숫자 버튼만 selected, 나머지는 해제
