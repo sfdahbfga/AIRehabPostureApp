@@ -533,4 +533,8 @@
     <string name="feedback_stretch_hold">좋아요! 그대로 유지하세요. (%1$d/%2$d초)</string>
     <string name="feedback_stretch_straighten_knee">앞으로 편 다리의 무릎을 펴 주세요.</string>
     <string name="feedback_stretch_release">천천히 상체를 세워 주세요.</string>
+    <!-- 안정성 작업 (feature/stability): 코드에서 사용하는 문구 -->
+    <!-- H3: 운동 / 운동 후 체크 화면 뒤로가기 확인 -->
+    <string name="exit_without_saving_message">운동 기록이 저장되지 않아요. 나갈까요?</string>
+    <string name="exit_without_saving_confirm">나가기</string>
 </resources>

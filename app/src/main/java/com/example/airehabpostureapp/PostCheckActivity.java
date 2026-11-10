@@ -11,6 +11,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.SystemBarStyle;
 import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -72,11 +73,12 @@ public class PostCheckActivity extends AppCompatActivity {
 
         // 뒤로가기 (버튼 / 시스템 Back): 끝난 운동 흐름(CameraSetup 등)으로 돌아가지 않고 기존 Home으로 복귀
         // (16_Result의 시스템 Back과 같은 방식)
-        findViewById(R.id.backButton).setOnClickListener(v -> moveToHome());
+        // H3: 저장하지 않고 나가면 측정 결과가 버려지므로 먼저 확인
+        findViewById(R.id.backButton).setOnClickListener(v -> confirmExitWithoutSaving());
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                moveToHome();
+                confirmExitWithoutSaving();
             }
         });
 
@@ -256,6 +258,14 @@ public class PostCheckActivity extends AppCompatActivity {
             button.setSelected(button == clickedButton);
         }
         selectedBodyCondition = (String) clickedButton.getTag();
+    }
+
+    private void confirmExitWithoutSaving() {
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.exit_without_saving_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.exit_without_saving_confirm, (dialog, which) -> moveToHome())
+                .show();
     }
 
     // CLEAR_TOP + SINGLE_TOP: Back Stack에 있는 Home을 재사용하고 그 위의 화면은 모두 종료

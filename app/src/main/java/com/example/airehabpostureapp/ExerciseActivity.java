@@ -15,6 +15,8 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -220,8 +222,14 @@ public class ExerciseActivity extends AppCompatActivity {
         updateTimerText();
         updateExerciseStatus();
 
-        // 이전 화면(CameraSetup)으로 돌아가기: 새 Activity를 만들지 않고 현재 화면만 종료
-        findViewById(R.id.backButton).setOnClickListener(v -> finish());
+        // 이전 화면(CameraSetup)으로 돌아가기 (버튼 / 시스템 Back): 측정 결과가 버려지므로 먼저 확인
+        findViewById(R.id.backButton).setOnClickListener(v -> confirmExitWithoutSaving());
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                confirmExitWithoutSaving();
+            }
+        });
 
         // 일시정지 화면(14_Pause)으로 이동: 이 화면은 그대로 두고 위에 열리므로 복귀 시 중복 생성되지 않음
         // (Pause 화면이 보이는 동안 onPause()에서 Timer가 멈추고, 복귀하면 onResume()에서 다시 시작)
@@ -301,6 +309,15 @@ public class ExerciseActivity extends AppCompatActivity {
             repetitionCounter.restoreResults(RepetitionCounter.RepResult.listFromArray(
                     savedInstanceState.getDoubleArray(STATE_REP_RESULTS)));
         }
+    }
+
+    // H3: "운동 기록이 저장되지 않아요. 나갈까요?" → 나가기를 누르면 현재 화면만 종료
+    private void confirmExitWithoutSaving() {
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.exit_without_saving_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.exit_without_saving_confirm, (dialog, which) -> finish())
+                .show();
     }
 
     // 운동 방식에 맞는 측정기 (횟수형: RepetitionCounter, 유지 시간형: HoldCounter)
