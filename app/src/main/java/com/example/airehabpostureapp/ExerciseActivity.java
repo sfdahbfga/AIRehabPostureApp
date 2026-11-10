@@ -131,6 +131,9 @@ public class ExerciseActivity extends AppCompatActivity {
     private ProcessCameraProvider cameraProvider;
     @Nullable
     private PoseLandmarkerHelper poseLandmarkerHelper;
+    // 카메라 프레임 분석 (화면을 닫을 때 clearAnalyzer로 먼저 분리)
+    @Nullable
+    private ImageAnalysis imageAnalysis;
     // MediaPipe 분석 전용 스레드 (UI 스레드를 막지 않도록)
     @Nullable
     private ExecutorService analysisExecutor;
@@ -275,6 +278,11 @@ public class ExerciseActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         voiceGuide.shutdown();
+        // L8: 분석기를 먼저 떼어 새 프레임이 분석 스레드로 넘어오지 않게 한 뒤 카메라 해제 → landmarker 닫기 → 스레드 종료
+        if (imageAnalysis != null) {
+            imageAnalysis.clearAnalyzer();
+            imageAnalysis = null;
+        }
         if (cameraProvider != null) {
             cameraProvider.unbindAll();
             cameraProvider = null;
@@ -399,7 +407,7 @@ public class ExerciseActivity extends AppCompatActivity {
 
         // 분석은 640x480 정도면 충분 (해상도가 높을수록 MediaPipe 처리 시간과 배터리 소모 증가)
         // 처리 중에 들어온 프레임은 버리고 가장 최근 프레임만 분석 (지연 누적 방지)
-        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+        imageAnalysis = new ImageAnalysis.Builder()
                 .setResolutionSelector(new ResolutionSelector.Builder()
                         .setAspectRatioStrategy(aspectRatio)
                         .setResolutionStrategy(new ResolutionStrategy(ANALYSIS_TARGET_SIZE,
