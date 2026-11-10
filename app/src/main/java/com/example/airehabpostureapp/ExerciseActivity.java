@@ -219,7 +219,11 @@ public class ExerciseActivity extends AppCompatActivity {
         // 운동 이름으로 자세 인식 기준을 찾고, 없으면 측정하지 않고 안내만 표시
         postureFeedbackText = findViewById(R.id.postureFeedbackText);
         voiceGuide = new VoiceGuide(this);
-        exerciseCriteria =ExerciseCriteria.forExercise(exerciseNameText.getText().toString());
+        // L11: 고정 키로 운동 기준을 찾고, 키가 없으면(예전 흐름) 이름으로 찾음
+        String exerciseId = getIntent().getStringExtra(ExerciseFlowExtras.EXERCISE_ID);
+        exerciseCriteria = exerciseId != null
+                ? ExerciseCriteria.forId(exerciseId)
+                : ExerciseCriteria.forExercise(exerciseNameText.getText().toString());
         if (exerciseCriteria != null) {
             repetitionCounter = createCounter(exerciseCriteria);
             targetReps = exerciseCriteria.targetReps;

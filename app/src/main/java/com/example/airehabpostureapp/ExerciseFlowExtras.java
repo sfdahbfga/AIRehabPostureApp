@@ -22,8 +22,10 @@ public final class ExerciseFlowExtras {
 
     private static final String PREFIX = "com.example.airehabpostureapp.flow.";
 
-    // ExerciseDetail에서 고른 운동 이름
+    // ExerciseDetail에서 고른 운동 이름 (화면 표시와 DB exercise_name 저장용)
     public static final String EXERCISE_NAME = PREFIX + "EXERCISE_NAME";
+    // ExerciseDetail에서 고른 운동의 고정 키 (ExerciseCriteria.id, 예: chair_squat). 운동 기준은 이 키로 찾는다 (L11)
+    public static final String EXERCISE_ID = PREFIX + "EXERCISE_ID";
 
     // 11_PreCheck 입력값
     public static final String PRE_DISCOMFORT_LEVEL = PREFIX + "PRE_DISCOMFORT_LEVEL";

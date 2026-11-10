@@ -157,18 +157,37 @@ public final class ExerciseCriteria {
             .maxInvisibleMs(1500)      // 발끝 쪽으로 손을 뻗으면 무릎·발목이 가려질 수 있어 무릎 굽힘(1초)보다 길게
             .build();
 
+    // L11: 앱 안에서는 고정 키(id)로 운동을 찾는다. 한글 이름은 화면 표시와 DB 저장(exercise_name)에만 쓴다.
+    private static final ExerciseCriteria[] ALL = {KNEE_FLEXION, CHAIR_SQUAT, LUNGE, SEATED_HAMSTRING_STRETCH};
+    private static final Map<String, ExerciseCriteria> CRITERIA_BY_ID;
     private static final Map<String, ExerciseCriteria> CRITERIA_BY_NAME;
 
     static {
-        Map<String, ExerciseCriteria> map = new HashMap<>();
-        map.put(KNEE_FLEXION.exerciseName, KNEE_FLEXION);
-        map.put(CHAIR_SQUAT.exerciseName, CHAIR_SQUAT);
-        map.put(LUNGE.exerciseName, LUNGE);
-        map.put(SEATED_HAMSTRING_STRETCH.exerciseName, SEATED_HAMSTRING_STRETCH);
-        CRITERIA_BY_NAME = Collections.unmodifiableMap(map);
+        Map<String, ExerciseCriteria> byId = new HashMap<>();
+        Map<String, ExerciseCriteria> byName = new HashMap<>();
+        for (ExerciseCriteria criteria : ALL) {
+            byId.put(criteria.id, criteria);
+            byName.put(criteria.exerciseName, criteria);
+        }
+        CRITERIA_BY_ID = Collections.unmodifiableMap(byId);
+        CRITERIA_BY_NAME = Collections.unmodifiableMap(byName);
     }
 
-    /** 운동 이름으로 기준 찾기. 아직 자세 인식을 지원하지 않는 운동이면 null */
+    /** 고정 키(id, 예: chair_squat)로 기준 찾기. 아직 자세 인식을 지원하지 않는 운동이면 null */
+    public static ExerciseCriteria forId(String id) {
+        return id == null ? null : CRITERIA_BY_ID.get(id);
+    }
+
+    /** 한글 이름 → 고정 키. 모르는 이름이면 null (이름만 전달받은 경우 / DB 기록용) */
+    public static String idForName(String exerciseName) {
+        ExerciseCriteria criteria = forExercise(exerciseName);
+        return criteria == null ? null : criteria.id;
+    }
+
+    /**
+     * 운동 이름으로 기준 찾기. 아직 자세 인식을 지원하지 않는 운동이면 null
+     * DB / 과거 기록(exercise_sessions.exercise_name)을 읽을 때 사용. 앱 안의 화면 이동에는 forId를 쓴다.
+     */
     public static ExerciseCriteria forExercise(String exerciseName) {
         return exerciseName == null ? null : CRITERIA_BY_NAME.get(exerciseName);
     }

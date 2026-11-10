@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.Instrumentation;
 import android.app.UiAutomation;
 import android.content.Context;
 import android.content.Intent;
@@ -203,6 +204,28 @@ public class StabilityFlowTest {
             }
         } finally {
             restoreNetwork();
+        }
+    }
+
+    // L11: 운동 목록의 카드 → 상세 화면으로 고정 키(EXERCISE_ID)가 전달되고, 상세는 키로 찾은 설명을 표시
+    @Test
+    public void exerciseList_passesExerciseKeyToDetail() {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        Instrumentation.ActivityMonitor monitor =
+                instrumentation.addMonitor(ExerciseDetailActivity.class.getName(), null, false);
+        try (ActivityScenario<ExerciseListActivity> scenario = ActivityScenario.launch(ExerciseListActivity.class)) {
+            scenario.onActivity(activity -> activity.findViewById(R.id.exerciseCard2).performClick());
+            Activity detail = instrumentation.waitForMonitorWithTimeout(monitor, DIALOG_TIMEOUT_MS);
+            assertNotNull("상세 화면이 열리지 않음", detail);
+            assertEquals("chair_squat",
+                    detail.getIntent().getStringExtra(ExerciseDetailActivity.EXTRA_EXERCISE_ID));
+            AtomicReference<String> description = new AtomicReference<>();
+            instrumentation.runOnMainSync(() -> description.set(
+                    ((TextView) detail.findViewById(R.id.exerciseDescriptionText)).getText().toString()));
+            assertEquals(context.getString(R.string.exercise_description_chair_squat), description.get());
+            detail.finish();
+        } finally {
+            instrumentation.removeMonitor(monitor);
         }
     }
 
