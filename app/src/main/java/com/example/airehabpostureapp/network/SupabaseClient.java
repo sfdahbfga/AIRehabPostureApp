@@ -49,14 +49,29 @@ public final class SupabaseClient {
                 .build();
     }
 
+    // 설정값이 없을 때 쓰는 주소: 앱이 꺼지지 않고 요청만 네트워크 오류로 실패한다. (스플래시에서 먼저 안내하고 멈춤)
+    static final String UNCONFIGURED_BASE_URL = "https://supabase-url-not-configured.invalid/";
+
+    /** local.properties의 SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY가 모두 있으면 true (M2) */
+    public static boolean isConfigured() {
+        return isConfigured(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_PUBLISHABLE_KEY);
+    }
+
+    static boolean isConfigured(String url, String publishableKey) {
+        return url != null && !url.trim().isEmpty() && publishableKey != null && !publishableKey.trim().isEmpty();
+    }
+
     private static String getBaseUrl() {
-        String url = BuildConfig.SUPABASE_URL;
-        if (url.isEmpty()) {
-            throw new IllegalStateException(
-                    "SUPABASE_URL이 비어 있습니다. local.properties에 SUPABASE_URL을 설정하세요.");
+        return baseUrl(BuildConfig.SUPABASE_URL);
+    }
+
+    // Retrofit의 baseUrl은 '/'로 끝나야 한다. 비어 있으면 예외 대신 UNCONFIGURED_BASE_URL
+    static String baseUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return UNCONFIGURED_BASE_URL;
         }
-        // Retrofit의 baseUrl은 '/'로 끝나야 한다.
-        return url.endsWith("/") ? url : url + "/";
+        String trimmed = url.trim();
+        return trimmed.endsWith("/") ? trimmed : trimmed + "/";
     }
 
     private static OkHttpClient createOkHttpClient() {

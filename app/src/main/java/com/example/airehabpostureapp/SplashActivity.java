@@ -11,6 +11,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -59,12 +60,29 @@ public class SplashActivity extends AppCompatActivity {
             return;
         }
         isCheckingSession = true;
+        // M2: 서버 연결 정보가 없는 빌드면 앱을 종료시키지 않고 설정 안내만 표시
+        if (!SupabaseClient.isConfigured()) {
+            showConfigMissingDialog();
+            return;
+        }
         if (sessionManager.isAutoLogin() && sessionManager.getRefreshToken() != null) {
             refreshSession();
         } else {
             moveToLogin();
         }
     };
+
+    private void showConfigMissingDialog() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.config_missing_title)
+                .setMessage(R.string.config_missing_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.config_missing_close, (dialog, which) -> finish())
+                .show();
+    }
 
     private void refreshSession() {
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);

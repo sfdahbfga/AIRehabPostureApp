@@ -547,4 +547,10 @@
     <string name="pending_workout_saved">운동 기록을 저장했어요.</string>
     <string name="pending_workout_discarded">운동 기록을 삭제했어요.</string>
     <string name="error_pending_workout_discard_failed">기록을 삭제하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.</string>
+    <!-- M2: Supabase 연결 정보가 없는 빌드 (스플래시 안내) -->
+    <string name="config_missing_title">앱 설정이 필요해요</string>
+    <string name="config_missing_message">서버 연결 정보가 없어 앱을 사용할 수 없어요.
+
+(개발자 안내) local.properties에 SUPABASE_URL과 SUPABASE_PUBLISHABLE_KEY를 넣고 다시 빌드해 주세요.</string>
+    <string name="config_missing_close">닫기</string>
 </resources>
