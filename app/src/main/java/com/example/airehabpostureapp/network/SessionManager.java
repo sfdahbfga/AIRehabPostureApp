@@ -8,7 +8,7 @@ import android.content.SharedPreferences;
  * 로그인 세션(access token, refresh token, 사용자 id, 자동 로그인 여부)을 SharedPreferences에 저장한다.
  * 로그인 만료 표시는 세션을 지워도 남도록 별도 파일(auth_events)에 저장한다. (M3)
  */
-public class SessionManager implements TokenStore {
+public class SessionManager implements TokenStore, SessionInfo {
 
     public static final String PREFS_NAME = "auth_session";
     private static final String KEY_ACCESS_TOKEN = "access_token";
@@ -77,6 +77,7 @@ public class SessionManager implements TokenStore {
         return prefs.getString(KEY_REFRESH_TOKEN, null);
     }
 
+    @Override
     public String getUserId() {
         return prefs.getString(KEY_USER_ID, null);
     }

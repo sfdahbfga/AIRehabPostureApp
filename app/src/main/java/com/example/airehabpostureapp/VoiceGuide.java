@@ -113,6 +113,14 @@ public class VoiceGuide {
         }
     }
 
+    /**
+     * 화면 안내 문구 → 읽을 문구: 유지형의 "(3/20초)"처럼 끝의 괄호 안 숫자는 읽지 않음
+     * (ExerciseActivity에서 옮김, 동작 같음)
+     */
+    public static String toSpeechText(String text) {
+        return text.replaceAll("\\s*\\(.*\\)\\s*$", "");
+    }
+
     /** 1회가 세어졌을 때: 읽던 안내를 끊고 바로 읽음 */
     public void speakCount(String countText) {
         if (!ready) {

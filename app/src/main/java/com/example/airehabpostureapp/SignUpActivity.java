@@ -26,9 +26,6 @@ import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -40,9 +37,6 @@ public class SignUpActivity extends AppCompatActivity {
     private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private static final int HTTP_CONFLICT = 409;
-
-    // 생년월일로 입력할 수 있는 가장 이른 날짜
-    private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
 
     private EditText emailInput;
     private EditText passwordInput;
@@ -95,12 +89,12 @@ public class SignUpActivity extends AppCompatActivity {
         signUpButton = findViewById(R.id.sign_up_button);
         signUpButton.setOnClickListener(v -> {
             if (validateInputs()) {
-                String birthDate = toDbBirthDate(birthDateInput.getText().toString().trim());
+                String birthDate = BirthDates.toDbBirthDate(birthDateInput.getText().toString().trim());
                 if (birthDate == null) {
                     fail(birthDateInput, R.string.error_birth_date_format);
                     return;
                 }
-                if (!isBirthDateInRange(birthDate)) {
+                if (!BirthDates.isInRange(birthDate, LocalDate.now())) {
                     fail(birthDateInput, R.string.error_birth_date_range);
                     return;
                 }
@@ -194,23 +188,6 @@ public class SignUpActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         signUpButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
-    }
-
-    // 생년월일 허용 범위: 1900-01-01 ~ 오늘. dbBirthDate는 YYYY-MM-DD
-    private boolean isBirthDateInRange(String dbBirthDate) {
-        LocalDate date = LocalDate.parse(dbBirthDate);
-        return !date.isBefore(MIN_BIRTH_DATE) && !date.isAfter(LocalDate.now());
-    }
-
-    // 입력 형식 YYYY.MM.DD → DB date 형식 YYYY-MM-DD. 존재하지 않는 날짜면 null
-    private String toDbBirthDate(String input) {
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu.MM.dd")
-                    .withResolverStyle(ResolverStyle.STRICT);
-            return LocalDate.parse(input, formatter).toString();
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     // 02_Login과 같은 방식: TransformationMethod 전환 + 커서/선택 위치 유지

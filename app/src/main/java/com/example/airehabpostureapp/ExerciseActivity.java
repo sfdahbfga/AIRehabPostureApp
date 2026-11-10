@@ -619,13 +619,8 @@ public class ExerciseActivity extends AppCompatActivity {
             if (DEBUG_LOG_REPS) {
                 Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
             }
-            voiceGuide.speakMessage(speechText(text));
+            voiceGuide.speakMessage(VoiceGuide.toSpeechText(text));
         }
-    }
-
-    // 음성으로 읽을 문구: 유지형의 "(3/20초)"처럼 괄호 안 숫자는 읽지 않음
-    private static String speechText(String text) {
-        return text.replaceAll("\\s*\\(.*\\)\\s*$", "");
     }
 
     // 디버그용: 회차별 결과를 Logcat에 기록 (기준값 조정용, DEBUG_LOG_REPS로 끔)
@@ -786,7 +781,7 @@ public class ExerciseActivity extends AppCompatActivity {
         }
         // 일시정지 화면 등에서 돌아오면 지금 안내를 다시 읽음
         if (shownFeedbackText != null) {
-            voiceGuide.speakMessage(speechText(shownFeedbackText));
+            voiceGuide.speakMessage(VoiceGuide.toSpeechText(shownFeedbackText));
         }
     }
 
