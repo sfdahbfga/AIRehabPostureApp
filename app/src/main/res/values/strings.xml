@@ -557,4 +557,7 @@
     <string name="camera_permission_snackbar">운동 자세를 인식하려면 카메라 권한이 필요해요.</string>
     <string name="camera_permission_retry">다시 요청</string>
     <string name="camera_permission_open_settings">설정 열기</string>
+    <!-- M3: 로그인 만료 안내 (메시지는 기존 error_session_expired 사용) -->
+    <string name="session_expired_title">다시 로그인해 주세요</string>
+    <string name="session_expired_login">로그인</string>
 </resources>

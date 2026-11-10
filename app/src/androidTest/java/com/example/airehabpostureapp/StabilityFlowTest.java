@@ -20,9 +20,12 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import com.example.airehabpostureapp.network.SessionManager;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,8 +45,38 @@ public class StabilityFlowTest {
     private final UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
 
     @Before
-    public void grantCamera() {
+    public void setUp() {
         uiAutomation.grantRuntimePermission(context.getPackageName(), Manifest.permission.CAMERA);
+        // 로그인이 필요한 화면이므로 테스트용 가짜 세션 (서버 요청은 하지 않는 항목만 확인)
+        new SessionManager(context).saveSession("test-access-token", "test-refresh-token", "test-user");
+    }
+
+    @After
+    public void tearDown() {
+        // 에뮬레이터의 원래 상태(로그아웃)로 되돌림
+        SessionManager sessionManager = new SessionManager(context);
+        sessionManager.clear();
+        sessionManager.clearSessionExpiredNotice();
+    }
+
+    // M3: 로그인이 만료된 뒤(앱이 백그라운드였다가 화면이 보이는 경우 포함) 로그인이 필요한 화면이 보이면 안내 → 로그인 화면
+    @Test
+    public void expiredSession_showsReLoginDialog_thenLogin() {
+        new SessionManager(context).expireSession();
+        try (ActivityScenario<GoalChallengeActivity> scenario = ActivityScenario.launch(GoalChallengeActivity.class)) {
+            assertNotNull("로그인 만료 안내가 뜨지 않음",
+                    waitForText(context.getString(R.string.session_expired_title)));
+            AccessibilityNodeInfo loginButton = waitForText(context.getString(R.string.session_expired_login));
+            assertNotNull(loginButton);
+            loginButton.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            // 로그인 화면으로 이동하고 기존 화면은 닫힘
+            long deadline = SystemClock.uptimeMillis() + DIALOG_TIMEOUT_MS;
+            while (scenario.getState() != Lifecycle.State.DESTROYED && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(200);
+            }
+            assertEquals(Lifecycle.State.DESTROYED, scenario.getState());
+            assertFalse(new SessionManager(context).hasSessionExpiredNotice());
+        }
     }
 
     private Intent exerciseIntent() {
@@ -66,7 +99,13 @@ public class StabilityFlowTest {
         while (SystemClock.uptimeMillis() < deadline) {
             AccessibilityNodeInfo root = uiAutomation.getRootInActiveWindow();
             if (root != null) {
+                // 글자를 "포함"하는 노드를 찾으므로, 글자가 정확히 같은 노드(버튼 등)를 먼저 고름
                 List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+                for (AccessibilityNodeInfo node : nodes) {
+                    if (node.getText() != null && text.contentEquals(node.getText())) {
+                        return node;
+                    }
+                }
                 if (!nodes.isEmpty()) {
                     return nodes.get(0);
                 }

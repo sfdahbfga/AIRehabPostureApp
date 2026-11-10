@@ -1,6 +1,8 @@
 package com.example.airehabpostureapp.network;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.example.airehabpostureapp.BuildConfig;
 
@@ -19,12 +21,19 @@ public final class SupabaseClient {
     private static Retrofit retrofit;
     // 로그인 만료(401) 처리에 필요한 앱 Context. AiRehabApplication에서 설정
     private static Context appContext;
+    // 세션이 만료 처리됐을 때 알릴 곳 (AiRehabApplication에서 SessionExpiryWatcher 연결). 메인 스레드에서 호출
+    private static Runnable onSessionExpired;
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     private SupabaseClient() {
     }
 
     public static void init(Context context) {
         appContext = context.getApplicationContext();
+    }
+
+    public static void setOnSessionExpired(Runnable listener) {
+        onSessionExpired = listener;
     }
 
     public static synchronized Retrofit getRetrofit() {
@@ -34,7 +43,12 @@ public final class SupabaseClient {
             if (appContext != null) {
                 // 토큰 갱신 요청은 Authenticator가 없는 baseClient로 보낸다.
                 AuthApi refreshApi = createRetrofit(baseClient).create(AuthApi.class);
-                clientBuilder.authenticator(new TokenAuthenticator(appContext, refreshApi));
+                clientBuilder.authenticator(new TokenAuthenticator(new SessionManager(appContext), refreshApi,
+                        () -> MAIN_HANDLER.post(() -> {
+                            if (onSessionExpired != null) {
+                                onSessionExpired.run();
+                            }
+                        })));
             }
             retrofit = createRetrofit(clientBuilder.build());
         }
