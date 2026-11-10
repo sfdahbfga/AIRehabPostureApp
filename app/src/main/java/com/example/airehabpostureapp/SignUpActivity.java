@@ -18,6 +18,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ProfileApi;
@@ -34,6 +35,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SignUpActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 생년월일로 입력할 수 있는 가장 이른 날짜
     private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
@@ -108,7 +112,7 @@ public class SignUpActivity extends AppCompatActivity {
         // 요청 중 중복 클릭 방지
         signUpButton.setEnabled(false);
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.signUp(new AuthApi.Credentials(email, password)).enqueue(new Callback<AuthApi.AuthResponse>() {
+        apiCalls.track(authApi.signUp(new AuthApi.Credentials(email, password))).enqueue(new Callback<AuthApi.AuthResponse>() {
             @Override
             public void onResponse(Call<AuthApi.AuthResponse> call, Response<AuthApi.AuthResponse> response) {
                 AuthApi.AuthResponse body = response.body();
@@ -138,8 +142,8 @@ public class SignUpActivity extends AppCompatActivity {
 
     private void insertProfile(String userId, String name, String birthDate) {
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.insertProfile(sessionManager.getBearerToken(),
-                new ProfileApi.ProfileInsert(userId, name, birthDate)).enqueue(new Callback<Void>() {
+        apiCalls.track(profileApi.insertProfile(sessionManager.getBearerToken(),
+                new ProfileApi.ProfileInsert(userId, name, birthDate))).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (!response.isSuccessful()) {

@@ -15,6 +15,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -33,6 +34,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class HomeActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private TextView todayExerciseTimeText;
     private TextView todayAverageAccuracyText;
@@ -192,7 +196,7 @@ public class HomeActivity extends AppCompatActivity {
     private void loadRecords() {
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId())
+        apiCalls.track(api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId()))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,

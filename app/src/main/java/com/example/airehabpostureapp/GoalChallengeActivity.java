@@ -12,6 +12,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -33,6 +34,9 @@ import retrofit2.Response;
 // 목표 / 챌린지: 목표 기준은 상수, 현재 값은 내 운동 기록으로 계산
 // (횟수 / 시간 / 정확도는 이번 주 기록으로 ReportStatsCalculator 계산, 연속 운동일은 ExerciseStreak)
 public class GoalChallengeActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 목표 기준
     private static final int WEEKLY_EXERCISE_GOAL = 3;
@@ -76,7 +80,7 @@ public class GoalChallengeActivity extends AppCompatActivity {
     private void loadRecords() {
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId())
+        apiCalls.track(api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId()))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,

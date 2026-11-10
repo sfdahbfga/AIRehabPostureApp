@@ -28,16 +28,23 @@ public class OnboardingChecker {
 
     private final SessionManager sessionManager;
     private final Listener listener;
+    // 화면이 닫히면 요청 취소 (L7)
+    private final CallTracker tracker;
 
     public OnboardingChecker(SessionManager sessionManager, Listener listener) {
+        this(sessionManager, CallTracker.NONE, listener);
+    }
+
+    public OnboardingChecker(SessionManager sessionManager, CallTracker tracker, Listener listener) {
         this.sessionManager = sessionManager;
+        this.tracker = tracker;
         this.listener = listener;
     }
 
     // email: profiles 행이 없을 때 name(이메일 앞부분)을 만드는 데 사용
     public void check(String email) {
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.getProfile(sessionManager.getBearerToken(), userIdFilter())
+        tracker.track(profileApi.getProfile(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<ProfileApi.ProfileRow>>() {
                     @Override
                     public void onResponse(Call<List<ProfileApi.ProfileRow>> call,
@@ -75,8 +82,8 @@ public class OnboardingChecker {
         String name = atIndex > 0 ? email.substring(0, atIndex) : email;
 
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.insertProfile(sessionManager.getBearerToken(),
-                new ProfileApi.ProfileInsert(sessionManager.getUserId(), name, null))
+        tracker.track(profileApi.insertProfile(sessionManager.getBearerToken(),
+                new ProfileApi.ProfileInsert(sessionManager.getUserId(), name, null)))
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -96,7 +103,7 @@ public class OnboardingChecker {
 
     private void checkBodyConditions() {
         BodyConditionApi bodyConditionApi = SupabaseClient.getRetrofit().create(BodyConditionApi.class);
-        bodyConditionApi.getAny(sessionManager.getBearerToken(), userIdFilter())
+        tracker.track(bodyConditionApi.getAny(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
                     @Override
                     public void onResponse(Call<List<BodyConditionApi.IdRow>> call,
@@ -122,7 +129,7 @@ public class OnboardingChecker {
 
     private void checkGoals() {
         GoalApi goalApi = SupabaseClient.getRetrofit().create(GoalApi.class);
-        goalApi.getAny(sessionManager.getBearerToken(), userIdFilter())
+        tracker.track(goalApi.getAny(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
                     @Override
                     public void onResponse(Call<List<BodyConditionApi.IdRow>> call,

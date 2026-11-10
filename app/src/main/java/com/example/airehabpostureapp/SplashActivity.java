@@ -17,6 +17,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.OnboardingChecker;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -29,6 +30,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SplashActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private static final long SPLASH_DURATION_MS = 1500L;
     private static final long DOT_INTERVAL_MS = 300L;
@@ -86,7 +90,7 @@ public class SplashActivity extends AppCompatActivity {
 
     private void refreshSession() {
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.refreshToken(new AuthApi.RefreshTokenRequest(sessionManager.getRefreshToken()))
+        apiCalls.track(authApi.refreshToken(new AuthApi.RefreshTokenRequest(sessionManager.getRefreshToken())))
                 .enqueue(new Callback<AuthApi.AuthResponse>() {
                     @Override
                     public void onResponse(Call<AuthApi.AuthResponse> call,
@@ -119,7 +123,7 @@ public class SplashActivity extends AppCompatActivity {
     // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로
     // 확인에 실패하면(토큰은 갱신된 상태) 세션은 유지하고 안내 후 로그인 화면으로
     private void checkOnboarding(String email) {
-        new OnboardingChecker(sessionManager, new OnboardingChecker.Listener() {
+        new OnboardingChecker(sessionManager, apiCalls, new OnboardingChecker.Listener() {
             @Override
             public void onDestination(Class<?> activityClass) {
                 moveTo(activityClass);

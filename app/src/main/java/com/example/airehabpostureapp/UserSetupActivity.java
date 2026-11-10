@@ -15,6 +15,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ProfileApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -28,6 +29,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class UserSetupActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // profiles.exercise_experience 값. experienceButtons와 같은 순서 (없음, 초급, 중급, 고급)
     private static final String[] EXPERIENCE_CODES = {"none", "beginner", "intermediate", "advanced"};
@@ -108,8 +112,8 @@ public class UserSetupActivity extends AppCompatActivity {
         // 저장 중 중복 클릭 방지
         nextButton.setEnabled(false);
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.updateProfile(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
-                new ProfileApi.ProfileUpdate(height, weight, experience))
+        apiCalls.track(profileApi.updateProfile(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
+                new ProfileApi.ProfileUpdate(height, weight, experience)))
                 .enqueue(new Callback<List<ProfileApi.ProfileRow>>() {
                     @Override
                     public void onResponse(Call<List<ProfileApi.ProfileRow>> call,

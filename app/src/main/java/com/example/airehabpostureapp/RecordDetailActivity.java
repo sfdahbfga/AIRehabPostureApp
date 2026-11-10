@@ -15,6 +15,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -34,6 +35,9 @@ import retrofit2.Response;
 
 // 운동 기록 상세: 18_RecordList에서 고른 기록(session id)을 exercise_sessions에서 조회해 운동 정보 표시
 public class RecordDetailActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 18_RecordList에서 전달하는 선택한 기록의 exercise_sessions id
     public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RECORD_SESSION_ID";
@@ -82,7 +86,7 @@ public class RecordDetailActivity extends AppCompatActivity {
         }
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecord(sessionManager.getBearerToken(), "eq." + sessionId)
+        apiCalls.track(api.getRecord(sessionManager.getBearerToken(), "eq." + sessionId))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,

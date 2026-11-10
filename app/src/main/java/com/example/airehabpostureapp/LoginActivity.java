@@ -18,6 +18,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.OnboardingChecker;
@@ -29,6 +30,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private EditText emailInput;
     private EditText passwordInput;
@@ -112,7 +116,7 @@ public class LoginActivity extends AppCompatActivity {
         // 요청 중 중복 클릭 방지
         loginButton.setEnabled(false);
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.signIn(new AuthApi.Credentials(email, password)).enqueue(new Callback<AuthApi.AuthResponse>() {
+        apiCalls.track(authApi.signIn(new AuthApi.Credentials(email, password))).enqueue(new Callback<AuthApi.AuthResponse>() {
             @Override
             public void onResponse(Call<AuthApi.AuthResponse> call, Response<AuthApi.AuthResponse> response) {
                 AuthApi.AuthResponse body = response.body();
@@ -134,7 +138,7 @@ public class LoginActivity extends AppCompatActivity {
 
     // 초기 설정을 마쳤으면 Home, 아니면 덜 끝난 설정 화면으로 이동. 실패하면 로그인 화면에 머문다.
     private void checkOnboarding(String email) {
-        new OnboardingChecker(sessionManager, new OnboardingChecker.Listener() {
+        new OnboardingChecker(sessionManager, apiCalls, new OnboardingChecker.Listener() {
             @Override
             public void onDestination(Class<?> activityClass) {
                 // 로그인 화면은 Back Stack에서 제거
