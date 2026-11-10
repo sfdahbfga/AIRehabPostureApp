@@ -1,5 +1,6 @@
 package com.example.airehabpostureapp.workout;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -46,6 +47,7 @@ public class PendingWorkoutStore {
     public static PendingWorkoutStore create(Context context) {
         SharedPreferences prefs = context.getApplicationContext()
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        // commit(): 운동 결과는 저장 직후 앱이 종료돼도 남아야 하므로 바로 디스크에 쓴다 (H2)
         return new PendingWorkoutStore(new Storage() {
             @Override
             public Map<String, String> readAll() {
@@ -58,11 +60,13 @@ public class PendingWorkoutStore {
                 return values;
             }
 
+            @SuppressLint("ApplySharedPref")
             @Override
             public void write(String key, String value) {
                 prefs.edit().putString(key, value).commit();
             }
 
+            @SuppressLint("ApplySharedPref")
             @Override
             public void remove(String key) {
                 prefs.edit().remove(key).commit();

@@ -1,5 +1,6 @@
 package com.example.airehabpostureapp.network;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -28,17 +29,22 @@ public class SessionManager implements TokenStore {
         eventPrefs = appContext.getSharedPreferences(EVENTS_PREFS_NAME, Context.MODE_PRIVATE);
     }
 
+    // L6: commit()으로 바로 디스크에 저장. refresh token은 갱신할 때마다 바뀌므로(이전 토큰은 재사용 불가)
+    // apply()로 미뤘다가 직후 앱이 종료되면 이전 토큰이 남아 다음 갱신이 거부(로그아웃)될 수 있다.
+    // TokenAuthenticator는 OkHttp 스레드에서 부르므로 메인 스레드를 막지 않는다.
+    @SuppressLint("ApplySharedPref")
     @Override
     public void saveSession(String accessToken, String refreshToken, String userId) {
         prefs.edit()
                 .putString(KEY_ACCESS_TOKEN, accessToken)
                 .putString(KEY_REFRESH_TOKEN, refreshToken)
                 .putString(KEY_USER_ID, userId)
-                .apply();
+                .commit();
         // 새로 로그인 / 갱신했으므로 만료 표시 해제
         clearSessionExpiredNotice();
     }
 
+    @SuppressLint("ApplySharedPref")
     @Override
     public void expireSession() {
         clear();
