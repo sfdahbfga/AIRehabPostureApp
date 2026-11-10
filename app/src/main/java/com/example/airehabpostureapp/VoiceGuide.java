@@ -103,7 +103,9 @@ public class VoiceGuide {
                 handler.post(VoiceGuide.this::abandonFocusIfIdle);
             }
         });
-        Log.d(TAG, "voice guide on");
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "voice guide on");
+        }
         // 준비되기 전에 들어온 안내가 있으면 읽음
         if (pendingMessage != null) {
             handler.removeCallbacks(speakPendingMessage);
@@ -189,7 +191,9 @@ public class VoiceGuide {
         if (focusChange == AudioManager.AUDIOFOCUS_LOSS
                 || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
                 || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
-            Log.d(TAG, "voice guide paused: audio focus lost " + focusChange);
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "voice guide paused: audio focus lost " + focusChange);
+            }
             stop();
         }
     }

@@ -73,13 +73,15 @@ public class ExerciseActivity extends AppCompatActivity {
 
     // 디버그용: 무릎 각도(엉덩이-무릎-발목)를 화면 구석과 Logcat(태그 PoseDebug)에 1초 간격으로 표시.
     // 기준값 조정이 끝나면 false로 끄거나 관련 코드를 삭제한다.
-    // DEBUG_SHOW_KNEE_ANGLE: 화면 구석 표시 (꺼 둠, 측정할 때 true로 켬)
+    // M9: 디버그 로그 / 화면 표시는 debug 빌드(BuildConfig.DEBUG)에서만 켜진다. release에서는 항상 꺼짐
+    // DEBUG_SHOW_KNEE_ANGLE: 화면 구석 표시 (debug에서도 꺼 둠, 측정할 때 SHOW_KNEE_ANGLE_IN_DEBUG를 true로 켬)
     // DEBUG_LOG_KNEE_ANGLE: Logcat 1초 기록 (각도 / visibility / fps / 건너뛴 프레임 수)
-    private static final boolean DEBUG_SHOW_KNEE_ANGLE = false;
-    private static final boolean DEBUG_LOG_KNEE_ANGLE = true;
+    private static final boolean SHOW_KNEE_ANGLE_IN_DEBUG = false;
+    private static final boolean DEBUG_SHOW_KNEE_ANGLE = BuildConfig.DEBUG && SHOW_KNEE_ANGLE_IN_DEBUG;
+    private static final boolean DEBUG_LOG_KNEE_ANGLE = BuildConfig.DEBUG;
     // 디버그용: 1회가 끝날 때마다 회차 / 가장 많이 굽힌 각도 / 정확도를 Logcat(태그 PoseDebug)에 기록.
     // 기준값 조정이 끝나면 false로 끈다.
-    private static final boolean DEBUG_LOG_REPS = true;
+    private static final boolean DEBUG_LOG_REPS = BuildConfig.DEBUG;
     private static final String DEBUG_TAG = "PoseDebug";
     private static final long DEBUG_LOG_INTERVAL_MS = 1000L;
 
@@ -800,7 +802,9 @@ public class ExerciseActivity extends AppCompatActivity {
         postureFeedbackText.setText(text);
         if (messageRes != shownFeedbackRes) {
             shownFeedbackRes = messageRes;
-            Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
+            if (DEBUG_LOG_REPS) {
+                Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
+            }
             voiceGuide.speakMessage(speechText(text));
         }
     }
