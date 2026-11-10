@@ -56,6 +56,8 @@ public class ResultActivity extends AppCompatActivity {
         findViewById(R.id.viewAnalysisButton).setOnClickListener(v -> {
             Intent intent = new Intent(this, AIReportActivity.class);
             intent.putExtra(AIReportActivity.EXTRA_SESSION_ID, getIntent().getStringExtra(EXTRA_SESSION_ID));
+            // M6: 실제 운동 이름 전달 (조회 전이면 null → AI 리포트가 직접 조회한 이름 표시)
+            intent.putExtra(AIReportActivity.EXTRA_EXERCISE_NAME, exerciseName);
             startActivity(intent);
         });
 
@@ -101,7 +103,16 @@ public class ResultActivity extends AppCompatActivity {
                 });
     }
 
+    // 조회한 운동 이름 (AI 리포트에 전달)
+    private String exerciseName;
+
     private void showResult(ExerciseSessionApi.SessionRow session) {
+        // M6: 레이아웃 기본값("무릎 굽힘 운동") 대신 실제 운동 이름
+        exerciseName = session.exerciseName;
+        if (exerciseName != null) {
+            TextView exerciseNameText = findViewById(R.id.exerciseNameText);
+            exerciseNameText.setText(exerciseName);
+        }
         TextView exerciseDurationValueText = findViewById(R.id.exerciseDurationValueText);
         TextView repetitionValueText = findViewById(R.id.repetitionValueText);
         TextView averageAccuracyValueText = findViewById(R.id.averageAccuracyValueText);

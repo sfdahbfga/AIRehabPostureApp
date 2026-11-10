@@ -562,4 +562,6 @@
     <string name="session_expired_login">로그인</string>
     <!-- M4: 불러오기 실패 Snackbar -->
     <string name="retry">다시 시도</string>
+    <!-- M6: AI 리포트 하체 스트레칭 (레이아웃에 엉덩이 줄이 없어 무릎 줄 이름을 코드에서 바꿔 표시) -->
+    <string name="hip_average_error">엉덩이 평균 오차</string>
 </resources>

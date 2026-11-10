@@ -49,7 +49,7 @@ public interface ExerciseSessionApi {
     Call<Void> deleteSession(@Header("Authorization") String bearerToken, @Query("id") String idFilter);
 
     // idFilter: "eq.{세션 id}". 행이 없으면 빈 목록
-    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,"
+    @GET("rest/v1/exercise_sessions?select=exercise_name,duration_seconds,completed_repetitions,target_repetitions,"
             + "completed_sets,target_sets,average_accuracy")
     Call<List<SessionRow>> getSession(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
@@ -75,7 +75,7 @@ public interface ExerciseSessionApi {
                                     @Query("id") String idFilter);
 
     // AI 리포트 화면의 분석 결과(관절별 평균 오차 / 전반·후반 정확도). idFilter: "eq.{세션 id}"
-    @GET("rest/v1/exercise_sessions?select=first_half_accuracy,second_half_accuracy,joint_errors")
+    @GET("rest/v1/exercise_sessions?select=exercise_name,first_half_accuracy,second_half_accuracy,joint_errors")
     Call<List<ReportMetricsRow>> getReportMetrics(@Header("Authorization") String bearerToken,
                                                   @Query("id") String idFilter);
 
@@ -161,6 +161,8 @@ public interface ExerciseSessionApi {
     }
 
     class SessionRow {
+        @SerializedName("exercise_name")
+        public String exerciseName;
         @SerializedName("duration_seconds")
         public int durationSeconds;
         @SerializedName("completed_repetitions")
@@ -227,6 +229,8 @@ public interface ExerciseSessionApi {
     }
 
     class ReportMetricsRow {
+        @SerializedName("exercise_name")
+        public String exerciseName;
         // DB numeric → 소수일 수 있음
         @SerializedName("first_half_accuracy")
         public Double firstHalfAccuracy;

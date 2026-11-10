@@ -194,8 +194,23 @@ public class AIReportActivity extends AppCompatActivity {
 
     // 값이 없는 항목(자세 인식 미지원 운동 / 0회)은 "-"로 표시
     private void showReportMetrics(ExerciseSessionApi.ReportMetricsRow metrics) {
+        // M6: 이전 화면에서 운동 이름을 받지 못했으면 조회한 실제 이름 표시
+        if (getIntent().getStringExtra(EXTRA_EXERCISE_NAME) == null && metrics.exerciseName != null) {
+            TextView exerciseNameText = findViewById(R.id.exerciseNameText);
+            exerciseNameText.setText(metrics.exerciseName);
+        }
         Map<String, Double> jointErrors = metrics.jointErrors;
-        showAngleError(R.id.kneeAverageErrorText, jointErrors == null ? null : jointErrors.get("knee"));
+        // M6: 엉덩이(hip)를 판정하는 운동(하체 스트레칭)은 레이아웃에 엉덩이 줄이 없으므로
+        // 무릎 줄의 이름을 "엉덩이 평균 오차"로 바꿔 hip 값을 표시 (프론트엔드에 엉덩이 줄 추가 요청)
+        Double hipError = jointErrors == null ? null : jointErrors.get("hip");
+        Double kneeError = jointErrors == null ? null : jointErrors.get("knee");
+        if (hipError != null && kneeError == null) {
+            TextView kneeLabel = findViewById(R.id.kneeAverageErrorLabelText);
+            kneeLabel.setText(R.string.hip_average_error);
+            showAngleError(R.id.kneeAverageErrorText, hipError);
+        } else {
+            showAngleError(R.id.kneeAverageErrorText, kneeError);
+        }
         showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get("back"));
         showPercent(R.id.overallAccuracyText, metrics.firstHalfAccuracy);
         showPercent(R.id.lateAccuracyText, metrics.secondHalfAccuracy);
