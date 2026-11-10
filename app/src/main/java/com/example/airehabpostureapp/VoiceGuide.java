@@ -1,10 +1,14 @@
 package com.example.airehabpostureapp;
 
 import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
 import java.util.Locale;
@@ -18,6 +22,8 @@ import java.util.Locale;
  *   횟수를 읽는 중이면 횟수 다음에 이어서 읽는다.
  * - 같은 문구는 SAME_MESSAGE_GAP_MS 안에 다시 읽지 않는다.
  * - 한국어 음성이 없거나 TTS 엔진이 없으면 아무것도 읽지 않는다. (화면 문구만 보임, 앱은 그대로 동작)
+ * - L2: 읽기 전에 오디오 포커스(잠시, 다른 소리는 작게)를 요청하고 다 읽으면 반납한다.
+ *   전화가 오거나 다른 앱이 소리를 내서 포커스를 잃으면 바로 멈추고, 통화 중처럼 포커스를 받지 못하면 읽지 않는다.
  *
  * UI 스레드에서만 호출해야 한다.
  */
@@ -30,6 +36,9 @@ public class VoiceGuide {
     private static final long COUNT_SPEAKING_MS = 1200;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final AudioManager audioManager;
+    private final AudioFocusRequest focusRequest;
+    private boolean hasAudioFocus;
     private TextToSpeech tts;
     private boolean ready;
 
@@ -41,8 +50,18 @@ public class VoiceGuide {
     private final Runnable speakPendingMessage = this::speakPendingMessage;
 
     public VoiceGuide(Context context) {
+        audioManager = (AudioManager) context.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build();
+        focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(attributes)
+                .setOnAudioFocusChangeListener(this::onAudioFocusChange, handler)
+                .build();
         try {
             tts = new TextToSpeech(context.getApplicationContext(), this::onInit);
+            tts.setAudioAttributes(attributes);
         } catch (RuntimeException e) {
             Log.w(TAG, "voice guide off: TTS 시작 실패", e);
             tts = null;
@@ -68,6 +87,22 @@ public class VoiceGuide {
             return;
         }
         ready = true;
+        // 다 읽으면 오디오 포커스 반납 (TTS 스레드에서 불리므로 메인 스레드로)
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                handler.post(VoiceGuide.this::abandonFocusIfIdle);
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                handler.post(VoiceGuide.this::abandonFocusIfIdle);
+            }
+        });
         Log.d(TAG, "voice guide on");
         // 준비되기 전에 들어온 안내가 있으면 읽음
         if (pendingMessage != null) {
@@ -111,10 +146,51 @@ public class VoiceGuide {
     }
 
     private void speak(String text, int queueMode) {
+        // 통화 중 등 포커스를 받지 못하면 읽지 않음
+        if (!requestFocus()) {
+            return;
+        }
         try {
             tts.speak(text, queueMode, null, "guide");
         } catch (RuntimeException e) {
             Log.w(TAG, "voice guide speak 실패", e);
+        }
+    }
+
+    private boolean requestFocus() {
+        if (hasAudioFocus) {
+            return true;
+        }
+        hasAudioFocus = audioManager != null
+                && audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        return hasAudioFocus;
+    }
+
+    private void abandonFocus() {
+        if (hasAudioFocus && audioManager != null) {
+            audioManager.abandonAudioFocusRequest(focusRequest);
+        }
+        hasAudioFocus = false;
+    }
+
+    private void abandonFocusIfIdle() {
+        try {
+            if (tts != null && tts.isSpeaking()) {
+                return;
+            }
+        } catch (RuntimeException ignored) {
+            // 엔진 연결이 끊긴 경우: 반납
+        }
+        abandonFocus();
+    }
+
+    // 전화 / 다른 앱 소리로 포커스를 잃으면 읽던 것을 멈춤 (다음 안내 때 다시 요청)
+    private void onAudioFocusChange(int focusChange) {
+        if (focusChange == AudioManager.AUDIOFOCUS_LOSS
+                || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
+                || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+            Log.d(TAG, "voice guide paused: audio focus lost " + focusChange);
+            stop();
         }
     }
 
@@ -130,6 +206,7 @@ public class VoiceGuide {
                 // 엔진 연결이 끊긴 경우 무시
             }
         }
+        abandonFocus();
     }
 
     /** 화면을 나갈 때 */
