@@ -65,6 +65,9 @@ public class HomeActivity extends AppCompatActivity {
         recentExerciseTitleText = findViewById(R.id.recentExerciseTitleText);
         recentExerciseDateText = findViewById(R.id.recentExerciseDateText);
         recentExerciseInfoText = findViewById(R.id.recentExerciseInfoText);
+        // M5: 레이아웃의 예시 숫자(15분 / 88% / 3개, 최근 운동 예시)가 실제 기록처럼 보이지 않도록
+        // 불러오기 전과 실패했을 때는 "-"로 표시 (불러오면 실제 값으로 바뀜)
+        showEmptyRecordValues();
 
         // TODO: 알림 기능 구현
         findViewById(R.id.notificationButton).setOnClickListener(v -> showNotReady());
@@ -223,6 +226,16 @@ public class HomeActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void showEmptyRecordValues() {
+        String empty = getString(R.string.empty_value);
+        todayExerciseTimeText.setText(empty);
+        todayAverageAccuracyText.setText(empty);
+        todayCompletedExerciseText.setText(empty);
+        recentExerciseTitleText.setText(empty);
+        recentExerciseDateText.setText(empty);
+        recentExerciseInfoText.setText(empty);
     }
 
     // 오늘(한국 시간) 기록의 운동 시간 합계 / 평균 정확도 / 완료 운동 수 (없으면 0분, -, 0개)

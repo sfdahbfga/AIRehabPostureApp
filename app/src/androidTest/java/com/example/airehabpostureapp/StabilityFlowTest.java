@@ -164,6 +164,30 @@ public class StabilityFlowTest {
         }
     }
 
+    // M5: 홈 화면은 불러오기 전 / 실패했을 때 예시 숫자 대신 "-"
+    @Test
+    public void home_loadFailure_showsDashInsteadOfSampleNumbers() {
+        shell("svc wifi disable");
+        shell("svc data disable");
+        try {
+            SystemClock.sleep(1500);
+            try (ActivityScenario<HomeActivity> scenario = ActivityScenario.launch(HomeActivity.class)) {
+                SystemClock.sleep(3000);
+                String empty = context.getString(R.string.empty_value);
+                scenario.onActivity(activity -> {
+                    for (int id : new int[]{R.id.todayExerciseTimeText, R.id.todayAverageAccuracyText,
+                            R.id.todayCompletedExerciseText, R.id.recentExerciseTitleText,
+                            R.id.recentExerciseInfoText}) {
+                        assertEquals(empty, ((TextView) activity.findViewById(id)).getText().toString());
+                    }
+                });
+            }
+        } finally {
+            shell("svc wifi enable");
+            shell("svc data enable");
+        }
+    }
+
     // L9: 모델을 분석 스레드에서 불러온 뒤 카메라에 연결 (모델 / 카메라 오류 문구가 없어야 함)
     @Test
     public void exercise_loadsPoseModelInBackground_withoutErrorMessage() throws InterruptedException {
