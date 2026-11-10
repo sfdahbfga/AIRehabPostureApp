@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -19,6 +20,9 @@ import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
+import com.example.airehabpostureapp.workout.PendingWorkout;
+import com.example.airehabpostureapp.workout.PendingWorkoutStore;
+import com.example.airehabpostureapp.workout.WorkoutUploader;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -89,6 +93,99 @@ public class HomeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadRecords();
+        checkPendingWorkouts();
+    }
+
+    // H2: 저장하지 못한 운동 기록 (이 화면이 새로 열릴 때 = 앱 실행 / 로그인 직후 한 번만 물어봄)
+    private boolean pendingWorkoutAsked = false;
+
+    // 로그인한 사용자의 임시 기록만 확인 (다른 사용자의 기록은 보여주지도 올리지도 않고 그대로 둠)
+    private void checkPendingWorkouts() {
+        if (pendingWorkoutAsked) {
+            return;
+        }
+        List<PendingWorkout> pendings = PendingWorkoutStore.create(this)
+                .findForUser(new SessionManager(this).getUserId());
+        if (pendings.isEmpty()) {
+            return;
+        }
+        pendingWorkoutAsked = true;
+        PendingWorkout workout = pendings.get(0);
+        LocalDate date = koreaDate(Instant.ofEpochMilli(workout.endedAtMillis));
+        String name = workout.exerciseName == null ? getString(R.string.empty_value) : workout.exerciseName;
+        int messageRes = workout.postChecked
+                ? R.string.pending_workout_message : R.string.pending_workout_message_need_post_check;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.pending_workout_title)
+                .setMessage(getString(messageRes, name, date.getMonthValue(), date.getDayOfMonth()))
+                .setPositiveButton(R.string.pending_workout_save, (dialog, which) -> savePendingWorkout(workout))
+                .setNegativeButton(R.string.pending_workout_discard, (dialog, which) -> discardPendingWorkout(workout))
+                .setNeutralButton(R.string.pending_workout_later, null)
+                .show();
+    }
+
+    // 운동 후 체크까지 끝난 기록은 바로 저장, 아니면 운동 후 체크 화면을 열어 입력 후 저장
+    private void savePendingWorkout(PendingWorkout workout) {
+        if (!workout.postChecked) {
+            Intent intent = new Intent(this, PostCheckActivity.class);
+            ExerciseFlowExtras.putPendingWorkout(intent, workout);
+            startActivity(intent);
+            return;
+        }
+        pendingUploader().upload(workout, new WorkoutUploader.Listener() {
+            @Override
+            public void onSaved(String sessionId) {
+                Toast.makeText(HomeActivity.this, R.string.pending_workout_saved, Toast.LENGTH_SHORT).show();
+                afterPendingHandled();
+            }
+
+            @Override
+            public void onFailed(int messageRes) {
+                Toast.makeText(HomeActivity.this, messageRes, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void discardPendingWorkout(PendingWorkout workout) {
+        pendingUploader().discard(workout, new WorkoutUploader.Listener() {
+            @Override
+            public void onSaved(String sessionId) {
+                Toast.makeText(HomeActivity.this, R.string.pending_workout_discarded, Toast.LENGTH_SHORT).show();
+                afterPendingHandled();
+            }
+
+            @Override
+            public void onFailed(int messageRes) {
+                Toast.makeText(HomeActivity.this, messageRes, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // 기록을 다시 불러오고, 남은 임시 기록이 더 있으면 이어서 물어봄
+    private void afterPendingHandled() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        pendingWorkoutAsked = false;
+        loadRecords();
+        checkPendingWorkouts();
+    }
+
+    private WorkoutUploader pendingUploader;
+
+    private WorkoutUploader pendingUploader() {
+        SessionManager sessionManager = new SessionManager(this);
+        pendingUploader = new WorkoutUploader(SupabaseClient.getRetrofit().create(ExerciseSessionApi.class),
+                PendingWorkoutStore.create(this), sessionManager.getBearerToken());
+        return pendingUploader;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (pendingUploader != null) {
+            pendingUploader.cancel();
+        }
     }
 
     // 내 기록 전체(최신순)를 불러와 오늘의 기록과 최근 운동을 계산

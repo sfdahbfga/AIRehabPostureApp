@@ -36,6 +36,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.pose.ExerciseCounter;
 import com.example.airehabpostureapp.pose.ExerciseCriteria;
 import com.example.airehabpostureapp.pose.HoldCounter;
@@ -45,6 +46,8 @@ import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
 import com.example.airehabpostureapp.pose.RepetitionCounter;
 import com.example.airehabpostureapp.pose.SessionMetrics;
+import com.example.airehabpostureapp.workout.PendingWorkout;
+import com.example.airehabpostureapp.workout.PendingWorkoutStore;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
@@ -924,6 +927,10 @@ public class ExerciseActivity extends AppCompatActivity {
         putOptionalInt(intent, ExerciseFlowExtras.KNEE_ERROR_DEGREES, judgeHip ? null : jointError);
         putOptionalInt(intent, ExerciseFlowExtras.HIP_ERROR_DEGREES, judgeHip ? jointError : null);
         putOptionalInt(intent, ExerciseFlowExtras.BACK_ERROR_DEGREES, SessionMetrics.round(metrics.trunkError));
+        // H2: 운동이 끝나는 순간 측정 결과를 휴대폰에 임시 저장 (서버 저장에 성공하면 지움)
+        PendingWorkout pending = ExerciseFlowExtras.toPendingWorkout(new SessionManager(this).getUserId(), intent);
+        PendingWorkoutStore.create(this).save(pending);
+        intent.putExtra(ExerciseFlowExtras.PENDING_SESSION_ID, pending.sessionId);
         startActivity(intent);
         finish();
     }

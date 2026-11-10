@@ -17,21 +17,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.example.airehabpostureapp.network.AuthErrorMapper;
-import com.example.airehabpostureapp.network.BodyConditionApi;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.workout.PendingWorkout;
+import com.example.airehabpostureapp.workout.PendingWorkoutStore;
+import com.example.airehabpostureapp.workout.WorkoutUploader;
 
-import java.time.Instant;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 // 운동 후 컨디션 체크 (11_PreCheck와 같은 구조, 문구만 "운동 후"로 변경)
 public class PostCheckActivity extends AppCompatActivity {
@@ -49,8 +41,10 @@ public class PostCheckActivity extends AppCompatActivity {
     private EditText noteEditText;
     private View nextButton;
     private SessionManager sessionManager;
-    // exercise_sessions 저장에 성공한 id. checkins 저장만 실패했을 때 재시도하면 세션을 중복 저장하지 않고 이 id를 사용
-    private String savedSessionId = null;
+    // 운동이 끝날 때 휴대폰에 임시 저장한 결과 (H2)
+    private PendingWorkoutStore pendingStore;
+    private PendingWorkout pendingWorkout;
+    private WorkoutUploader uploader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +102,8 @@ public class PostCheckActivity extends AppCompatActivity {
         }
 
         sessionManager = new SessionManager(this);
+        pendingStore = PendingWorkoutStore.create(this);
+        pendingWorkout = loadPendingWorkout();
         nextButton = findViewById(R.id.nextButton);
         nextButton.setOnClickListener(v -> {
             if (validateInputs()) {
@@ -116,86 +112,18 @@ public class PostCheckActivity extends AppCompatActivity {
         });
     }
 
-    // 저장 순서: exercise_sessions insert → 받은 id로 session_checkins(pre, post) insert → 16_Result 이동
+    // 저장 순서: exercise_sessions → session_checkins(pre, post) → 16_Result 이동 (WorkoutUploader)
+    // 측정 결과는 운동이 끝날 때 휴대폰에 임시 저장돼 있고, 서버 저장에 성공하면 지워진다. (H2)
+    // 실패하면 버튼을 다시 눌러 재시도할 수 있고, 화면을 나가도 다음 앱 실행 때 홈에서 저장을 물어본다.
     private void saveExerciseRecord() {
         // 저장 중 중복 클릭 방지
         nextButton.setEnabled(false);
-        if (savedSessionId != null) {
-            saveCheckins(savedSessionId);
-            return;
-        }
-
-        Intent extras = getIntent();
-        // 운동 화면(자세 인식)에서 측정한 값. 측정값이 없는 항목은 null로 저장
-        Map<String, Integer> jointErrors = new LinkedHashMap<>();
-        putIfPresent(jointErrors, "knee", optionalInt(extras, ExerciseFlowExtras.KNEE_ERROR_DEGREES));
-        putIfPresent(jointErrors, "back", optionalInt(extras, ExerciseFlowExtras.BACK_ERROR_DEGREES));
-        putIfPresent(jointErrors, "hip", optionalInt(extras, ExerciseFlowExtras.HIP_ERROR_DEGREES));
-        ExerciseSessionApi.SessionInsert session = new ExerciseSessionApi.SessionInsert(
-                sessionManager.getUserId(),
-                extras.getStringExtra(ExerciseFlowExtras.EXERCISE_NAME),
-                toIsoString(extras.getLongExtra(ExerciseFlowExtras.STARTED_AT_MILLIS, System.currentTimeMillis())),
-                toIsoString(extras.getLongExtra(ExerciseFlowExtras.ENDED_AT_MILLIS, System.currentTimeMillis())),
-                extras.getIntExtra(ExerciseFlowExtras.DURATION_SECONDS, 0),
-                extras.getIntExtra(ExerciseFlowExtras.COMPLETED_REPS, 0),
-                extras.getIntExtra(ExerciseFlowExtras.TARGET_REPS, 0),
-                optionalInt(extras, ExerciseFlowExtras.AVERAGE_ACCURACY),
-                optionalInt(extras, ExerciseFlowExtras.FIRST_HALF_ACCURACY),
-                optionalInt(extras, ExerciseFlowExtras.SECOND_HALF_ACCURACY),
-                jointErrors.isEmpty() ? null : jointErrors);
-
-        ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.insertSession(sessionManager.getBearerToken(), session).enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
+        pendingWorkout.setPostCheck(selectedDiscomfortLevel, selectedBodyCondition,
+                noteEditText.getText().toString());
+        pendingStore.save(pendingWorkout);
+        uploader().upload(pendingWorkout, new WorkoutUploader.Listener() {
             @Override
-            public void onResponse(Call<List<BodyConditionApi.IdRow>> call,
-                                   Response<List<BodyConditionApi.IdRow>> response) {
-                List<BodyConditionApi.IdRow> rows = response.body();
-                if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                    showError(R.string.error_exercise_save_failed);
-                    return;
-                }
-                savedSessionId = rows.get(0).id;
-                saveCheckins(savedSessionId);
-            }
-
-            @Override
-            public void onFailure(Call<List<BodyConditionApi.IdRow>> call, Throwable t) {
-                showError(AuthErrorMapper.fromFailure(t, R.string.error_exercise_save_failed));
-            }
-        });
-    }
-
-    // 운동 화면이 값을 넣지 않은 키(측정값 없음)는 null
-    private static Integer optionalInt(Intent extras, String key) {
-        return extras.hasExtra(key) ? extras.getIntExtra(key, 0) : null;
-    }
-
-    private static void putIfPresent(Map<String, Integer> map, String key, Integer value) {
-        if (value != null) {
-            map.put(key, value);
-        }
-    }
-
-    private void saveCheckins(String sessionId) {
-        Intent extras = getIntent();
-        String preNote = extras.getStringExtra(ExerciseFlowExtras.PRE_NOTE);
-        String postNote = noteEditText.getText().toString().trim();
-        List<ExerciseSessionApi.CheckinInsert> checkins = Arrays.asList(
-                new ExerciseSessionApi.CheckinInsert(sessionId, "pre",
-                        extras.getIntExtra(ExerciseFlowExtras.PRE_DISCOMFORT_LEVEL, 0),
-                        extras.getStringExtra(ExerciseFlowExtras.PRE_BODY_CONDITION),
-                        emptyToNull(preNote)),
-                new ExerciseSessionApi.CheckinInsert(sessionId, "post",
-                        selectedDiscomfortLevel, selectedBodyCondition, emptyToNull(postNote)));
-
-        ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.insertCheckins(sessionManager.getBearerToken(), checkins).enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                if (!response.isSuccessful()) {
-                    rollbackSession(sessionId, R.string.error_exercise_save_failed);
-                    return;
-                }
+            public void onSaved(String sessionId) {
                 // 운동 결과(16_Result)로 이동하고 이 화면은 Back Stack에서 제거
                 Intent intent = new Intent(PostCheckActivity.this, ResultActivity.class);
                 intent.putExtra(ResultActivity.EXTRA_SESSION_ID, sessionId);
@@ -204,44 +132,59 @@ public class PostCheckActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                rollbackSession(sessionId, AuthErrorMapper.fromFailure(t, R.string.error_exercise_save_failed));
+            public void onFailed(int messageRes) {
+                showError(messageRes);
             }
         });
     }
 
-    // 체크인 저장이 실패하면 방금 저장한 운동 기록을 삭제해서 체크인 없는 반쪽짜리 기록이 남지 않게 한다.
-    // - 삭제 성공: savedSessionId를 비워서 다시 "다음"을 누르면 운동 기록부터 새로 저장
-    // - 삭제 실패(인터넷 끊김 등): savedSessionId를 유지해서 다시 "다음"을 누르면 체크인 저장만 재시도
-    private void rollbackSession(String sessionId, @StringRes int errorMessageRes) {
-        ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.deleteSession(sessionManager.getBearerToken(), "eq." + sessionId).enqueue(new Callback<Void>() {
+    // 이 화면에서 쓸 임시 저장 기록: 운동 화면이 저장한 기록을 찾고, 없으면(이전 버전 흐름 등) Intent 값으로 새로 만든다.
+    private PendingWorkout loadPendingWorkout() {
+        String userId = sessionManager.getUserId();
+        PendingWorkout workout = pendingStore.get(userId,
+                getIntent().getStringExtra(ExerciseFlowExtras.PENDING_SESSION_ID));
+        if (workout == null) {
+            workout = ExerciseFlowExtras.toPendingWorkout(userId, getIntent());
+            pendingStore.save(workout);
+        }
+        return workout;
+    }
+
+    private WorkoutUploader uploader() {
+        if (uploader == null) {
+            uploader = new WorkoutUploader(SupabaseClient.getRetrofit().create(ExerciseSessionApi.class),
+                    pendingStore, sessionManager.getBearerToken());
+        }
+        return uploader;
+    }
+
+    // 사용자가 저장하지 않고 나가기로 한 경우: 임시 기록 삭제 (서버에 반쪽 기록이 있을 수 있으면 서버에서도 삭제)
+    // 서버 삭제에 실패하면 임시 기록이 남아 다음에 홈에서 다시 물어본다.
+    private void discardAndMoveToHome() {
+        uploader().discard(pendingWorkout, new WorkoutUploader.Listener() {
             @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                if (response.isSuccessful()) {
-                    savedSessionId = null;
-                }
-                showError(errorMessageRes);
+            public void onSaved(String sessionId) {
+                moveToHome();
             }
 
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                showError(errorMessageRes);
+            public void onFailed(int messageRes) {
+                moveToHome();
             }
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (uploader != null) {
+            uploader.cancel();
+        }
     }
 
     private void showError(@StringRes int messageRes) {
         nextButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
-    }
-
-    private static String toIsoString(long epochMillis) {
-        return Instant.ofEpochMilli(epochMillis).toString();
-    }
-
-    private static String emptyToNull(String text) {
-        return text == null || text.isEmpty() ? null : text;
     }
 
     // 선택한 숫자 버튼만 selected, 나머지는 해제
@@ -264,7 +207,7 @@ public class PostCheckActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setMessage(R.string.exit_without_saving_message)
                 .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.exit_without_saving_confirm, (dialog, which) -> moveToHome())
+                .setPositiveButton(R.string.exit_without_saving_confirm, (dialog, which) -> discardAndMoveToHome())
                 .show();
     }
 
