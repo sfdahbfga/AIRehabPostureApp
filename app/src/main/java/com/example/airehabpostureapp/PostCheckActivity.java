@@ -28,10 +28,9 @@ import com.example.airehabpostureapp.workout.WorkoutUploader;
 // 운동 후 컨디션 체크 (11_PreCheck와 같은 구조, 문구만 "운동 후"로 변경)
 public class PostCheckActivity extends AppCompatActivity {
 
-    private static final int DEFAULT_DISCOMFORT_LEVEL = 3;
     private static final int NO_SELECTION = -1;
 
-    // 선택된 불편감 정도 (0~10)
+    // 선택된 불편감 정도 (0~10 / 선택 전에는 NO_SELECTION, 기본 선택 없음)
     private int selectedDiscomfortLevel = NO_SELECTION;
     // 선택된 몸 상태 키 (레이아웃의 android:tag 값: good, normal, bad / 선택 전에는 null)
     private String selectedBodyCondition = null;
@@ -89,7 +88,7 @@ public class PostCheckActivity extends AppCompatActivity {
             final int selectedLevel = level;
             discomfortButtons[level].setOnClickListener(v -> selectDiscomfortLevel(selectedLevel));
         }
-        selectDiscomfortLevel(DEFAULT_DISCOMFORT_LEVEL);
+        // 기본 선택 없음 (선택하지 않으면 "다음"에서 안내)
 
         // 몸 상태: 단일 선택 (기본 선택 없음)
         conditionButtons = new View[]{
@@ -249,7 +248,7 @@ public class PostCheckActivity extends AppCompatActivity {
     // 필수: 불편감, 몸 상태 / 선택: 특이사항(noteEditText)은 검사하지 않음
     private boolean validateInputs() {
         if (selectedDiscomfortLevel == NO_SELECTION) {
-            Toast.makeText(this, R.string.error_discomfort_not_selected, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.error_exercise_discomfort_not_selected, Toast.LENGTH_SHORT).show();
             return false;
         }
         if (selectedBodyCondition == null) {
