@@ -45,6 +45,7 @@ import com.example.airehabpostureapp.pose.ExerciseCriteria;
 import com.example.airehabpostureapp.pose.FeedbackMessages;
 import com.example.airehabpostureapp.pose.HoldCounter;
 import com.example.airehabpostureapp.pose.LegSelector;
+import com.example.airehabpostureapp.pose.PausableCounter;
 import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
 import com.example.airehabpostureapp.pose.PoseMeasurer;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
@@ -104,6 +105,11 @@ public class ExerciseActivity extends AppCompatActivity {
     // 횟수형 / 유지 시간형 측정기 (운동별로 createCounter에서 고름)
     @Nullable
     private ExerciseCounter repetitionCounter;
+    // 프레임은 이것을 거쳐 측정기에 넘김 ("나갈까요?" 확인 창이 떠 있는 동안 일시정지)
+    @Nullable
+    private PausableCounter pausableCounter;
+    // "나갈까요?" 확인 창이 떠 있음 → 타이머 / 자세 분석 / 음성 안내 일시정지
+    private boolean exitDialogShowing = false;
     // 운동하는 다리 정하기 / 고르기 (정옆으로 섰을 때 visibility가 더 높은 카메라 쪽 다리로 고정)
     private final LegSelector legSelector = new LegSelector();
     private TextView postureFeedbackText;
@@ -226,6 +232,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 : ExerciseCriteria.forExercise(exerciseNameText.getText().toString());
         if (exerciseCriteria != null) {
             repetitionCounter = createCounter(exerciseCriteria);
+            pausableCounter = new PausableCounter(repetitionCounter);
             targetReps = exerciseCriteria.targetReps;
             showFeedback(R.string.feedback_full_body_visible);
         } else {
@@ -335,12 +342,49 @@ public class ExerciseActivity extends AppCompatActivity {
     }
 
     // H3: "운동 기록이 저장되지 않아요. 나갈까요?" → 나가기를 누르면 현재 화면만 종료
+    // 창이 떠 있는 동안은 일시정지 버튼처럼 타이머 / 자세 분석 / 음성 안내를 멈추고,
+    // "취소"(또는 창 밖 터치 / Back)로 닫히면 이어서 진행한다.
     private void confirmExitWithoutSaving() {
-        new AlertDialog.Builder(this)
+        if (exitDialogShowing) {
+            return;
+        }
+        pauseForExitDialog();
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setMessage(R.string.exit_without_saving_message)
                 .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.exit_without_saving_confirm, (dialog, which) -> finish())
-                .show();
+                .setPositiveButton(R.string.exit_without_saving_confirm, (d, which) -> finish())
+                .create();
+        dialog.setOnDismissListener(d -> {
+            if (!isFinishing()) {
+                resumeAfterExitDialog();
+            }
+        });
+        dialog.show();
+    }
+
+    private void pauseForExitDialog() {
+        exitDialogShowing = true;
+        if (pausableCounter != null) {
+            pausableCounter.pause();
+        }
+        timerHandler.removeCallbacks(timerRunnable);
+        voiceGuide.stop();
+        if (DEBUG_LOG_REPS) {
+            Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] exit dialog: paused", debugExerciseId()));
+        }
+    }
+
+    // 진행 중이던 1회 동작은 버리고(끝난 회차는 유지) 다시 편 상태부터 측정
+    private void resumeAfterExitDialog() {
+        exitDialogShowing = false;
+        if (pausableCounter != null) {
+            pausableCounter.resume();
+        }
+        timerHandler.removeCallbacks(timerRunnable);
+        timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
+        if (DEBUG_LOG_REPS) {
+            Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] exit dialog: resumed", debugExerciseId()));
+        }
     }
 
     // 운동 방식에 맞는 측정기 (횟수형: RepetitionCounter, 유지 시간형: HoldCounter)
@@ -506,7 +550,11 @@ public class ExerciseActivity extends AppCompatActivity {
     @Nullable
     private LegSelector.LegSample countRepetition(long timestampMs, LegSelector.LegSample left,
                                                   LegSelector.LegSample right) {
-        if (repetitionCounter == null || exerciseCriteria == null) {
+        if (repetitionCounter == null || pausableCounter == null || exerciseCriteria == null) {
+            return null;
+        }
+        // "나갈까요?" 확인 창이 떠 있는 동안: 측정 / 안내 모두 멈춤
+        if (pausableCounter.isPaused()) {
             return null;
         }
         if (!legSelector.isLocked()) {
@@ -528,11 +576,11 @@ public class ExerciseActivity extends AppCompatActivity {
         RepetitionCounter.RepResult rep;
         if (chosen == null) {
             // 정해진 다리가 잘 안 보임 → 이 프레임은 건너뜀 (1초 넘게 이어지면 카운터가 "전신이 보이게" 안내)
-            rep = repetitionCounter.onFrame(timestampMs, Double.NaN, Double.NaN, Double.NaN);
+            rep = pausableCounter.onFrame(timestampMs, Double.NaN, Double.NaN, Double.NaN);
         } else {
             // 보조 각도: 횟수형은 엉덩이 각도(엉덩이 규칙), 유지형은 펴야 하는 다리의 무릎 각도
             double auxAngle = exerciseCriteria.isHoldType() ? chosen.kneeAngle : chosen.hipAngle;
-            rep = repetitionCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, auxAngle);
+            rep = pausableCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, auxAngle);
         }
         if (rep != null) {
             logRepResult(rep);
@@ -779,11 +827,15 @@ public class ExerciseActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
         // L1: 설정 화면에서 카메라 권한을 허용하고 돌아온 경우
         if (!cameraStarted && hasCameraPermission()) {
             startCamera();
         }
+        // "나갈까요?" 창이 떠 있는 채로 돌아온 경우(홈에 다녀옴 등)는 창이 닫힐 때까지 멈춘 상태 유지
+        if (exitDialogShowing) {
+            return;
+        }
+        timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
         // 일시정지 화면 등에서 돌아오면 지금 안내를 다시 읽음
         if (shownFeedbackText != null) {
             voiceGuide.speakMessage(VoiceGuide.toSpeechText(shownFeedbackText));
