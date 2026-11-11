@@ -76,8 +76,9 @@ public class LungeTest {
     public void feedback_followsLunge() {
         up(500);
         assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+        // 내려가는 중에는 "조금 더 내려가" 대신 시작 안내 유지
         h.move(UP, 135, UP, 135, 600, TRUNK_UPRIGHT);
-        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
         h.move(135, 92, 135, 100, 500, TRUNK_UPRIGHT);
         h.hold(92, TRUNK_UPRIGHT, 100, 300);
         assertEquals(RepetitionCounter.Feedback.GOOD_STRAIGHTEN, h.counter.getFeedback());

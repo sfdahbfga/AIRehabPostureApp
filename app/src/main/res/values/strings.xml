@@ -564,4 +564,8 @@
     <string name="retry">다시 시도</string>
     <!-- M6: AI 리포트 하체 스트레칭 (레이아웃에 엉덩이 줄이 없어 무릎 줄 이름을 코드에서 바꿔 표시) -->
     <string name="hip_average_error">엉덩이 평균 오차</string>
+    <!-- 안내 문구 시점: 1회 인정 기준까지 굽히지 않아 세지 않은 동작 뒤 안내 (운동별) -->
+    <string name="feedback_squat_shallow">조금 더 깊이 앉아야 1회로 인정돼요.</string>
+    <string name="feedback_lunge_shallow">조금 더 내려가야 1회로 인정돼요.</string>
+    <string name="feedback_knee_shallow">무릎을 조금 더 굽혀야 1회로 인정돼요.</string>
 </resources>

@@ -73,8 +73,9 @@ public class ChairSquatTest {
     public void feedback_followsSquat() {
         stand(500);
         assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+        // 내려가는 중에는 "조금 더 앉아" 대신 시작 안내 유지
         h.move(STAND, 130, STAND, 130, 700, TRUNK_NORMAL);
-        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
         h.move(130, 90, 130, 90, 500, TRUNK_NORMAL);
         h.hold(90, TRUNK_NORMAL, 90, 300);
         assertEquals(RepetitionCounter.Feedback.GOOD_STRAIGHTEN, h.counter.getFeedback());
@@ -110,7 +111,8 @@ public class ChairSquatTest {
         squat(130, 97, TRUNK_NORMAL);
         assertEquals(0, h.counter.getCompletedReps());
         assertEquals(RepetitionCounter.RejectReason.SHALLOW, h.lastRejectReason());
-        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+        // 일어선 뒤 "조금 더 깊이 앉아야 1회로 인정돼요" 안내
+        assertEquals(RepetitionCounter.Feedback.SHALLOW_RETRY, h.counter.getFeedback());
     }
 
     // ---------- 잘못된 동작 ----------
@@ -146,7 +148,7 @@ public class ChairSquatTest {
         assertEquals(RepetitionCounter.Feedback.HIPS_BACK, h.counter.getFeedback());
         // 다음 동작을 시작하면 평소 안내로 돌아가고, 제대로 앉으면 셈
         h.move(STAND, 130, STAND, 100, 700, TRUNK_NORMAL);
-        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
         h.move(130, 105, 100, 70, 500, TRUNK_NORMAL);
         h.hold(105, TRUNK_NORMAL, 70, 300);
         h.move(105, STAND, 70, STAND, 1200, TRUNK_NORMAL);
@@ -164,7 +166,7 @@ public class ChairSquatTest {
         h.move(140, STAND, Double.NaN, Double.NaN, 1200, 5);
         stand(400);
         assertEquals(RepetitionCounter.RejectReason.SHALLOW, h.lastRejectReason());
-        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+        assertEquals(RepetitionCounter.Feedback.SHALLOW_RETRY, h.counter.getFeedback());
     }
 
     @Test

@@ -52,6 +52,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_squat_good_stand_up;
             case HIPS_BACK:
                 return R.string.feedback_squat_hips_back;
+            case SHALLOW_RETRY:
+                return R.string.feedback_squat_shallow;
             case START_BENDING:
                 return R.string.feedback_squat_start;
             default:
@@ -67,6 +69,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_lunge_lower_more;
             case GOOD_STRAIGHTEN:
                 return R.string.feedback_lunge_good_come_up;
+            case SHALLOW_RETRY:
+                return R.string.feedback_lunge_shallow;
             case START_BENDING:
                 return R.string.feedback_lunge_start;
             default:
@@ -147,6 +151,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_keep_trunk_upright;
             case THIGH_UPRIGHT:
                 return R.string.feedback_thigh_upright;
+            case SHALLOW_RETRY:
+                return R.string.feedback_knee_shallow;
             case START_BENDING:
             default:
                 // 첫 동작 전에는 어느 다리로 할지 안내

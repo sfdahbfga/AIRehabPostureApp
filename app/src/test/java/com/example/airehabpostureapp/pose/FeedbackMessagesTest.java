@@ -20,6 +20,7 @@ public class FeedbackMessagesTest {
         assertEquals(R.string.feedback_squat_good_stand_up, message(c, RepetitionCounter.Feedback.GOOD_STRAIGHTEN, 1));
         assertEquals(R.string.feedback_squat_hips_back, message(c, RepetitionCounter.Feedback.HIPS_BACK, 1));
         assertEquals(R.string.feedback_squat_start, message(c, RepetitionCounter.Feedback.START_BENDING, 1));
+        assertEquals(R.string.feedback_squat_shallow, message(c, RepetitionCounter.Feedback.SHALLOW_RETRY, 1));
         // 운동별 문구가 없으면 공통 문구
         assertEquals(R.string.feedback_full_body_visible, message(c, RepetitionCounter.Feedback.NOT_VISIBLE, 1));
         assertEquals(R.string.feedback_keep_trunk_upright,
@@ -32,6 +33,7 @@ public class FeedbackMessagesTest {
         assertEquals(R.string.feedback_lunge_lower_more, message(c, RepetitionCounter.Feedback.BEND_MORE, 0));
         assertEquals(R.string.feedback_lunge_good_come_up, message(c, RepetitionCounter.Feedback.GOOD_STRAIGHTEN, 0));
         assertEquals(R.string.feedback_lunge_start, message(c, RepetitionCounter.Feedback.START_BENDING, 0));
+        assertEquals(R.string.feedback_lunge_shallow, message(c, RepetitionCounter.Feedback.SHALLOW_RETRY, 0));
         assertEquals(R.string.feedback_stand_straight, message(c, RepetitionCounter.Feedback.STAND_STRAIGHT, 0));
     }
 
@@ -55,6 +57,7 @@ public class FeedbackMessagesTest {
         assertEquals(R.string.feedback_bend_knee_more, message(c, RepetitionCounter.Feedback.BEND_MORE, 1));
         assertEquals(R.string.feedback_good_straighten, message(c, RepetitionCounter.Feedback.GOOD_STRAIGHTEN, 1));
         assertEquals(R.string.feedback_thigh_upright, message(c, RepetitionCounter.Feedback.THIGH_UPRIGHT, 1));
+        assertEquals(R.string.feedback_knee_shallow, message(c, RepetitionCounter.Feedback.SHALLOW_RETRY, 1));
     }
 
     @Test
