@@ -18,6 +18,8 @@ public final class FeedbackVoiceFilter {
 
     // 이번 동작에서 이미 읽은 자세 경고
     private final Set<Integer> spokenWarnings = new HashSet<>();
+    // 이번 동작에서 이미 읽은 "한 번만" 문구
+    private final Set<Integer> spokenOnce = new HashSet<>();
     // 마지막으로 보인 경고가 아닌 문구 (경고가 풀리면 이 문구로 돌아왔는지 비교)
     private int lastNonWarningRes;
     private int resBeforeWarning;
@@ -29,8 +31,21 @@ public final class FeedbackVoiceFilter {
                 || messageRes == R.string.feedback_thigh_upright;
     }
 
+    /**
+     * 같은 동작 안에서 한 번만 읽는 문구: 하체 스트레칭 "좋아요! 그대로 유지하세요."
+     * (유지가 시작될 때 한 번. 잠깐 끊겼다 다시 이어져도 다시 읽지 않음)
+     */
+    public static boolean isOncePerMotion(@StringRes int messageRes) {
+        return messageRes == R.string.feedback_stretch_hold;
+    }
+
     /** 화면 문구가 messageRes로 바뀌었을 때 호출. true면 음성으로 읽음 */
     public boolean shouldSpeak(@StringRes int messageRes) {
+        if (isOncePerMotion(messageRes)) {
+            inWarning = false;
+            lastNonWarningRes = messageRes;
+            return spokenOnce.add(messageRes);
+        }
         if (isPostureWarning(messageRes)) {
             if (!inWarning) {
                 inWarning = true;
@@ -51,6 +66,7 @@ public final class FeedbackVoiceFilter {
     /** 동작 하나가 끝남 (또는 동작 중이 아님): 경고 횟수를 처음부터 다시 셈 */
     public void onMotionEnded() {
         spokenWarnings.clear();
+        spokenOnce.clear();
         inWarning = false;
         resBeforeWarning = 0;
     }

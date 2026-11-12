@@ -11,6 +11,8 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
+import com.example.airehabpostureapp.pose.VoicePacer;
+
 import java.util.Locale;
 
 /**
@@ -19,7 +21,7 @@ import java.util.Locale;
  *
  * - 횟수("3회")는 바로 읽는다. 읽던 안내 문구가 있으면 끊고 횟수를 먼저 읽는다.
  * - 안내 문구는 MESSAGE_SETTLE_MS 동안 바뀌지 않아야 읽는다. (경계에서 문구가 깜빡일 때 계속 말하지 않도록)
- *   횟수를 읽는 중이면 횟수 다음에 이어서 읽는다.
+ *   그 뒤에도 음성 사이 최소 2초, 읽는 중이면 다 읽은 뒤에 읽고, 기다리는 동안 바뀌면 최근 것 하나만 (VoicePacer)
  * - 같은 문구는 SAME_MESSAGE_GAP_MS 안에 다시 읽지 않는다.
  * - 목표 도달 안내(speakAnnouncement)는 횟수 뒤에 이어서 끝까지 읽는다. 그동안 온 안내 / 횟수는 그 뒤에 이어서 읽는다.
  * - 한국어 음성이 없거나 TTS 엔진이 없으면 아무것도 읽지 않는다. (화면 문구만 보임, 앱은 그대로 동작)
@@ -33,8 +35,6 @@ public class VoiceGuide {
     private static final String TAG = "PoseDebug";
     private static final long MESSAGE_SETTLE_MS = 400;
     private static final long SAME_MESSAGE_GAP_MS = 3000;
-    // 횟수 하나를 읽는 데 걸리는 대략적인 시간. 이 안에 안내 문구가 오면 끊지 않고 뒤에 이어서 읽음
-    private static final long COUNT_SPEAKING_MS = 1200;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final AudioManager audioManager;
@@ -46,13 +46,15 @@ public class VoiceGuide {
     private String pendingMessage;
     private String lastSpokenMessage;
     private long lastSpokenMessageAtMs;
-    private long lastCountAtMs = -COUNT_SPEAKING_MS;
     // 목표 도달 안내를 읽는 중 (다 읽을 때까지 다른 안내 / 횟수가 끊지 않음)
     private boolean announcementSpeaking;
     private static final String GUIDE_ID = "guide";
     private static final String ANNOUNCEMENT_ID = "announcement";
 
     private final Runnable speakPendingMessage = this::speakPendingMessage;
+    private final Runnable trySpeakPaced = this::trySpeakPaced;
+    // 안내 문구 간격 규칙: 음성 사이 최소 2초, 기다리는 동안 바뀌면 최근 것 하나만 (횟수 / 목표 안내는 바로)
+    private final VoicePacer pacer = new VoicePacer();
 
     public VoiceGuide(Context context) {
         audioManager = (AudioManager) context.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
@@ -136,7 +138,7 @@ public class VoiceGuide {
         if (!ready) {
             return;
         }
-        lastCountAtMs = SystemClock.uptimeMillis();
+        pacer.onUtteranceStarted(SystemClock.uptimeMillis());
         speak(countText, announcementSpeaking ? TextToSpeech.QUEUE_ADD : TextToSpeech.QUEUE_FLUSH, GUIDE_ID);
     }
 
@@ -149,6 +151,7 @@ public class VoiceGuide {
             return;
         }
         announcementSpeaking = true;
+        pacer.onUtteranceStarted(SystemClock.uptimeMillis());
         speak(text, TextToSpeech.QUEUE_ADD, ANNOUNCEMENT_ID);
     }
 
@@ -159,22 +162,45 @@ public class VoiceGuide {
         handler.postDelayed(speakPendingMessage, MESSAGE_SETTLE_MS);
     }
 
+    // 문구가 MESSAGE_SETTLE_MS 동안 바뀌지 않음 → 간격 규칙(VoicePacer)에 넘김 (기다리던 문구는 버리고 최근 것만)
     private void speakPendingMessage() {
         String message = pendingMessage;
         if (!ready || message == null) {
             return;
         }
         pendingMessage = null;
+        pacer.offer(message);
+        trySpeakPaced();
+    }
+
+    // 직전 음성 시작 뒤 2초가 지났고 읽는 중이 아니면 기다리던 문구를 읽음. 아니면 그때 다시 확인
+    private void trySpeakPaced() {
+        handler.removeCallbacks(trySpeakPaced);
+        if (!ready || !pacer.hasPending()) {
+            return;
+        }
         long now = SystemClock.uptimeMillis();
+        boolean speaking = announcementSpeaking || isSpeaking();
+        String message = pacer.poll(now, speaking);
+        if (message == null) {
+            handler.postDelayed(trySpeakPaced, pacer.waitMs(now, speaking));
+            return;
+        }
         if (message.equals(lastSpokenMessage) && now - lastSpokenMessageAtMs < SAME_MESSAGE_GAP_MS) {
             return;
         }
         lastSpokenMessage = message;
         lastSpokenMessageAtMs = now;
-        // 횟수나 목표 도달 안내를 읽는 중이면 끊지 않고 뒤에 이어서, 아니면 읽던 안내를 끊고 새 안내
-        int queueMode = now - lastCountAtMs < COUNT_SPEAKING_MS || announcementSpeaking
-                ? TextToSpeech.QUEUE_ADD : TextToSpeech.QUEUE_FLUSH;
-        speak(message, queueMode, GUIDE_ID);
+        // 앞 음성이 끝난 뒤에만 오므로 이어서 읽음 (횟수 직후 등 엔진에 남은 것이 있어도 끊지 않음)
+        speak(message, TextToSpeech.QUEUE_ADD, GUIDE_ID);
+    }
+
+    private boolean isSpeaking() {
+        try {
+            return tts != null && tts.isSpeaking();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private void speak(String text, int queueMode, String utteranceId) {
@@ -241,7 +267,9 @@ public class VoiceGuide {
     /** 화면이 가려질 때(일시정지 화면 등): 읽던 것과 기다리던 안내를 멈춤 */
     public void stop() {
         handler.removeCallbacks(speakPendingMessage);
+        handler.removeCallbacks(trySpeakPaced);
         pendingMessage = null;
+        pacer.clear();
         lastSpokenMessage = null;
         announcementSpeaking = false;
         if (ready) {
