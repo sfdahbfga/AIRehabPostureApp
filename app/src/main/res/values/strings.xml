@@ -574,4 +574,6 @@
     <string name="feedback_squat_rising">천천히 일어서 주세요.</string>
     <string name="feedback_lunge_rising">천천히 올라와 주세요.</string>
     <string name="feedback_knee_rising">천천히 펴 주세요.</string>
+    <!-- 목표 횟수(유지형은 목표 유지 횟수)를 처음 채웠을 때 한 번 (횟수는 계속 셈, 자동 종료 없음) -->
+    <string name="feedback_goal_reached">목표 횟수를 채웠어요. 운동 종료를 눌러 마무리해 주세요.</string>
 </resources>

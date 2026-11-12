@@ -50,6 +50,7 @@ import com.example.airehabpostureapp.pose.PausableCounter;
 import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
 import com.example.airehabpostureapp.pose.PoseMeasurer;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
+import com.example.airehabpostureapp.pose.RepGoal;
 import com.example.airehabpostureapp.pose.RepetitionCounter;
 import com.example.airehabpostureapp.pose.SessionMetrics;
 import com.example.airehabpostureapp.stats.JointKeys;
@@ -162,6 +163,10 @@ public class ExerciseActivity extends AppCompatActivity {
     // 운동하는 다리가 정해진 뒤 "카메라 쪽 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
     private static final long LEG_LOCKED_HINT_MS = 2000L;
     private long legLockedHintUntilMs = 0;
+    // 목표 횟수를 처음 채웠을 때 "목표 횟수를 채웠어요…" 안내를 이 시각(uptime ms)까지 다른 안내 대신 표시
+    // ("N회" 뒤에 이어 읽는 긴 문장이라 다음 안내가 끊지 않도록 넉넉히)
+    private static final long GOAL_REACHED_HINT_MS = 6000L;
+    private long goalReachedUntilMs = 0;
     // 안내 문구를 음성으로 읽을지 정함 (자세 경고는 동작마다 한 번 등)
     private final FeedbackVoiceFilter voiceFilter = new FeedbackVoiceFilter();
 
@@ -590,6 +595,10 @@ public class ExerciseActivity extends AppCompatActivity {
             updateExerciseStatus();
             // 횟수는 안내 문구보다 먼저 (이 뒤에 바뀌는 안내 문구는 횟수 다음에 읽힘)
             voiceGuide.speakCount(getString(R.string.voice_rep_count, repetitionCounter.getCompletedReps()));
+            // 목표 횟수를 처음 채운 회차: "N회" 다음에 이어서 목표 도달 안내 (횟수는 계속 세고 자동 종료하지 않음)
+            if (RepGoal.isJustReached(repetitionCounter.getCompletedReps(), targetReps)) {
+                goalReachedUntilMs = SystemClock.uptimeMillis() + GOAL_REACHED_HINT_MS;
+            }
         }
         RepetitionCounter.RejectedAttempt rejected = repetitionCounter.takeRejectedAttempt();
         if (rejected != null) {
@@ -612,6 +621,8 @@ public class ExerciseActivity extends AppCompatActivity {
             // (다리가 안 보이면 "전신이 보이게"가 우선)
             // 왼쪽/오른쪽은 표시하지 않음 (옆모습에서는 MediaPipe의 L/R 이름이 실제 다리와 다를 수 있음)
             showFeedback(FeedbackMessages.legLocked(exerciseCriteria));
+        } else if (now < goalReachedUntilMs) {
+            showFeedback(R.string.feedback_goal_reached);
         } else {
             showFeedback(now < moveSlowlyUntilMs
                     ? R.string.feedback_move_slowly
@@ -916,6 +927,7 @@ public class ExerciseActivity extends AppCompatActivity {
         lastLoggedSkippedFrames = 0;
         moveSlowlyUntilMs = 0;
         legLockedHintUntilMs = 0;
+        goalReachedUntilMs = 0;
         elapsedSeconds = 0;
         startedAtMillis = System.currentTimeMillis();
         updateTimerText();
