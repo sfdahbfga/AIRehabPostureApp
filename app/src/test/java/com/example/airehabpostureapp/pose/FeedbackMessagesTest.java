@@ -1,6 +1,8 @@
 package com.example.airehabpostureapp.pose;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.example.airehabpostureapp.R;
 
@@ -67,6 +69,24 @@ public class FeedbackMessagesTest {
                 message(null, RepetitionCounter.Feedback.START_BENDING, 0));
         assertEquals(R.string.feedback_stand_sideways, FeedbackMessages.sideways(null));
         assertEquals(R.string.feedback_use_camera_side_leg, FeedbackMessages.legLocked(null));
+    }
+
+    @Test
+    public void rising_perExercise_isScreenOnly() {
+        assertEquals(R.string.feedback_squat_rising,
+                message(ExerciseCriteria.CHAIR_SQUAT, RepetitionCounter.Feedback.RISING, 1));
+        assertEquals(R.string.feedback_lunge_rising,
+                message(ExerciseCriteria.LUNGE, RepetitionCounter.Feedback.RISING, 1));
+        assertEquals(R.string.feedback_knee_rising,
+                message(ExerciseCriteria.KNEE_FLEXION, RepetitionCounter.Feedback.RISING, 1));
+        assertTrue(FeedbackMessages.isScreenOnly(R.string.feedback_squat_rising));
+        assertTrue(FeedbackMessages.isScreenOnly(R.string.feedback_lunge_rising));
+        assertTrue(FeedbackMessages.isScreenOnly(R.string.feedback_knee_rising));
+        // 평가 / 깊이 안내는 그대로 음성으로 읽음
+        assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_sit_more));
+        assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_good_stand_up));
+        assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_shallow));
+        assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_start));
     }
 
     @Test

@@ -672,7 +672,10 @@ public class ExerciseActivity extends AppCompatActivity {
             if (DEBUG_LOG_REPS) {
                 Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
             }
-            voiceGuide.speakMessage(VoiceGuide.toSpeechText(text));
+            // 일어서는 중 안내는 화면에만 (음성은 일어선 뒤의 평가 안내만)
+            if (!FeedbackMessages.isScreenOnly(messageRes)) {
+                voiceGuide.speakMessage(VoiceGuide.toSpeechText(text));
+            }
         }
     }
 
@@ -837,7 +840,7 @@ public class ExerciseActivity extends AppCompatActivity {
         }
         timerHandler.postDelayed(timerRunnable, TIMER_INTERVAL_MS);
         // 일시정지 화면 등에서 돌아오면 지금 안내를 다시 읽음
-        if (shownFeedbackText != null) {
+        if (shownFeedbackText != null && !FeedbackMessages.isScreenOnly(shownFeedbackRes)) {
             voiceGuide.speakMessage(VoiceGuide.toSpeechText(shownFeedbackText));
         }
     }

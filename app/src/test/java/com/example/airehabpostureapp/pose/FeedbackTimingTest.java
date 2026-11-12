@@ -1,10 +1,15 @@
 package com.example.airehabpostureapp.pose;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import com.example.airehabpostureapp.R;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -292,6 +297,100 @@ public class FeedbackTimingTest {
         knee.hold(115, 5, 170, 2000);
         assertEquals(RepetitionCounter.Feedback.BEND_MORE, knee.counter.getFeedback());
         assertEquals(1, appearances(knee.feedbackHistory, RepetitionCounter.Feedback.BEND_MORE));
+    }
+
+    // ---------- "조금 더" 뒤 일어서기 시작: 일어서는 중 안내 (화면에만) ----------
+
+    // 프레임별 피드백 → 문구가 바뀔 때마다 음성으로 읽히는 문구 (화면 전용 문구는 제외, ExerciseActivity.showFeedback과 같은 규칙)
+    private static List<Integer> spokenMessages(ExerciseCriteria criteria, List<RepetitionCounter.Feedback> history) {
+        List<Integer> spoken = new ArrayList<>();
+        int shown = 0;
+        for (RepetitionCounter.Feedback feedback : history) {
+            int res = FeedbackMessages.forFeedback(criteria, feedback, 1);
+            if (res != shown) {
+                shown = res;
+                if (!FeedbackMessages.isScreenOnly(res)) {
+                    spoken.add(res);
+                }
+            }
+        }
+        return spoken;
+    }
+
+    @Test
+    public void stallThenRise_replacesBendMoreWithRising_assoonAsRising() {
+        // 실측 A세트 1회째: 110.7도(좋아요 지점 110도 바로 전)에서 멈춰 "조금 더 앉아" → 그대로 일어섬
+        CounterHarness h = squatHarness();
+        stand(h, 500);
+        h.move(STAND, 111, STAND, SQUAT_HIP, 1000, TRUNK);
+        h.hold(111, TRUNK, SQUAT_HIP, 1500);
+        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        // 가장 깊은 각도보다 5도 넘게 펴지면 바로 일어서는 중 안내
+        h.move(111, 125, SQUAT_HIP, 110, 300, TRUNK);
+        assertEquals(RepetitionCounter.Feedback.RISING, h.counter.getFeedback());
+        h.move(125, STAND, 110, STAND, 900, TRUNK);
+        stand(h, 400);
+        // 판정 / 횟수는 그대로 (120도 이하까지 앉았으므로 1회 인정), "좋아요"는 나오지 않음
+        assertEquals(1, h.counter.getCompletedReps());
+        assertEquals(1, appearances(h.feedbackHistory, RepetitionCounter.Feedback.BEND_MORE));
+        assertEquals(1, appearances(h.feedbackHistory, RepetitionCounter.Feedback.RISING));
+        assertEquals(0, appearances(h.feedbackHistory, RepetitionCounter.Feedback.GOOD_STRAIGHTEN));
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, h.counter.getFeedback());
+    }
+
+    @Test
+    public void stallThenRise_risingMessage_isNotSpoken() {
+        CounterHarness h = squatHarness();
+        stand(h, 500);
+        h.move(STAND, 111, STAND, SQUAT_HIP, 1000, TRUNK);
+        h.hold(111, TRUNK, SQUAT_HIP, 1500);
+        h.move(111, STAND, SQUAT_HIP, STAND, 1200, TRUNK);
+        stand(h, 400);
+        List<Integer> spoken = spokenMessages(ExerciseCriteria.CHAIR_SQUAT, h.feedbackHistory);
+        assertTrue(h.feedbackHistory.contains(RepetitionCounter.Feedback.RISING));
+        assertFalse(spoken.contains(R.string.feedback_squat_rising));
+        assertEquals(1, Collections.frequency(spoken, R.string.feedback_squat_sit_more));
+    }
+
+    @Test
+    public void shallowStallThenRise_showsRising_thenSpeaksOnlyRetryHint() {
+        // 140도(1회 인정 전)에서 멈춰 "조금 더 앉아" → 그대로 일어섬 → 일어서는 중(화면만) → 일어선 뒤 거부 안내(음성)
+        CounterHarness h = squatHarness();
+        stand(h, 500);
+        h.move(STAND, 140, STAND, 110, 700, TRUNK);
+        h.hold(140, TRUNK, 110, 1500);
+        assertEquals(RepetitionCounter.Feedback.BEND_MORE, h.counter.getFeedback());
+        h.move(140, 155, 110, 140, 300, TRUNK);
+        assertEquals(RepetitionCounter.Feedback.RISING, h.counter.getFeedback());
+        h.move(155, STAND, 140, STAND, 500, TRUNK);
+        stand(h, 400);
+        assertEquals(0, h.counter.getCompletedReps());
+        assertEquals(RepetitionCounter.Feedback.SHALLOW_RETRY, h.counter.getFeedback());
+        List<Integer> spoken = spokenMessages(ExerciseCriteria.CHAIR_SQUAT, h.feedbackHistory);
+        assertFalse(spoken.contains(R.string.feedback_squat_rising));
+        // 마지막으로 읽힌 문구 = 거부 안내
+        assertEquals(Integer.valueOf(R.string.feedback_squat_shallow), spoken.get(spoken.size() - 1));
+    }
+
+    @Test
+    public void lungeAndKneeFlexion_stallThenRise_showRising_notSpoken() {
+        CounterHarness lunge = new CounterHarness(new RepetitionCounter(ExerciseCriteria.LUNGE));
+        lunge.hold(170, 5, 170, 500);
+        lunge.move(170, 105, 170, 120, 800, 5);
+        lunge.hold(105, 5, 120, 1500);
+        lunge.move(105, 125, 120, 140, 300, 5);
+        assertEquals(RepetitionCounter.Feedback.RISING, lunge.counter.getFeedback());
+        assertFalse(spokenMessages(ExerciseCriteria.LUNGE, lunge.feedbackHistory)
+                .contains(R.string.feedback_lunge_rising));
+
+        CounterHarness knee = new CounterHarness(new RepetitionCounter(ExerciseCriteria.KNEE_FLEXION));
+        knee.hold(175, 5, 170, 500);
+        knee.move(175, 105, 170, 170, 800, 5);
+        knee.hold(105, 5, 170, 1500);
+        knee.move(105, 125, 170, 170, 300, 5);
+        assertEquals(RepetitionCounter.Feedback.RISING, knee.counter.getFeedback());
+        assertFalse(spokenMessages(ExerciseCriteria.KNEE_FLEXION, knee.feedbackHistory)
+                .contains(R.string.feedback_knee_rising));
     }
 
     @Test

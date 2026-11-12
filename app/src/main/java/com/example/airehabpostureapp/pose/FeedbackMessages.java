@@ -54,6 +54,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_squat_hips_back;
             case SHALLOW_RETRY:
                 return R.string.feedback_squat_shallow;
+            case RISING:
+                return R.string.feedback_squat_rising;
             case START_BENDING:
                 return R.string.feedback_squat_start;
             default:
@@ -71,6 +73,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_lunge_good_come_up;
             case SHALLOW_RETRY:
                 return R.string.feedback_lunge_shallow;
+            case RISING:
+                return R.string.feedback_lunge_rising;
             case START_BENDING:
                 return R.string.feedback_lunge_start;
             default:
@@ -95,6 +99,13 @@ public final class FeedbackMessages {
             default:
                 return 0;
         }
+    }
+
+    // 화면에만 보여 주고 음성으로 읽지 않는 문구 (일어서는 중 안내: 일어선 뒤의 평가 안내만 읽히도록)
+    public static boolean isScreenOnly(@StringRes int messageRes) {
+        return messageRes == R.string.feedback_squat_rising
+                || messageRes == R.string.feedback_lunge_rising
+                || messageRes == R.string.feedback_knee_rising;
     }
 
     // 다리를 정하기 전 "옆으로 서 주세요" 안내 (운동별)
@@ -153,6 +164,8 @@ public final class FeedbackMessages {
                 return R.string.feedback_thigh_upright;
             case SHALLOW_RETRY:
                 return R.string.feedback_knee_shallow;
+            case RISING:
+                return R.string.feedback_knee_rising;
             case START_BENDING:
             default:
                 // 첫 동작 전에는 어느 다리로 할지 안내

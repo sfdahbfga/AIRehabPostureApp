@@ -570,4 +570,8 @@
     <string name="feedback_knee_shallow">무릎을 조금 더 굽혀야 1회로 인정돼요.</string>
     <!-- 운동 전 / 후 체크: 불편감 기본 선택 없음 → 선택하지 않고 "다음"을 누르면 안내 -->
     <string name="error_exercise_discomfort_not_selected">불편감을 선택해 주세요.</string>
+    <!-- "조금 더" 안내 뒤 일어서기 시작함 ("좋아요" 지점 전): 화면에만 표시, 음성으로 읽지 않음 -->
+    <string name="feedback_squat_rising">천천히 일어서 주세요.</string>
+    <string name="feedback_lunge_rising">천천히 올라와 주세요.</string>
+    <string name="feedback_knee_rising">천천히 펴 주세요.</string>
 </resources>

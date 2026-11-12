@@ -58,6 +58,8 @@ public class RepetitionCounter implements ExerciseCounter {
         HIPS_BACK,
         // 방금 동작이 1회 인정 기준까지 굽히지 않아 세지 않음 (SHALLOW) → 다음 동작을 시작할 때까지 안내
         SHALLOW_RETRY,
+        // "조금 더"(BEND_MORE)가 나온 뒤 "좋아요" 지점에 닿지 않은 채 일어서기 시작함 → 일어서는 중 안내 (화면에만 표시)
+        RISING,
         // 유지형: 기준 안에서 유지 중
         HOLD,
         // 유지형: 펴야 하는 다리의 무릎이 굽음
@@ -398,7 +400,7 @@ public class RepetitionCounter implements ExerciseCounter {
      * - 내려가는 중에는 시작 안내(START_BENDING) 유지
      * - "좋아요" 지점 전에 STALL_HINT_MS 넘게 더 굽히지 않고 멈추면 BEND_MORE를 한 번 (동작 하나에 한 번)
      * - 일어서는 중(가장 많이 굽힌 각도보다 RISING_MARGIN_DEGREES 넘게 펴짐)에는 BEND_MORE를 새로 띄우지 않음
-     * 이미 보이는 BEND_MORE는 바꾸지 않고 유지한다. (문구가 바뀌면 음성이 다시 읽히므로)
+     * - 보이던 BEND_MORE는 일어서기 시작하면 RISING으로 바꿈 (일어서는 중 안내, 음성으로 읽지 않음)
      */
     private Feedback motionFeedback(long timestampMs) {
         if (smoothedJointAngle <= criteria.targetAngle + criteria.underBendTolerance) {
@@ -420,6 +422,9 @@ public class RepetitionCounter implements ExerciseCounter {
         if (stalled && !stallHintUsed) {
             stallHintUsed = true;
             return Feedback.BEND_MORE;
+        }
+        if (rising && (feedback == Feedback.BEND_MORE || feedback == Feedback.RISING)) {
+            return Feedback.RISING;
         }
         return feedback == Feedback.BEND_MORE ? Feedback.BEND_MORE : Feedback.START_BENDING;
     }
