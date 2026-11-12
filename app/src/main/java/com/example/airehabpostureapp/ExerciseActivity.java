@@ -43,6 +43,7 @@ import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.pose.ExerciseCounter;
 import com.example.airehabpostureapp.pose.ExerciseCriteria;
 import com.example.airehabpostureapp.pose.FeedbackMessages;
+import com.example.airehabpostureapp.pose.FeedbackVoiceFilter;
 import com.example.airehabpostureapp.pose.HoldCounter;
 import com.example.airehabpostureapp.pose.LegSelector;
 import com.example.airehabpostureapp.pose.PausableCounter;
@@ -161,6 +162,8 @@ public class ExerciseActivity extends AppCompatActivity {
     // 운동하는 다리가 정해진 뒤 "카메라 쪽 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
     private static final long LEG_LOCKED_HINT_MS = 2000L;
     private long legLockedHintUntilMs = 0;
+    // 안내 문구를 음성으로 읽을지 정함 (자세 경고는 동작마다 한 번 등)
+    private final FeedbackVoiceFilter voiceFilter = new FeedbackVoiceFilter();
 
     // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 + 다시 요청 / 설정 열기 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
@@ -601,6 +604,7 @@ public class ExerciseActivity extends AppCompatActivity {
         if (!repetitionCounter.isRepInProgress()) {
             legSelector.resetSwitchCount();
             oneLegLowVisFramesInRep = 0;
+            voiceFilter.onMotionEnded();
         }
         RepetitionCounter.Feedback feedback = repetitionCounter.getFeedback();
         if (now < legLockedHintUntilMs && feedback != RepetitionCounter.Feedback.NOT_VISIBLE) {
@@ -672,8 +676,8 @@ public class ExerciseActivity extends AppCompatActivity {
             if (DEBUG_LOG_REPS) {
                 Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] feedback=\"%s\"", debugExerciseId(), text));
             }
-            // 일어서는 중 안내는 화면에만 (음성은 일어선 뒤의 평가 안내만)
-            if (!FeedbackMessages.isScreenOnly(messageRes)) {
+            // 일어서는 중 안내는 화면에만, 자세 경고는 동작마다 한 번, 경고가 풀려 돌아온 문구는 다시 읽지 않음
+            if (voiceFilter.shouldSpeak(messageRes)) {
                 voiceGuide.speakMessage(VoiceGuide.toSpeechText(text));
             }
         }
