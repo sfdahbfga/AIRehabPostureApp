@@ -1,6 +1,7 @@
 package com.example.airehabpostureapp.pose;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
@@ -99,5 +100,30 @@ public class PoseMeasurerTest {
         assertEquals("R", sample.label);
         assertTrue(Double.isNaN(sample.jointAngle));
         assertEquals(0f, sample.minVisibility, 0f);
+    }
+
+    // ---------- 하체 스트레칭 재측정용: 잘 보이는 쪽 상체 기울기 / 더 펴진 다리의 무릎 ----------
+
+    private static LegSelector.LegSample side(String label, double trunk, double knee, float avgVisibility) {
+        return new LegSelector.LegSample(label, 100, trunk, 100, avgVisibility, avgVisibility, knee);
+    }
+
+    @Test
+    public void betterTrunkSide_higherVisibility_orTheOnlyMeasurable() {
+        assertEquals("R", PoseMeasurer.betterTrunkSide(side("L", 30, 120, 0.6f), side("R", 35, 175, 0.95f)).label);
+        assertEquals("L", PoseMeasurer.betterTrunkSide(side("L", 30, 120, 0.9f), side("R", 35, 175, 0.6f)).label);
+        // 한쪽 어깨·엉덩이가 가려져 상체 기울기가 없으면 다른 쪽
+        assertEquals("L", PoseMeasurer.betterTrunkSide(side("L", 30, 120, 0.4f), side("R", Double.NaN, 175, 0.95f)).label);
+        assertNull(PoseMeasurer.betterTrunkSide(side("L", Double.NaN, 120, 0.9f), side("R", Double.NaN, 175, 0.9f)));
+    }
+
+    @Test
+    public void straighterKneeAngle_ofVisibleLegs() {
+        // 스트레칭하는 다리는 펴져 있고(175도) 반대쪽은 굽혀져 있음(95도)
+        assertEquals(175, PoseMeasurer.straighterKneeAngle(side("L", 30, 95, 0.9f), side("R", 30, 175, 0.9f)), 1e-9);
+        // 안 보이는 다리(NaN)는 빼고 판단
+        assertEquals(95, PoseMeasurer.straighterKneeAngle(side("L", 30, 95, 0.9f), side("R", 30, Double.NaN, 0.3f)), 1e-9);
+        assertTrue(Double.isNaN(PoseMeasurer.straighterKneeAngle(
+                side("L", 30, Double.NaN, 0.3f), side("R", 30, Double.NaN, 0.3f))));
     }
 }

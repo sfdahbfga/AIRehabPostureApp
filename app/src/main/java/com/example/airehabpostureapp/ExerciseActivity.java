@@ -536,8 +536,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
                 LegSelector.LegSample chosen = countRepetition(timestampMs, left, right);
                 countDebugFrame(pose == null, chosen == null, left.isCandidate() != right.isCandidate());
-                showDebugKneeAngles(left.jointAngle, right.jointAngle,
-                        left.minVisibility, right.minVisibility, chosen);
+                showDebugKneeAngles(left, right, chosen);
             });
         }
 
@@ -663,6 +662,20 @@ public class ExerciseActivity extends AppCompatActivity {
                 ((HoldCounter) repetitionCounter).getHeldMs() / 1000.0);
     }
 
+    // 디버그용 (하체 스트레칭 기준 재측정): 다리를 정하기 전에도 프레임마다
+    // 양쪽 상체 기울기 / 잘 보이는 쪽(상체 기울기와 그쪽 엉덩이 각도) / 잘 보이는 다리 중 더 펴진 다리의 무릎 각도
+    private String debugTrunkSuffix(LegSelector.LegSample left, LegSelector.LegSample right) {
+        if (!(repetitionCounter instanceof HoldCounter)) {
+            return "";
+        }
+        LegSelector.LegSample better = PoseMeasurer.betterTrunkSide(left, right);
+        return String.format(Locale.US, " trunk L=%s R=%s best=%s:%s hipBest=%s kneeStraight=%s",
+                formatAngle(left.trunkLean), formatAngle(right.trunkLean),
+                better == null ? "-" : better.label, better == null ? "-" : formatAngle(better.trunkLean),
+                better == null ? "-" : formatAngle(better.hipAngle),
+                formatAngle(PoseMeasurer.straighterKneeAngle(left, right)));
+    }
+
     private static String capitalize(String text) {
         return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
@@ -777,11 +790,12 @@ public class ExerciseActivity extends AppCompatActivity {
     // noPose = 사람 인식 안 됨, lowVis = 두 다리 모두 visibility 0.5 미만,
     // oneLeg = 한쪽 다리만 visibility 0.5 미만, jump = 연속성 검사로 건너뜀 (지난 기록 이후 프레임 수)
     // vis = 그 순간 다리별 엉덩이 / 무릎 / 발목 visibility 중 가장 낮은 값 (높은 쪽이 카메라 쪽 다리)
-    private void showDebugKneeAngles(double leftKneeAngle, double rightKneeAngle,
-                                     float leftVisibility, float rightVisibility,
+    private void showDebugKneeAngles(LegSelector.LegSample leftSample, LegSelector.LegSample rightSample,
                                      @Nullable LegSelector.LegSample chosen) {
-        String left = formatAngle(leftKneeAngle);
-        String right = formatAngle(rightKneeAngle);
+        String left = formatAngle(leftSample.jointAngle);
+        String right = formatAngle(rightSample.jointAngle);
+        float leftVisibility = leftSample.minVisibility;
+        float rightVisibility = rightSample.minVisibility;
         if (DEBUG_SHOW_KNEE_ANGLE) {
             debugKneeAngleText.setVisibility(View.VISIBLE);
             debugKneeAngleText.setText(getString(R.string.debug_knee_angle_format, left, right));
@@ -801,7 +815,7 @@ public class ExerciseActivity extends AppCompatActivity {
                     "[%s] %s L=%s R=%s vis L=%.2f R=%.2f sel=%s fps=%.1f frames=%d noPose=%d lowVis=%d oneLeg=%d jump=%d%s",
                     debugExerciseId(), debugJointName(), left, right, leftVisibility, rightVisibility, selected, fps, debugFrameCount,
                     debugNoPoseFrames, debugLowVisibilityFrames, debugOneLegLowVisFrames, jumpSinceLastLog,
-                    debugHoldSuffix(chosen)));
+                    debugHoldSuffix(chosen) + debugTrunkSuffix(leftSample, rightSample)));
             lastDebugLogAtMs = now;
             lastLoggedSkippedFrames = skippedTotal;
             debugFrameCount = 0;

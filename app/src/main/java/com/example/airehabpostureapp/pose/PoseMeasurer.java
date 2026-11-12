@@ -48,6 +48,34 @@ public final class PoseMeasurer {
                 minVisibility, averageVisibility, kneeAngle);
     }
 
+    /**
+     * 상체 기울기를 쓸 쪽: 상체 기울기를 계산할 수 있는(어깨·엉덩이가 잘 보이는) 쪽 중 평균 visibility가 높은 쪽.
+     * 두 쪽 모두 계산할 수 없으면 null (다리를 정하지 않고 프레임마다 고름)
+     */
+    @Nullable
+    public static LegSelector.LegSample betterTrunkSide(LegSelector.LegSample left, LegSelector.LegSample right) {
+        boolean leftOk = !Double.isNaN(left.trunkLean);
+        boolean rightOk = !Double.isNaN(right.trunkLean);
+        if (leftOk && rightOk) {
+            return left.averageVisibility >= right.averageVisibility ? left : right;
+        }
+        return leftOk ? left : rightOk ? right : null;
+    }
+
+    /**
+     * 잘 보이는(엉덩이·무릎·발목 visibility 0.5 이상) 다리 중 더 곧게 펴진 다리의 무릎 각도. 없으면 NaN
+     * (스트레칭하는 다리는 펴져 있고 반대쪽은 굽혀져 있음)
+     */
+    public static double straighterKneeAngle(LegSelector.LegSample left, LegSelector.LegSample right) {
+        if (Double.isNaN(left.kneeAngle)) {
+            return right.kneeAngle;
+        }
+        if (Double.isNaN(right.kneeAngle)) {
+            return left.kneeAngle;
+        }
+        return Math.max(left.kneeAngle, right.kneeAngle);
+    }
+
     private static float visibility(List<NormalizedLandmark> pose, int index) {
         return index < pose.size() ? pose.get(index).visibility().orElse(0f) : 0f;
     }
