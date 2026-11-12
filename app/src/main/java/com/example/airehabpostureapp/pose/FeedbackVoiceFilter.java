@@ -41,7 +41,8 @@ public final class FeedbackVoiceFilter {
         boolean returningAfterWarning = inWarning && messageRes == resBeforeWarning;
         inWarning = false;
         lastNonWarningRes = messageRes;
-        if (FeedbackMessages.isScreenOnly(messageRes)) {
+        // 목표 도달 안내는 "N회" 직후에 바로 읽으므로(VoiceGuide.speakAnnouncement) 화면이 바뀔 때는 읽지 않음
+        if (FeedbackMessages.isScreenOnly(messageRes) || messageRes == R.string.feedback_goal_reached) {
             return false;
         }
         return !returningAfterWarning;

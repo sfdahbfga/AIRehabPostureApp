@@ -44,6 +44,7 @@ import com.example.airehabpostureapp.pose.ExerciseCounter;
 import com.example.airehabpostureapp.pose.ExerciseCriteria;
 import com.example.airehabpostureapp.pose.FeedbackMessages;
 import com.example.airehabpostureapp.pose.FeedbackVoiceFilter;
+import com.example.airehabpostureapp.pose.GoalHint;
 import com.example.airehabpostureapp.pose.HoldCounter;
 import com.example.airehabpostureapp.pose.LegSelector;
 import com.example.airehabpostureapp.pose.PausableCounter;
@@ -163,10 +164,8 @@ public class ExerciseActivity extends AppCompatActivity {
     // 운동하는 다리가 정해진 뒤 "카메라 쪽 다리로 운동해 주세요" 안내를 이 시각(uptime ms)까지 표시
     private static final long LEG_LOCKED_HINT_MS = 2000L;
     private long legLockedHintUntilMs = 0;
-    // 목표 횟수를 처음 채웠을 때 "목표 횟수를 채웠어요…" 안내를 이 시각(uptime ms)까지 다른 안내 대신 표시
-    // ("N회" 뒤에 이어 읽는 긴 문장이라 다음 안내가 끊지 않도록 넉넉히)
-    private static final long GOAL_REACHED_HINT_MS = 6000L;
-    private long goalReachedUntilMs = 0;
+    // 목표 횟수를 처음 채웠을 때 "목표 횟수를 채웠어요…" 화면 안내 (최대 6초, 동작 시작 / 자세 경고가 생기면 바로 내림)
+    private final GoalHint goalHint = new GoalHint();
     // 안내 문구를 음성으로 읽을지 정함 (자세 경고는 동작마다 한 번 등)
     private final FeedbackVoiceFilter voiceFilter = new FeedbackVoiceFilter();
 
@@ -596,8 +595,10 @@ public class ExerciseActivity extends AppCompatActivity {
             // 횟수는 안내 문구보다 먼저 (이 뒤에 바뀌는 안내 문구는 횟수 다음에 읽힘)
             voiceGuide.speakCount(getString(R.string.voice_rep_count, repetitionCounter.getCompletedReps()));
             // 목표 횟수를 처음 채운 회차: "N회" 다음에 이어서 목표 도달 안내 (횟수는 계속 세고 자동 종료하지 않음)
+            // 음성은 끝까지 읽고, 화면은 GoalHint가 정함 (다음 동작 시작 / 자세 경고가 생기면 바로 내림)
             if (RepGoal.isJustReached(repetitionCounter.getCompletedReps(), targetReps)) {
-                goalReachedUntilMs = SystemClock.uptimeMillis() + GOAL_REACHED_HINT_MS;
+                voiceGuide.speakAnnouncement(getString(R.string.feedback_goal_reached));
+                goalHint.onGoalReached(SystemClock.uptimeMillis(), repetitionCounter.getFeedback());
             }
         }
         RepetitionCounter.RejectedAttempt rejected = repetitionCounter.takeRejectedAttempt();
@@ -616,13 +617,18 @@ public class ExerciseActivity extends AppCompatActivity {
             voiceFilter.onMotionEnded();
         }
         RepetitionCounter.Feedback feedback = repetitionCounter.getFeedback();
+        GoalHint.Display goalDisplay = goalHint.update(now, repetitionCounter.isRepInProgress(), feedback);
         if (now < legLockedHintUntilMs && feedback != RepetitionCounter.Feedback.NOT_VISIBLE) {
             // 다리가 정해진 직후 2초: 운동별 첫 안내 (무릎 굽힘: "카메라 쪽 다리로 운동해 주세요.")
             // (다리가 안 보이면 "전신이 보이게"가 우선)
             // 왼쪽/오른쪽은 표시하지 않음 (옆모습에서는 MediaPipe의 L/R 이름이 실제 다리와 다를 수 있음)
             showFeedback(FeedbackMessages.legLocked(exerciseCriteria));
-        } else if (now < goalReachedUntilMs) {
+        } else if (goalDisplay == GoalHint.Display.GOAL) {
             showFeedback(R.string.feedback_goal_reached);
+        } else if (goalDisplay == GoalHint.Display.RELEASE_FOLLOW_UP) {
+            // 하체 스트레칭: 목표 안내 다음에 "천천히 상체를 세워 주세요"
+            showFeedback(FeedbackMessages.forFeedback(exerciseCriteria,
+                    RepetitionCounter.Feedback.RELEASE, getCompletedReps()));
         } else {
             showFeedback(now < moveSlowlyUntilMs
                     ? R.string.feedback_move_slowly
@@ -927,7 +933,7 @@ public class ExerciseActivity extends AppCompatActivity {
         lastLoggedSkippedFrames = 0;
         moveSlowlyUntilMs = 0;
         legLockedHintUntilMs = 0;
-        goalReachedUntilMs = 0;
+        goalHint.reset();
         elapsedSeconds = 0;
         startedAtMillis = System.currentTimeMillis();
         updateTimerText();

@@ -21,6 +21,7 @@ import java.util.Locale;
  * - 안내 문구는 MESSAGE_SETTLE_MS 동안 바뀌지 않아야 읽는다. (경계에서 문구가 깜빡일 때 계속 말하지 않도록)
  *   횟수를 읽는 중이면 횟수 다음에 이어서 읽는다.
  * - 같은 문구는 SAME_MESSAGE_GAP_MS 안에 다시 읽지 않는다.
+ * - 목표 도달 안내(speakAnnouncement)는 횟수 뒤에 이어서 끝까지 읽는다. 그동안 온 안내 / 횟수는 그 뒤에 이어서 읽는다.
  * - 한국어 음성이 없거나 TTS 엔진이 없으면 아무것도 읽지 않는다. (화면 문구만 보임, 앱은 그대로 동작)
  * - L2: 읽기 전에 오디오 포커스(잠시, 다른 소리는 작게)를 요청하고 다 읽으면 반납한다.
  *   전화가 오거나 다른 앱이 소리를 내서 포커스를 잃으면 바로 멈추고, 통화 중처럼 포커스를 받지 못하면 읽지 않는다.
@@ -46,6 +47,10 @@ public class VoiceGuide {
     private String lastSpokenMessage;
     private long lastSpokenMessageAtMs;
     private long lastCountAtMs = -COUNT_SPEAKING_MS;
+    // 목표 도달 안내를 읽는 중 (다 읽을 때까지 다른 안내 / 횟수가 끊지 않음)
+    private boolean announcementSpeaking;
+    private static final String GUIDE_ID = "guide";
+    private static final String ANNOUNCEMENT_ID = "announcement";
 
     private final Runnable speakPendingMessage = this::speakPendingMessage;
 
@@ -95,12 +100,17 @@ public class VoiceGuide {
 
             @Override
             public void onDone(String utteranceId) {
-                handler.post(VoiceGuide.this::abandonFocusIfIdle);
+                handler.post(() -> onUtteranceEnded(utteranceId));
             }
 
             @Override
             public void onError(String utteranceId) {
-                handler.post(VoiceGuide.this::abandonFocusIfIdle);
+                handler.post(() -> onUtteranceEnded(utteranceId));
+            }
+
+            @Override
+            public void onStop(String utteranceId, boolean interrupted) {
+                handler.post(() -> onUtteranceEnded(utteranceId));
             }
         });
         if (BuildConfig.DEBUG) {
@@ -127,7 +137,19 @@ public class VoiceGuide {
             return;
         }
         lastCountAtMs = SystemClock.uptimeMillis();
-        speak(countText, TextToSpeech.QUEUE_FLUSH);
+        speak(countText, announcementSpeaking ? TextToSpeech.QUEUE_ADD : TextToSpeech.QUEUE_FLUSH, GUIDE_ID);
+    }
+
+    /**
+     * 목표 도달 안내처럼 끝까지 들려야 하는 문장: 방금 읽은 횟수 뒤에 바로 이어서 읽고,
+     * 다 읽을 때까지 새 안내 / 횟수가 와도 끊지 않고 그 뒤에 이어서 읽음
+     */
+    public void speakAnnouncement(String text) {
+        if (!ready) {
+            return;
+        }
+        announcementSpeaking = true;
+        speak(text, TextToSpeech.QUEUE_ADD, ANNOUNCEMENT_ID);
     }
 
     /** 화면 안내 문구가 바뀌었을 때 */
@@ -149,19 +171,22 @@ public class VoiceGuide {
         }
         lastSpokenMessage = message;
         lastSpokenMessageAtMs = now;
-        // 횟수를 읽는 중이면 끊지 않고 뒤에 이어서, 아니면 읽던 안내를 끊고 새 안내
-        int queueMode = now - lastCountAtMs < COUNT_SPEAKING_MS
+        // 횟수나 목표 도달 안내를 읽는 중이면 끊지 않고 뒤에 이어서, 아니면 읽던 안내를 끊고 새 안내
+        int queueMode = now - lastCountAtMs < COUNT_SPEAKING_MS || announcementSpeaking
                 ? TextToSpeech.QUEUE_ADD : TextToSpeech.QUEUE_FLUSH;
-        speak(message, queueMode);
+        speak(message, queueMode, GUIDE_ID);
     }
 
-    private void speak(String text, int queueMode) {
+    private void speak(String text, int queueMode, String utteranceId) {
         // 통화 중 등 포커스를 받지 못하면 읽지 않음
         if (!requestFocus()) {
+            if (ANNOUNCEMENT_ID.equals(utteranceId)) {
+                announcementSpeaking = false;
+            }
             return;
         }
         try {
-            tts.speak(text, queueMode, null, "guide");
+            tts.speak(text, queueMode, null, utteranceId);
         } catch (RuntimeException e) {
             Log.w(TAG, "voice guide speak 실패", e);
         }
@@ -181,6 +206,13 @@ public class VoiceGuide {
             audioManager.abandonAudioFocusRequest(focusRequest);
         }
         hasAudioFocus = false;
+    }
+
+    private void onUtteranceEnded(String utteranceId) {
+        if (ANNOUNCEMENT_ID.equals(utteranceId)) {
+            announcementSpeaking = false;
+        }
+        abandonFocusIfIdle();
     }
 
     private void abandonFocusIfIdle() {
@@ -211,6 +243,7 @@ public class VoiceGuide {
         handler.removeCallbacks(speakPendingMessage);
         pendingMessage = null;
         lastSpokenMessage = null;
+        announcementSpeaking = false;
         if (ready) {
             try {
                 tts.stop();
