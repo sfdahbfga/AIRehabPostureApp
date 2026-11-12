@@ -578,4 +578,8 @@
     <string name="feedback_goal_reached">목표 횟수를 채웠어요. 운동 종료를 눌러 마무리해 주세요.</string>
     <!-- 하체 스트레칭(앉아서 하는 운동): 측정 중 다리를 놓쳤을 때 ("전신이 보이게 서 주세요." 대신) -->
     <string name="feedback_stretch_full_body_visible">전신이 보이게 앉아 주세요.</string>
+    <!-- 하체 스트레칭은 hip 키에 "상체 숙임" 오차를 저장하므로 화면의 "엉덩이" 대신 표시 -->
+    <string name="joint_stretch_lean">상체 숙임</string>
+    <string name="stretch_lean_average_error">상체 숙임 평균 오차</string>
+    <string name="mistake_joint_stretch_lean">상체 숙임 각도</string>
 </resources>

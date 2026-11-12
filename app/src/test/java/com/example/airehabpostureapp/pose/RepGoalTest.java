@@ -82,12 +82,13 @@ public class RepGoalTest {
     @Test
     public void hamstringStretch_announcedOnceAtThirdHold() {
         CounterHarness h = new CounterHarness(new HoldCounter(ExerciseCriteria.SEATED_HAMSTRING_STRETCH));
-        h.hold(120, Double.NaN, 175, 1000);
+        // 판정 값 = 앞으로 숙인 상체 기울기: 똑바로 0도, 30도로 숙여 유지
+        h.hold(0, Double.NaN, 175, 1000);
         for (int i = 0; i < 4; i++) {
-            h.move(120, 95, 175, 175, 2000, Double.NaN);
-            h.hold(95, Double.NaN, 175, 20000);
-            h.move(95, 120, 175, 175, 2000, Double.NaN);
-            h.hold(120, Double.NaN, 175, 1000);
+            h.move(0, 30, 175, 175, 2000, Double.NaN);
+            h.hold(30, Double.NaN, 175, 20000);
+            h.move(30, 0, 175, 175, 2000, Double.NaN);
+            h.hold(0, Double.NaN, 175, 1000);
         }
         assertEquals(4, h.counter.getCompletedReps());
         assertEquals(Collections.singletonList(3), announcedAt(h, ExerciseCriteria.SEATED_HAMSTRING_STRETCH.targetReps));

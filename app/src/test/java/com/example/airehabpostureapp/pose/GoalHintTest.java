@@ -164,19 +164,20 @@ public class GoalHintTest {
     public void hamstringStretch_thirdHold_goalThenRelease() {
         ScreenSim s = new ScreenSim(new HoldCounter(ExerciseCriteria.SEATED_HAMSTRING_STRETCH),
                 ExerciseCriteria.SEATED_HAMSTRING_STRETCH.targetReps);
-        s.hold(120, Double.NaN, 175, 1000);
+        // 판정 값 = 앞으로 숙인 상체 기울기: 똑바로 0도, 30도로 숙여 유지
+        s.hold(0, Double.NaN, 175, 1000);
         for (int i = 0; i < 3; i++) {
-            s.move(120, 95, 175, 175, Double.NaN, 2000);
-            s.hold(95, Double.NaN, 175, 20000);
+            s.move(0, 30, 175, 175, Double.NaN, 2000);
+            s.hold(30, Double.NaN, 175, 20000);
             if (i < 2) {
-                s.move(95, 120, 175, 175, Double.NaN, 2000);
-                s.hold(120, Double.NaN, 175, 1000);
+                s.move(30, 0, 175, 175, Double.NaN, 2000);
+                s.hold(0, Double.NaN, 175, 1000);
             }
         }
         // 3번째 유지가 끝난 뒤 숙인 채로 잠시 있다가 천천히 세움
-        s.hold(95, Double.NaN, 175, 2000);
-        s.move(95, 120, 175, 175, Double.NaN, 3000);
-        s.hold(120, Double.NaN, 175, 6000);
+        s.hold(30, Double.NaN, 175, 2000);
+        s.move(30, 0, 175, 175, Double.NaN, 3000);
+        s.hold(0, Double.NaN, 175, 6000);
         assertEquals(3, s.counter.getCompletedReps());
         int goal = s.shown.indexOf("GOAL");
         assertTrue(goal >= 0);

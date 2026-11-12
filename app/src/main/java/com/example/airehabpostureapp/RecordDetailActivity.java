@@ -146,8 +146,10 @@ public class RecordDetailActivity extends AppCompatActivity {
     }
 
     // joint_errors(평균 오차, 도)를 운동별 기준의 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
-    // (엉덩이(hip)는 하체 스트레칭만 저장)
+    // (hip은 하체 스트레칭만 저장하고, 값은 상체 숙임 오차이므로 줄 이름을 "상체 숙임"으로 표시)
     private void showJointAccuracy(Map<String, Double> jointErrors) {
+        TextView hipLabel = findViewById(R.id.hipLabelText);
+        hipLabel.setText(R.string.joint_stretch_lean);
         Integer kneeAccuracy = jointErrors == null ? null
                 : JointAccuracyConverter.kneeAccuracy(exerciseName, jointErrors.get(JointKeys.KNEE));
         Integer backAccuracy = jointErrors == null ? null

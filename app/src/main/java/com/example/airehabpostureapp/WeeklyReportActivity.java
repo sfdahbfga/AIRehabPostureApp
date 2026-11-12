@@ -187,7 +187,8 @@ public class WeeklyReportActivity extends AppCompatActivity {
             case JointKeys.BACK:
                 return getString(R.string.mistake_joint_back);
             case JointKeys.HIP:
-                return getString(R.string.mistake_joint_hip);
+                // hip은 하체 스트레칭만 저장하고, 값은 상체 숙임 오차
+                return getString(R.string.mistake_joint_stretch_lean);
             default:
                 return joint;
         }

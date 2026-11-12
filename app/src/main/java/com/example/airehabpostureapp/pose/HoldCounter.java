@@ -9,14 +9,19 @@ import java.util.List;
 /**
  * 유지 시간형 측정기 (Android 의존성 없는 순수 Java). 예: 하체 스트레칭
  *
- * 1회 = 판정 각도(평균)가 bentAngle 이하이고 펴야 하는 무릎이 minKneeAngle 이상인 상태를 holdDurationMs 동안 유지
- * - 판정에는 최근 smoothingWindow 프레임의 평균 각도를 쓰고, 각도 연속성 검사도 RepetitionCounter와 같다.
+ * 판정 값 = 앞으로 숙인 상체 기울기 (클수록 많이 숙임, ExerciseCriteria.higherIsDeeper)
+ * 1회 = 판정 값(평균)이 기준 이상이고 무릎(더 펴진 다리)이 minKneeAngle 이상인 상태를 holdDurationMs 동안 유지
+ * - 판정에는 최근 smoothingWindow 프레임의 평균을 쓰고, 연속성 검사도 RepetitionCounter와 같다.
+ * - 유지 시작은 bentAngle(20도) 이상, 유지 중에는 holdKeepAngle(17도) 이상이면 이어짐 (기준 근처에서 시작 / 끊김 반복 방지)
+ * - 무릎도 여유 범위: 160도 아래면 굽힘, 굽힌 뒤에는 165도 이상이 되어야 다시 편 것으로 봄
  * - 유지 시간은 기준 안에 있는 프레임 사이의 시간만 더한다. (기준 밖 / 안 보이는 동안은 멈춤)
  * - 기준 밖으로 holdGraceMs 넘게 벗어나거나 관절이 maxInvisibleMs 넘게 안 보이면 그 유지는 끝(세지 않음).
+ *   기준 밖이어도 holdGraceMs 안이면 안내는 "유지하세요" 그대로 (잠깐 끊겼다 이어져도 안내가 바뀌지 않음)
  * - 1회가 끝나면 자세를 다시 세워야 다음 유지를 시작한다.
- *   세운 것으로 보는 각도 = min(extendedAngle, 직전 유지 평균 + releaseRiseDegrees)
- *   (앉은 자세의 엉덩이 각도는 다리 모양에 따라 달라서, 고정값만 쓰면 다시 세운 것을 알아채지 못할 수 있음)
- * 1회 결과는 RepResult로 돌려준다: minJointAngle = 유지 중 평균 각도, durationMs = 실제 유지 시간
+ *   세운 것으로 보는 값 = max(extendedAngle, 직전 유지 평균 - releaseRiseDegrees) 이하
+ * - "조금 더 숙여 주세요"(BEND_MORE)는 숙이는 중에는 내지 않고, 기준에 못 미친 채 STALL_HINT_MS 넘게
+ *   더 숙이지 않고 멈춰 있을 때 동작 하나에 한 번만 (의자 스쿼트의 멈춤 안내와 같은 방식)
+ * 1회 결과는 RepResult로 돌려준다: minJointAngle = 유지 중 평균 값, durationMs = 실제 유지 시간
  *
  * 한 스레드에서만 호출해야 한다. (ExerciseActivity에서는 UI 스레드)
  */
@@ -26,8 +31,14 @@ public class HoldCounter implements ExerciseCounter {
     private static final long MIN_ATTEMPT_MS = 3000;
     // 기준 안 프레임 사이 시간을 더할 때 최대값 (건너뛴 프레임이 있어도 한 번에 이보다 많이 더하지 않음)
     private static final long MAX_FRAME_GAP_MS = 200;
-    // 세운 자세보다 이만큼 숙여야 "숙이는 중"으로 보고 "조금 더 숙여 주세요" 안내 (그 전에는 "숙여 주세요")
-    private static final double LEAN_STARTED_DEGREES = 5;
+    // 이만큼 앞으로 숙이면 "숙이는 동작" 시작으로 봄 (멈춤 안내 / 동작 단위 안내의 기준)
+    static final double LEAN_STARTED_DEGREES = 5;
+    // 기준에 못 미친 채 이 시간 넘게 더 숙이지 않으면 "조금 더 숙여 주세요" 한 번
+    static final long STALL_HINT_MS = 1500;
+    // 이만큼 더 숙여야 "더 숙이는 중"으로 봄 (멈춤 시간을 처음부터 다시 잼)
+    static final double STALL_PROGRESS_DEGREES = 2;
+    // 무릎을 굽힌 것으로 본 뒤에는 minKneeAngle + 이 값 이상이 되어야 다시 편 것으로 봄
+    static final double KNEE_STRAIGHT_MARGIN_DEGREES = 5;
 
     private final ExerciseCriteria criteria;
     private final Deque<Double> window = new ArrayDeque<>();
@@ -40,8 +51,6 @@ public class HoldCounter implements ExerciseCounter {
     // 1회를 마친 뒤 자세를 다시 세우기를 기다리는 중
     private boolean needRelease;
     private double releaseAngle;
-    // 세운 자세로 보는 각도 (처음에는 extendedAngle, 1회 뒤에는 그때 쓴 다시 세움 각도)
-    private double uprightAngle = Double.NaN;
 
     // 진행 중인 유지 (-1이면 유지 중 아님)
     private long holdStartedAtMs = -1;
@@ -57,6 +66,17 @@ public class HoldCounter implements ExerciseCounter {
     private int attemptInvisible;
     private double lastHoldMinKneeAngle = Double.NaN;
 
+    // 무릎을 굽힌 상태로 보고 있는지 (여유 범위)
+    private boolean kneeBent;
+    // 숙이는 동작 중 (LEAN_STARTED_DEGREES 이상 숙임, 유지 중 포함)
+    private boolean leaning;
+    // 멈춤 안내: 이번 동작에서 이미 안내했는지 / 기준 각도와 그 시각
+    private boolean stallHintUsed;
+    private double stallRefAngle;
+    private long stallRefAtMs;
+    // 1회를 마친 뒤 다시 세움 기준은 지났지만 아직 LEAN_STARTED_DEGREES 아래로 내려가지 않음 (세우는 중)
+    private boolean awaitingUpright;
+
     private double smoothedAngle = Double.NaN;
     private RepetitionCounter.Feedback feedback = RepetitionCounter.Feedback.NOT_VISIBLE;
     private RepetitionCounter.RejectedAttempt pendingRejection;
@@ -66,28 +86,28 @@ public class HoldCounter implements ExerciseCounter {
     }
 
     /**
-     * @param jointAngle 판정 각도 (하체 스트레칭: 엉덩이 각도). 안 보이면 NaN
-     * @param trunkLean  쓰지 않음 (유지형은 상체 점수를 따로 매기지 않음)
-     * @param kneeAngle  펴야 하는 다리의 무릎 각도. 안 보이면 NaN (그때는 무릎 조건을 검사하지 않음)
+     * @param jointAngle 판정 값 (하체 스트레칭: 앞으로 숙인 상체 기울기). 안 보이면 NaN
+     * @param trunkLean  쓰지 않음
+     * @param kneeAngle  잘 보이는 다리 중 더 펴진 다리의 무릎 각도. 안 보이면 NaN (그때는 무릎 조건을 검사하지 않음)
      */
     @Override
     public RepetitionCounter.RepResult onFrame(long timestampMs, double jointAngle, double trunkLean,
                                                double kneeAngle) {
         if (Double.isNaN(jointAngle)) {
-            if (isRepInProgress()) {
+            if (holdStartedAtMs >= 0) {
                 attemptInvisible++;
             }
             handleInvisible(timestampMs);
             return null;
         }
         long gapMs = timestampMs - lastVisibleAtMs;
-        if (isRepInProgress()) {
+        if (holdStartedAtMs >= 0) {
             gapMs = Math.min(gapMs, criteria.inRepMaxGapMs);
         }
         if (!Double.isNaN(lastAcceptedAngle)
                 && Math.abs(jointAngle - lastAcceptedAngle) > criteria.maxAngleChange(gapMs)) {
             skippedFrameCount++;
-            if (isRepInProgress()) {
+            if (holdStartedAtMs >= 0) {
                 attemptSkipped++;
             }
             handleInvisible(timestampMs);
@@ -96,10 +116,14 @@ public class HoldCounter implements ExerciseCounter {
         lastAcceptedAngle = jointAngle;
         lastVisibleAtMs = timestampMs;
         smoothedAngle = pushAndAverage(jointAngle);
+        updateKneeBent(kneeAngle);
 
         if (needRelease) {
-            if (smoothedAngle >= releaseAngle) {
+            if (smoothedAngle <= releaseAngle) {
                 needRelease = false;
+                endLeaning();
+                // 세우는 중(예: 15도 → 0도)을 새로 숙이는 동작으로 보지 않도록, 한 번 LEAN_STARTED_DEGREES 아래로 내려갈 때까지 기다림
+                awaitingUpright = true;
                 feedback = RepetitionCounter.Feedback.START_BENDING;
             } else {
                 feedback = RepetitionCounter.Feedback.RELEASE;
@@ -107,11 +131,13 @@ public class HoldCounter implements ExerciseCounter {
             return null;
         }
 
-        boolean kneeBent = criteria.isKneeBent(kneeAngle);
-        boolean inRange = smoothedAngle <= criteria.bentAngle && !kneeBent;
+        boolean holding = holdStartedAtMs >= 0;
+        double threshold = holding ? criteria.holdKeepAngle : criteria.bentAngle;
+        boolean inRange = smoothedAngle >= threshold && !kneeBent;
 
         if (inRange) {
-            if (holdStartedAtMs < 0) {
+            leaning = true;
+            if (!holding) {
                 startHold(timestampMs);
             } else if (previousInRange) {
                 heldMs += Math.min(timestampMs - lastInRangeAtMs, MAX_FRAME_GAP_MS);
@@ -133,21 +159,68 @@ public class HoldCounter implements ExerciseCounter {
 
         // 기준 밖: 유지 중이면 시간은 멈추고, holdGraceMs 넘게 이어지면 유지 끝
         previousInRange = false;
-        if (holdStartedAtMs >= 0) {
+        if (holding) {
             attemptAccepted++;
             if (timestampMs - lastInRangeAtMs > criteria.holdGraceMs) {
                 abortHold(RepetitionCounter.RejectReason.RELEASED_EARLY);
             }
         }
-        double upright = Double.isNaN(uprightAngle) ? criteria.extendedAngle : uprightAngle;
         if (kneeBent) {
             feedback = RepetitionCounter.Feedback.STRAIGHTEN_KNEE;
-        } else if (holdStartedAtMs >= 0 || smoothedAngle <= upright - LEAN_STARTED_DEGREES) {
-            feedback = RepetitionCounter.Feedback.BEND_MORE;
+        } else if (holdStartedAtMs >= 0) {
+            // 잠깐 기준 밖 (holdGraceMs 안): 안내는 그대로
+            feedback = RepetitionCounter.Feedback.HOLD;
         } else {
-            feedback = RepetitionCounter.Feedback.START_BENDING;
+            feedback = leaningFeedback(timestampMs);
         }
         return null;
+    }
+
+    // 무릎 여유 범위: 160도 아래면 굽힘, 굽힌 뒤에는 165도 이상이어야 편 것. 안 보이면 검사하지 않음
+    private void updateKneeBent(double kneeAngle) {
+        if (Double.isNaN(kneeAngle) || criteria.minKneeAngle <= 0) {
+            kneeBent = false;
+        } else if (kneeBent) {
+            kneeBent = kneeAngle < criteria.minKneeAngle + KNEE_STRAIGHT_MARGIN_DEGREES;
+        } else {
+            kneeBent = criteria.isKneeBent(kneeAngle);
+        }
+    }
+
+    // 유지 전 숙이는 중 안내: 기본은 "숙여 주세요", 기준에 못 미친 채 멈추면 "조금 더 숙여 주세요" 한 번
+    private RepetitionCounter.Feedback leaningFeedback(long timestampMs) {
+        if (smoothedAngle < LEAN_STARTED_DEGREES) {
+            endLeaning();
+            awaitingUpright = false;
+            return RepetitionCounter.Feedback.START_BENDING;
+        }
+        if (awaitingUpright) {
+            // 1회를 마치고 세우는 중: 아직 새 동작이 아님
+            return RepetitionCounter.Feedback.START_BENDING;
+        }
+        if (!leaning) {
+            leaning = true;
+            stallRefAngle = smoothedAngle;
+            stallRefAtMs = timestampMs;
+        }
+        if (smoothedAngle > stallRefAngle + STALL_PROGRESS_DEGREES) {
+            stallRefAngle = smoothedAngle;
+            stallRefAtMs = timestampMs;
+        }
+        if (!stallHintUsed && timestampMs - stallRefAtMs >= STALL_HINT_MS) {
+            stallHintUsed = true;
+            return RepetitionCounter.Feedback.BEND_MORE;
+        }
+        return feedback == RepetitionCounter.Feedback.BEND_MORE
+                ? RepetitionCounter.Feedback.BEND_MORE : RepetitionCounter.Feedback.START_BENDING;
+    }
+
+    // 숙이는 동작 하나가 끝남 (다시 세움): 멈춤 안내를 다음 동작에서 다시 할 수 있음
+    private void endLeaning() {
+        leaning = false;
+        stallHintUsed = false;
+        stallRefAngle = Double.NaN;
+        stallRefAtMs = -1;
     }
 
     private void startHold(long timestampMs) {
@@ -176,8 +249,7 @@ public class HoldCounter implements ExerciseCounter {
         results.add(result);
         lastHoldMinKneeAngle = minKneeAngle;
         needRelease = true;
-        releaseAngle = Math.min(criteria.extendedAngle, average + criteria.releaseRiseDegrees);
-        uprightAngle = releaseAngle;
+        releaseAngle = Math.max(criteria.extendedAngle, average - criteria.releaseRiseDegrees);
         clearHold();
         feedback = RepetitionCounter.Feedback.RELEASE;
         return result;
@@ -189,6 +261,9 @@ public class HoldCounter implements ExerciseCounter {
                     Double.NaN, Double.NaN, heldMs, currentFrameStats());
         }
         clearHold();
+        // 유지가 끝나도 계속 숙이고 있으면 같은 동작: 멈춤 안내 시간은 지금부터 다시 잼
+        stallRefAngle = smoothedAngle;
+        stallRefAtMs = lastVisibleAtMs;
     }
 
     private void clearHold() {
@@ -211,6 +286,7 @@ public class HoldCounter implements ExerciseCounter {
             window.clear();
             smoothedAngle = Double.NaN;
             lastAcceptedAngle = Double.NaN;
+            endLeaning();
             feedback = RepetitionCounter.Feedback.NOT_VISIBLE;
         }
         // 짧게 안 보인 프레임은 건너뛰고 상태 유지 (유지 시간은 늘지 않음)
@@ -242,8 +318,10 @@ public class HoldCounter implements ExerciseCounter {
         lastVisibleAtMs = -1;
         skippedFrameCount = 0;
         needRelease = false;
-        uprightAngle = Double.NaN;
+        awaitingUpright = false;
+        kneeBent = false;
         clearHold();
+        endLeaning();
         smoothedAngle = Double.NaN;
         lastHoldMinKneeAngle = Double.NaN;
         feedback = RepetitionCounter.Feedback.NOT_VISIBLE;
@@ -263,8 +341,17 @@ public class HoldCounter implements ExerciseCounter {
         return false;
     }
 
+    /**
+     * 동작 진행 중: 유지 중이거나, 유지 전후로 앞으로 숙인 동작 중 (다시 세우면 끝)
+     * (같은 동작 안에서 "유지하세요"를 한 번만 읽고, 목표 안내는 다음 동작을 시작하면 내리는 기준)
+     */
     @Override
     public boolean isRepInProgress() {
+        return holdStartedAtMs >= 0 || (leaning && !needRelease);
+    }
+
+    /** 유지 중인지 (진행 중인 유지 포함) */
+    public boolean isHolding() {
         return holdStartedAtMs >= 0;
     }
 

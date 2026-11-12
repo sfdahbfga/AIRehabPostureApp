@@ -168,6 +168,8 @@ public class ExerciseActivity extends AppCompatActivity {
     private final GoalHint goalHint = new GoalHint();
     // 안내 문구를 음성으로 읽을지 정함 (자세 경고는 동작마다 한 번 등)
     private final FeedbackVoiceFilter voiceFilter = new FeedbackVoiceFilter();
+    // 디버그용: 마지막 프레임의 앞으로 숙인 상체 기울기 (하체 스트레칭)
+    private double lastForwardLean = Double.NaN;
 
     // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 + 다시 요청 / 설정 열기 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
@@ -527,6 +529,11 @@ public class ExerciseActivity extends AppCompatActivity {
             boolean judgeHip = criteria.judgedJoint == ExerciseCriteria.JudgedJoint.HIP;
             LegSelector.LegSample left = PoseMeasurer.measureSide(pose, criteria.leftSide, judgeHip, imageWidth, imageHeight);
             LegSelector.LegSample right = PoseMeasurer.measureSide(pose, criteria.rightSide, judgeHip, imageWidth, imageHeight);
+            // 하체 스트레칭: 다리를 정하지 않고 프레임마다 앞으로 숙인 상체 기울기 (어깨·엉덩이가 잘 보이는 쪽)
+            double forwardLean = criteria.isHoldType()
+                    ? PoseMeasurer.measureForwardLean(pose, criteria.leftSide, criteria.rightSide,
+                    imageWidth, imageHeight, 0)
+                    : Double.NaN;
             long timestampMs = result.timestampMs();
 
             runOnUiThread(() -> {
@@ -534,7 +541,8 @@ public class ExerciseActivity extends AppCompatActivity {
                     return;
                 }
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
-                LegSelector.LegSample chosen = countRepetition(timestampMs, left, right);
+                lastForwardLean = forwardLean;
+                LegSelector.LegSample chosen = countRepetition(timestampMs, left, right, forwardLean);
                 countDebugFrame(pose == null, chosen == null, left.isCandidate() != right.isCandidate());
                 showDebugKneeAngles(left, right, chosen);
             });
@@ -555,7 +563,7 @@ public class ExerciseActivity extends AppCompatActivity {
     // 반환값: 이번 프레임에 고른 다리 (디버그 표시용, 측정하지 않거나 후보가 없으면 null)
     @Nullable
     private LegSelector.LegSample countRepetition(long timestampMs, LegSelector.LegSample left,
-                                                  LegSelector.LegSample right) {
+                                                  LegSelector.LegSample right, double forwardLean) {
         if (repetitionCounter == null || pausableCounter == null || exerciseCriteria == null) {
             return null;
         }
@@ -563,36 +571,44 @@ public class ExerciseActivity extends AppCompatActivity {
         if (pausableCounter.isPaused()) {
             return null;
         }
+        LegSelector.LegSample chosen = null;
+        RepetitionCounter.RepResult rep;
+        if (exerciseCriteria.isHoldType()) {
+            // 하체 스트레칭: 다리를 정하지 않고 앉으면 바로 측정
+            // 판정 값 = 앞으로 숙인 상체 기울기, 무릎 = 잘 보이는 다리 중 더 펴진 다리
+            rep = pausableCounter.onFrame(timestampMs, forwardLean, Double.NaN,
+                    PoseMeasurer.straighterKneeAngle(left, right));
+            return afterCount(rep, chosen);
+        }
         if (!legSelector.isLocked()) {
-            if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.lockMinAngle,
-                    exerciseCriteria.lockMaxAngle)) {
-                // 다리를 정하는 중: 사람(다리)이 보이면 정옆으로 서도록(앉는 운동은 앉도록), 아니면 전신이 보이도록 안내
-                // (하체 스트레칭은 항상 "옆으로 앉아 주세요")
+            if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.lockMinAngle)) {
+                // 다리를 정하는 중: 사람(다리)이 보이면 정옆으로 서도록, 아니면 전신이 보이도록 안내
                 showFeedback(FeedbackMessages.beforeLegLocked(exerciseCriteria,
                         left.isCandidate() || right.isCandidate()));
                 return null;
             }
             legLockedHintUntilMs = SystemClock.uptimeMillis() + LEG_LOCKED_HINT_MS;
             logLegLocked();
-        } else if (legSelector.observeForRelock(left, right, timestampMs, repetitionCounter.isRepInProgress(),
-                exerciseCriteria.relockHiddenMs)) {
-            // 하체 스트레칭: 정해진 다리가 계속 가려지고 반대 다리가 잘 보이면 반대 다리로 다시 정함 (유지 중에는 바꾸지 않음)
-            logLegLocked();
         }
-        LegSelector.LegSample chosen = legSelector.selectLocked(left, right);
+        chosen = legSelector.selectLocked(left, right);
         // 디버그용: 한쪽 다리만 visibility 부족이었던 프레임 수 (동작 단위)
         if (repetitionCounter.isRepInProgress() && left.isCandidate() != right.isCandidate()) {
             oneLegLowVisFramesInRep++;
         }
-        RepetitionCounter.RepResult rep;
         if (chosen == null) {
             // 정해진 다리가 잘 안 보임 → 이 프레임은 건너뜀 (1초 넘게 이어지면 카운터가 "전신이 보이게" 안내)
             rep = pausableCounter.onFrame(timestampMs, Double.NaN, Double.NaN, Double.NaN);
         } else {
-            // 보조 각도: 횟수형은 엉덩이 각도(엉덩이 규칙), 유지형은 펴야 하는 다리의 무릎 각도
-            double auxAngle = exerciseCriteria.isHoldType() ? chosen.kneeAngle : chosen.hipAngle;
-            rep = pausableCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, auxAngle);
+            // 보조 각도: 엉덩이 각도 (엉덩이 규칙)
+            rep = pausableCounter.onFrame(timestampMs, chosen.jointAngle, chosen.trunkLean, chosen.hipAngle);
         }
+        return afterCount(rep, chosen);
+    }
+
+    // 측정기에 프레임을 넣은 뒤: 횟수 / 버려진 동작 기록, 안내 문구 (모든 운동 공통)
+    @Nullable
+    private LegSelector.LegSample afterCount(@Nullable RepetitionCounter.RepResult rep,
+                                             @Nullable LegSelector.LegSample chosen) {
         if (rep != null) {
             logRepResult(rep);
             updateExerciseStatus();
@@ -662,16 +678,15 @@ public class ExerciseActivity extends AppCompatActivity {
                 ((HoldCounter) repetitionCounter).getHeldMs() / 1000.0);
     }
 
-    // 디버그용 (하체 스트레칭 기준 재측정): 다리를 정하기 전에도 프레임마다
-    // 양쪽 상체 기울기 / 잘 보이는 쪽(상체 기울기와 그쪽 엉덩이 각도) / 잘 보이는 다리 중 더 펴진 다리의 무릎 각도
+    // 디버그용 (하체 스트레칭): 판정 값(앞으로 숙인 상체 기울기, 평균 전) / 양쪽 상체 기울기(부호 없음) /
+    // 잘 보이는 쪽 엉덩이 각도 / 잘 보이는 다리 중 더 펴진 다리의 무릎 각도
     private String debugTrunkSuffix(LegSelector.LegSample left, LegSelector.LegSample right) {
         if (!(repetitionCounter instanceof HoldCounter)) {
             return "";
         }
         LegSelector.LegSample better = PoseMeasurer.betterTrunkSide(left, right);
-        return String.format(Locale.US, " trunk L=%s R=%s best=%s:%s hipBest=%s kneeStraight=%s",
-                formatAngle(left.trunkLean), formatAngle(right.trunkLean),
-                better == null ? "-" : better.label, better == null ? "-" : formatAngle(better.trunkLean),
+        return String.format(Locale.US, " lean=%s trunk L=%s R=%s hipBest=%s kneeStraight=%s",
+                formatAngle(lastForwardLean), formatAngle(left.trunkLean), formatAngle(right.trunkLean),
                 better == null ? "-" : formatAngle(better.hipAngle),
                 formatAngle(PoseMeasurer.straighterKneeAngle(left, right)));
     }
@@ -685,9 +700,9 @@ public class ExerciseActivity extends AppCompatActivity {
         if (!DEBUG_LOG_REPS) {
             return;
         }
-        Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] leg locked=%s avgVis L=%.2f R=%.2f relocks=%d",
+        Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] leg locked=%s avgVis L=%.2f R=%.2f",
                 debugExerciseId(), legSelector.getLockedLabel(), legSelector.getLockedLeftAverage(),
-                legSelector.getLockedRightAverage(), legSelector.getRelockCount()));
+                legSelector.getLockedRightAverage()));
     }
 
     // 같은 문구면 다시 그리지 않음 (매 프레임 호출됨)

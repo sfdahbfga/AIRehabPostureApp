@@ -132,35 +132,35 @@ public final class ExerciseCriteria {
     /**
      * 하체 스트레칭 (앉아서 하는 허벅지 뒤 스트레칭, 유지 시간형): 의자 끝에 카메라 쪽으로 옆으로 앉아,
      * 카메라 쪽 다리를 앞으로 쭉 펴고 뒤꿈치를 바닥에 댄 채, 허리를 편 상태로 상체를 앞으로 숙여 유지한다.
-     * 판정은 편 다리 쪽 엉덩이 각도(어깨-엉덩이-무릎). 작을수록 많이 숙인 것 (고관절 굽힘 = 180 - 엉덩이 각도)
-     * - 뒤꿈치를 바닥에 대면 허벅지가 약 20~35도 아래로 기울어, 똑바로 앉았을 때 엉덩이 각도가 약 115~125도
-     * - 목표 95도 (고관절 굽힘 85도): 무릎을 편 채 고관절을 굽히는 정상 범위(다리 들어 올리기 기준 약 70~90도)의 중간
-     *   → 똑바로 앉은 자세에서 상체를 약 20~30도 숙이면 닿는 정도
-     * - 유지 인정 110도 이하 (고관절 굽힘 70도, 정상 범위의 아래쪽): 이보다 덜 숙이면 유지 시간이 쌓이지 않음
-     * - 덜 숙임 허용 5도(100도까지 만점), 더 숙임 허용 20도(75도까지 만점, 스트레칭은 더 숙여도 위험이 적음)
-     * - 편 다리 무릎 160도 이상: 무릎을 20도 넘게 굽히면 허벅지 뒤가 늘어나지 않으므로 유지 시간을 멈춤
+     * 판정 값 = 앞으로 숙인 상체 기울기 (어깨-엉덩이 선이 수직에서 기운 각도, 앞으로 숙임 +, 뒤로 기댐 -).
+     * 클수록 많이 숙인 것 (higherIsDeeper). 다리를 정하지 않고 프레임마다 어깨·엉덩이가 더 잘 보이는 쪽 값을 쓴다.
+     * - 엉덩이 각도는 의자 높이 / 허벅지 각도 / 뒤로 기댄 정도에 따라 똑바로 앉아도 98~142도로 달라져 고정 기준이 맞지 않았음
+     * - 1차 실측(2026-11-12, 1명, 다리를 쭉 펴고 앉음): 똑바로 앉기 -23도(뒤로 기댐), 살짝 숙임 +8~12도, 깊게 숙임 +40~54도
+     * - 유지 인정 20도 이상 (살짝 숙임 최대 12.3도와 약 8도 간격). 유지 중에는 17도 아래로 1초 넘게 내려가야 끊김 (holdKeepAngle)
+     * - 목표 30도: "똑바로 앉은 자세에서 20~30도 숙임". 덜 숙임 허용 5도(25도까지 만점), 더 숙임 허용 20도(50도까지 만점)
+     * - 다시 세운 상태: 10도 이하 또는 직전 유지 평균 - 15도 이하
+     * - 무릎: 잘 보이는 다리 중 더 펴진 다리가 160도 이상 (스트레칭하는 다리는 펴지고 반대쪽은 굽혀짐)
      * - 20초 유지: 정적 스트레칭 권장 시간(15~30초)의 중간값
-     * 상체 기울기는 등을 둥글게 말아도 커지므로 점수에 쓰지 않는다. (back은 저장하지 않음)
+     * 저장 키는 hip 그대로 (값 = 목표 - 유지 중 평균 상체 기울기, +: 덜 숙임, -: 더 숙임). back은 저장하지 않음
+     * TODO(실전 테스트): 다른 사람·의자 높이로 유지 인정 20° / 목표 30° 재확인 (1차 실측은 1명, 무릎 굽힌 자세는 측정 안 함)
      */
     public static final ExerciseCriteria SEATED_HAMSTRING_STRETCH =
             new Builder(ID_SEATED_HAMSTRING_STRETCH, "하체 스트레칭")
-            .judgedJoint(JudgedJoint.HIP)
+            .judgedJoint(JudgedJoint.HIP)  // joint_errors 저장 키 (hip). 판정 값은 상체 기울기
+            .higherIsDeeper(true)
             .targetReps(3)             // 20초 유지 x 3회
             .holdDurationMs(20000)
-            .lockMinAngle(0)           // 앉은 자세라 아래 기준은 보지 않음
-            .lockMaxAngle(150)         // 엉덩이 각도 150도 이하(앉음)로 1초 이어질 때 정함 (서 있거나 앉는 중이면 약 160~180도)
-                                       // 1차 실측(2026-11-12): 앉기 전 움직이는 중에 다리가 정해져 먼 다리로 고정됨
-            .relockHiddenMs(2000)      // 정해진 다리가 2초 넘게 안 보이고 반대 다리는 계속 잘 보이면 반대 다리로 다시 정함
-                                       // (1차 실측: 앉으며 몸 방향을 바꿔 정해진 다리가 계속 가려짐, 유지 시간 최대 1.5초)
-            .extendedAngle(120)        // 다시 세운 상태 (1회를 마친 뒤 이 각도 이상 또는 직전 유지 평균 + 15도 이상)
+            .lockMinAngle(0)           // 다리를 정하지 않음 (쓰이지 않음)
+            .extendedAngle(10)         // 다시 세운 상태 (1회를 마친 뒤 이 각도 이하 또는 직전 유지 평균 - 15도 이하)
             .releaseRiseDegrees(15)
-            .bentAngle(110)            // 이 각도 이하에서 유지 시간이 쌓임
-            .targetAngle(95)
+            .bentAngle(20)             // 이 각도 이상이면 유지 시작
+            .holdKeepAngle(17)         // 유지 중에는 이 각도 이상이면 유지가 이어짐 (기준 근처에서 시작 / 끊김 반복 방지)
+            .targetAngle(30)
             .underBendTolerance(5)
             .overBendTolerance(20)
             .minKneeAngle(160)
             .holdGraceMs(1000)         // 기준 밖으로 1초까지는 유지가 이어짐 (시간은 멈춤)
-            .maxInvisibleMs(1500)      // 발끝 쪽으로 손을 뻗으면 무릎·발목이 가려질 수 있어 무릎 굽힘(1초)보다 길게
+            .maxInvisibleMs(1500)      // 발끝 쪽으로 손을 뻗으면 어깨·엉덩이가 가려질 수 있어 무릎 굽힘(1초)보다 길게
             .build();
 
     // L11: 앱 안에서는 고정 키(id)로 운동을 찾는다. 한글 이름은 화면 표시와 DB 저장(exercise_name)에만 쓴다.
@@ -210,10 +210,10 @@ public final class ExerciseCriteria {
     public final int targetReps;
     // 운동하는 다리를 정할 때 "자세를 잡았다"고 보는 판정 각도 (이 각도 이상). 0이면 각도는 보지 않음
     public final double lockMinAngle;
-    // 운동하는 다리를 정할 때 더 잘 보이는 다리의 판정 각도가 이 각도 이하여야 함 (앉은 뒤에 정하기). 0이면 보지 않음
-    public final double lockMaxAngle;
-    // 정해진 다리가 이 시간 넘게 안 보이고 반대 다리는 계속 잘 보이면(유지 / 동작 중이 아닐 때) 반대 다리로 다시 정함. 0이면 다시 정하지 않음
-    public final long relockHiddenMs;
+    // 판정 값이 클수록 많이 한 것이면 true (하체 스트레칭: 앞으로 숙인 상체 기울기). false면 작을수록 많이 굽힌 것 (무릎 / 엉덩이 각도)
+    public final boolean higherIsDeeper;
+    // 유지형: 유지 중에는 이 값까지 유지가 이어짐 (higherIsDeeper면 이 값 이상). NaN이면 bentAngle과 같음
+    public final double holdKeepAngle;
     // 판정 관절 (joint_errors 저장 키: KNEE → knee, HIP → hip)
     public final JudgedJoint judgedJoint;
     // 유지 시간형이면 1회로 인정하는 유지 시간 (0이면 횟수형)
@@ -258,8 +258,8 @@ public final class ExerciseCriteria {
         this.targetReps = b.targetReps;
         // 지정하지 않으면 편 상태 각도 이상일 때 다리를 정함 (무릎 굽힘과 같음)
         this.lockMinAngle = Double.isNaN(b.lockMinAngle) ? b.extendedAngle : b.lockMinAngle;
-        this.lockMaxAngle = b.lockMaxAngle;
-        this.relockHiddenMs = b.relockHiddenMs;
+        this.higherIsDeeper = b.higherIsDeeper;
+        this.holdKeepAngle = Double.isNaN(b.holdKeepAngle) ? b.bentAngle : b.holdKeepAngle;
         this.judgedJoint = b.judgedJoint;
         this.holdDurationMs = b.holdDurationMs;
         this.holdGraceMs = b.holdGraceMs;
@@ -296,8 +296,8 @@ public final class ExerciseCriteria {
         private final String exerciseName;
         private int targetReps = 10;
         private double lockMinAngle = Double.NaN;
-        private double lockMaxAngle = 0;
-        private long relockHiddenMs = 0;
+        private boolean higherIsDeeper;
+        private double holdKeepAngle = Double.NaN;
         private JudgedJoint judgedJoint = JudgedJoint.KNEE;
         private long holdDurationMs = 0;
         private long holdGraceMs = 1000;
@@ -345,8 +345,8 @@ public final class ExerciseCriteria {
 
         public Builder targetReps(int v) { targetReps = v; return this; }
         public Builder lockMinAngle(double v) { lockMinAngle = v; return this; }
-        public Builder lockMaxAngle(double v) { lockMaxAngle = v; return this; }
-        public Builder relockHiddenMs(long v) { relockHiddenMs = v; return this; }
+        public Builder higherIsDeeper(boolean v) { higherIsDeeper = v; return this; }
+        public Builder holdKeepAngle(double v) { holdKeepAngle = v; return this; }
         public Builder judgedJoint(JudgedJoint v) { judgedJoint = v; return this; }
         public Builder holdDurationMs(long v) { holdDurationMs = v; return this; }
         public Builder holdGraceMs(long v) { holdGraceMs = v; return this; }
@@ -383,9 +383,12 @@ public final class ExerciseCriteria {
         return maxJumpDegrees + maxDegreesPerSecond * Math.max(0, elapsedMs) / 1000.0;
     }
 
-    /** 관절 오차 = 가장 많이 굽힌 각도 - 목표 각도 (+: 덜 굽힘, -: 더 굽힘) */
+    /**
+     * 관절 오차 (+: 덜 굽힘 / 덜 숙임, -: 더 굽힘 / 더 숙임)
+     * 무릎 / 엉덩이 각도: 가장 많이 굽힌 각도 - 목표 각도. higherIsDeeper(상체 숙임): 목표 각도 - 유지 중 평균 각도
+     */
     public double jointError(double minAngle) {
-        return minAngle - targetAngle;
+        return higherIsDeeper ? targetAngle - minAngle : minAngle - targetAngle;
     }
 
     /** 관절 점수 0~100: 허용 범위 안이면 100, 넘은 만큼 1도당 pointsPerDegree 감점 */

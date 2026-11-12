@@ -201,13 +201,13 @@ public class AIReportActivity extends AppCompatActivity {
             exerciseNameText.setText(metrics.exerciseName);
         }
         Map<String, Double> jointErrors = metrics.jointErrors;
-        // M6: 엉덩이(hip)를 판정하는 운동(하체 스트레칭)은 레이아웃에 엉덩이 줄이 없으므로
-        // 무릎 줄의 이름을 "엉덩이 평균 오차"로 바꿔 hip 값을 표시 (프론트엔드에 엉덩이 줄 추가 요청)
+        // M6: hip 키를 저장하는 운동(하체 스트레칭)은 레이아웃에 해당 줄이 없으므로
+        // 무릎 줄의 이름을 바꿔 hip 값을 표시. 하체 스트레칭의 hip 값은 상체 숙임 오차이므로 "상체 숙임 평균 오차"
         Double hipError = jointErrors == null ? null : jointErrors.get(JointKeys.HIP);
         Double kneeError = jointErrors == null ? null : jointErrors.get(JointKeys.KNEE);
         if (hipError != null && kneeError == null) {
             TextView kneeLabel = findViewById(R.id.kneeAverageErrorLabelText);
-            kneeLabel.setText(R.string.hip_average_error);
+            kneeLabel.setText(R.string.stretch_lean_average_error);
             showAngleError(R.id.kneeAverageErrorText, hipError);
         } else {
             showAngleError(R.id.kneeAverageErrorText, kneeError);

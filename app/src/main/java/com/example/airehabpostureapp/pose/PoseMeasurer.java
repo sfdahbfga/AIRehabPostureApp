@@ -48,6 +48,87 @@ public final class PoseMeasurer {
                 minVisibility, averageVisibility, kneeAngle);
     }
 
+    // 앞쪽(무릎 / 발목 방향)을 정할 때 엉덩이와 이만큼(이미지 너비 비율) 이상 떨어져 있어야 함
+    private static final double MIN_FORWARD_OFFSET = 0.02;
+
+    /**
+     * 앞으로 숙인 상체 기울기 (하체 스트레칭 판정 값): 어깨-엉덩이 선이 수직에서 기운 각도, 앞으로 숙임 +, 뒤로 기댐 -
+     * - 다리를 정하지 않고 프레임마다 어깨·엉덩이가 잘 보이는(visibility 0.5 이상) 쪽 중 평균 visibility가 높은 쪽을 쓴다.
+     * - 앞쪽 = 그쪽 무릎(가까이 붙어 있으면 발목)이 엉덩이보다 있는 방향 (앉아서 다리를 앞으로 뻗음)
+     * - tiltDegrees: 휴대폰이 기운 만큼 이미지의 수직이 돌아간 각도 (PhoneTilt.imageVerticalOffset). 모르면 0
+     * 계산할 수 없으면 NaN
+     */
+    public static double measureForwardLean(@Nullable List<NormalizedLandmark> pose,
+                                            ExerciseCriteria.Side left, ExerciseCriteria.Side right,
+                                            int imageWidth, int imageHeight, double tiltDegrees) {
+        if (pose == null) {
+            return Double.NaN;
+        }
+        ExerciseCriteria.Side side = betterTrunkSide(pose, left, right);
+        if (side == null) {
+            return Double.NaN;
+        }
+        NormalizedLandmark shoulder = pose.get(side.shoulder);
+        NormalizedLandmark hip = pose.get(side.first);
+        int forward = forwardDirection(pose, side, hip);
+        if (forward == 0) {
+            return Double.NaN;
+        }
+        return signedForwardLean(shoulder.x() * imageWidth, shoulder.y() * imageHeight,
+                hip.x() * imageWidth, hip.y() * imageHeight, forward, tiltDegrees);
+    }
+
+    /**
+     * 순수 계산: 엉덩이 → 어깨 선이 이미지 위쪽에서 기운 각도(이미지 오른쪽 +)에 휴대폰 기울기를 보정하고
+     * 앞쪽 방향(forward: 이미지 오른쪽 +1 / 왼쪽 -1)으로 부호를 맞춘다. 앞으로 숙임 +
+     */
+    public static double signedForwardLean(double shoulderX, double shoulderY, double hipX, double hipY,
+                                           int forward, double tiltDegrees) {
+        double imageAngle = Math.toDegrees(Math.atan2(shoulderX - hipX, hipY - shoulderY));
+        double trueAngle = imageAngle + tiltDegrees;
+        // -180~180 범위로
+        trueAngle = ((trueAngle + 540) % 360) - 180;
+        return trueAngle * forward;
+    }
+
+    @Nullable
+    private static ExerciseCriteria.Side betterTrunkSide(List<NormalizedLandmark> pose,
+                                                         ExerciseCriteria.Side left, ExerciseCriteria.Side right) {
+        float leftScore = trunkVisibility(pose, left);
+        float rightScore = trunkVisibility(pose, right);
+        if (leftScore < 0 && rightScore < 0) {
+            return null;
+        }
+        return leftScore >= rightScore ? left : right;
+    }
+
+    // 어깨·엉덩이가 모두 잘 보이면 평균 visibility, 아니면 -1
+    private static float trunkVisibility(List<NormalizedLandmark> pose, ExerciseCriteria.Side side) {
+        if (pose.size() <= Math.max(side.shoulder, side.first)) {
+            return -1;
+        }
+        float shoulder = visibility(pose, side.shoulder);
+        float hip = visibility(pose, side.first);
+        if (shoulder < MIN_VISIBILITY || hip < MIN_VISIBILITY) {
+            return -1;
+        }
+        return (shoulder + hip) / 2f;
+    }
+
+    // 앞쪽 방향: 무릎(엉덩이와 너무 가까우면 발목)이 엉덩이보다 이미지 오른쪽이면 +1, 왼쪽이면 -1, 알 수 없으면 0
+    private static int forwardDirection(List<NormalizedLandmark> pose, ExerciseCriteria.Side side,
+                                        NormalizedLandmark hip) {
+        for (int index : new int[]{side.middle, side.last}) {
+            if (index < pose.size()) {
+                double offset = pose.get(index).x() - hip.x();
+                if (Math.abs(offset) >= MIN_FORWARD_OFFSET) {
+                    return offset > 0 ? 1 : -1;
+                }
+            }
+        }
+        return 0;
+    }
+
     /**
      * 상체 기울기를 쓸 쪽: 상체 기울기를 계산할 수 있는(어깨·엉덩이가 잘 보이는) 쪽 중 평균 visibility가 높은 쪽.
      * 두 쪽 모두 계산할 수 없으면 null (다리를 정하지 않고 프레임마다 고름)
