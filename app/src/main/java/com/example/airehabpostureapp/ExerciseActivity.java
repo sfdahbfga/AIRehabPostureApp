@@ -48,6 +48,7 @@ import com.example.airehabpostureapp.pose.GoalHint;
 import com.example.airehabpostureapp.pose.HoldCounter;
 import com.example.airehabpostureapp.pose.LegSelector;
 import com.example.airehabpostureapp.pose.PausableCounter;
+import com.example.airehabpostureapp.pose.PhoneTilt;
 import com.example.airehabpostureapp.pose.PoseLandmarkerHelper;
 import com.example.airehabpostureapp.pose.PoseMeasurer;
 import com.example.airehabpostureapp.pose.PoseOverlayView;
@@ -168,8 +169,11 @@ public class ExerciseActivity extends AppCompatActivity {
     private final GoalHint goalHint = new GoalHint();
     // 안내 문구를 음성으로 읽을지 정함 (자세 경고는 동작마다 한 번 등)
     private final FeedbackVoiceFilter voiceFilter = new FeedbackVoiceFilter();
-    // 디버그용: 마지막 프레임의 앞으로 숙인 상체 기울기 (하체 스트레칭)
+    // 디버그용: 마지막 프레임의 앞으로 숙인 상체 기울기 / 그때 휴대폰 기울기 (하체 스트레칭)
     private double lastForwardLean = Double.NaN;
+    private double lastPhoneRoll = Double.NaN;
+    // 휴대폰이 화면 안에서 좌우로 기운 각도 (상체 기울기 보정, 센서가 없으면 NaN → 보정 없음)
+    private PhoneTiltSensor phoneTiltSensor;
 
     // 카메라 권한 요청 결과: 허용하면 카메라 시작, 거부하면 안내 + 다시 요청 / 설정 열기 (운동 화면은 그대로 유지)
     private final ActivityResultLauncher<String> cameraPermissionLauncher = registerForActivityResult(
@@ -234,6 +238,7 @@ public class ExerciseActivity extends AppCompatActivity {
         // 운동 이름으로 자세 인식 기준을 찾고, 없으면 측정하지 않고 안내만 표시
         postureFeedbackText = findViewById(R.id.postureFeedbackText);
         voiceGuide = new VoiceGuide(this);
+        phoneTiltSensor = new PhoneTiltSensor(this);
         // L11: 고정 키로 운동 기준을 찾고, 키가 없으면(예전 흐름) 이름으로 찾음
         String exerciseId = getIntent().getStringExtra(ExerciseFlowExtras.EXERCISE_ID);
         exerciseCriteria = exerciseId != null
@@ -530,9 +535,11 @@ public class ExerciseActivity extends AppCompatActivity {
             LegSelector.LegSample left = PoseMeasurer.measureSide(pose, criteria.leftSide, judgeHip, imageWidth, imageHeight);
             LegSelector.LegSample right = PoseMeasurer.measureSide(pose, criteria.rightSide, judgeHip, imageWidth, imageHeight);
             // 하체 스트레칭: 다리를 정하지 않고 프레임마다 앞으로 숙인 상체 기울기 (어깨·엉덩이가 잘 보이는 쪽)
+            // 휴대폰이 좌우로 기운 만큼 보정 (센서가 없으면 보정 없음)
+            double phoneRoll = phoneTiltSensor.getRollDegrees();
             double forwardLean = criteria.isHoldType()
                     ? PoseMeasurer.measureForwardLean(pose, criteria.leftSide, criteria.rightSide,
-                    imageWidth, imageHeight, 0)
+                    imageWidth, imageHeight, PhoneTilt.imageVerticalOffset(phoneRoll))
                     : Double.NaN;
             long timestampMs = result.timestampMs();
 
@@ -542,6 +549,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 }
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
                 lastForwardLean = forwardLean;
+                lastPhoneRoll = phoneRoll;
                 LegSelector.LegSample chosen = countRepetition(timestampMs, left, right, forwardLean);
                 countDebugFrame(pose == null, chosen == null, left.isCandidate() != right.isCandidate());
                 showDebugKneeAngles(left, right, chosen);
@@ -643,6 +651,9 @@ public class ExerciseActivity extends AppCompatActivity {
             // (다리가 안 보이면 "전신이 보이게"가 우선)
             // 왼쪽/오른쪽은 표시하지 않음 (옆모습에서는 MediaPipe의 L/R 이름이 실제 다리와 다를 수 있음)
             showFeedback(FeedbackMessages.legLocked(exerciseCriteria));
+        } else if (exerciseCriteria.isHoldType() && PhoneTilt.isTooTilted(lastPhoneRoll)) {
+            // 하체 스트레칭: 상체 기울기는 휴대폰이 많이 기울면 보정해도 부정확하므로 먼저 세우도록 안내
+            showFeedback(R.string.feedback_phone_upright);
         } else if (goalDisplay == GoalHint.Display.GOAL) {
             showFeedback(R.string.feedback_goal_reached);
         } else if (goalDisplay == GoalHint.Display.RELEASE_FOLLOW_UP) {
@@ -685,8 +696,9 @@ public class ExerciseActivity extends AppCompatActivity {
             return "";
         }
         LegSelector.LegSample better = PoseMeasurer.betterTrunkSide(left, right);
-        return String.format(Locale.US, " lean=%s trunk L=%s R=%s hipBest=%s kneeStraight=%s",
-                formatAngle(lastForwardLean), formatAngle(left.trunkLean), formatAngle(right.trunkLean),
+        return String.format(Locale.US, " lean=%s tilt=%s trunk L=%s R=%s hipBest=%s kneeStraight=%s",
+                formatAngle(lastForwardLean), formatAngle(lastPhoneRoll),
+                formatAngle(left.trunkLean), formatAngle(right.trunkLean),
                 better == null ? "-" : formatAngle(better.hipAngle),
                 formatAngle(PoseMeasurer.straighterKneeAngle(left, right)));
     }
@@ -885,6 +897,7 @@ public class ExerciseActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        phoneTiltSensor.start();
         // L1: 설정 화면에서 카메라 권한을 허용하고 돌아온 경우
         if (!cameraStarted && hasCameraPermission()) {
             startCamera();
@@ -903,6 +916,7 @@ public class ExerciseActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        phoneTiltSensor.stop();
         timerHandler.removeCallbacks(timerRunnable);
         voiceGuide.stop();
     }
