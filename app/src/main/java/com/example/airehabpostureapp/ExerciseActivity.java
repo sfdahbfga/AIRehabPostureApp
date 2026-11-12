@@ -241,7 +241,7 @@ public class ExerciseActivity extends AppCompatActivity {
             repetitionCounter = createCounter(exerciseCriteria);
             pausableCounter = new PausableCounter(repetitionCounter);
             targetReps = exerciseCriteria.targetReps;
-            showFeedback(R.string.feedback_full_body_visible);
+            showFeedback(FeedbackMessages.beforeLegLocked(exerciseCriteria, false));
         } else {
             showFeedback(R.string.feedback_pose_not_supported);
         }
@@ -565,14 +565,19 @@ public class ExerciseActivity extends AppCompatActivity {
             return null;
         }
         if (!legSelector.isLocked()) {
-            if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.lockMinAngle)) {
+            if (!legSelector.observeForLock(left, right, timestampMs, exerciseCriteria.lockMinAngle,
+                    exerciseCriteria.lockMaxAngle)) {
                 // 다리를 정하는 중: 사람(다리)이 보이면 정옆으로 서도록(앉는 운동은 앉도록), 아니면 전신이 보이도록 안내
-                showFeedback(left.isCandidate() || right.isCandidate()
-                        ? FeedbackMessages.sideways(exerciseCriteria)
-                        : R.string.feedback_full_body_visible);
+                // (하체 스트레칭은 항상 "옆으로 앉아 주세요")
+                showFeedback(FeedbackMessages.beforeLegLocked(exerciseCriteria,
+                        left.isCandidate() || right.isCandidate()));
                 return null;
             }
             legLockedHintUntilMs = SystemClock.uptimeMillis() + LEG_LOCKED_HINT_MS;
+            logLegLocked();
+        } else if (legSelector.observeForRelock(left, right, timestampMs, repetitionCounter.isRepInProgress(),
+                exerciseCriteria.relockHiddenMs)) {
+            // 하체 스트레칭: 정해진 다리가 계속 가려지고 반대 다리가 잘 보이면 반대 다리로 다시 정함 (유지 중에는 바꾸지 않음)
             logLegLocked();
         }
         LegSelector.LegSample chosen = legSelector.selectLocked(left, right);
@@ -667,9 +672,9 @@ public class ExerciseActivity extends AppCompatActivity {
         if (!DEBUG_LOG_REPS) {
             return;
         }
-        Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] leg locked=%s avgVis L=%.2f R=%.2f",
+        Log.d(DEBUG_TAG, String.format(Locale.US, "[%s] leg locked=%s avgVis L=%.2f R=%.2f relocks=%d",
                 debugExerciseId(), legSelector.getLockedLabel(), legSelector.getLockedLeftAverage(),
-                legSelector.getLockedRightAverage()));
+                legSelector.getLockedRightAverage(), legSelector.getRelockCount()));
     }
 
     // 같은 문구면 다시 그리지 않음 (매 프레임 호출됨)
@@ -926,7 +931,7 @@ public class ExerciseActivity extends AppCompatActivity {
     private void restartExercise() {
         if (repetitionCounter != null) {
             repetitionCounter.reset();
-            showFeedback(R.string.feedback_full_body_visible);
+            showFeedback(FeedbackMessages.beforeLegLocked(exerciseCriteria, false));
         }
         // 운동하는 다리도 처음부터 다시 정함
         legSelector.reset();

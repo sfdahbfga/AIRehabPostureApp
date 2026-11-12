@@ -86,6 +86,9 @@ public final class FeedbackMessages {
     @StringRes
     private static int hamstringStretchFeedback(RepetitionCounter.Feedback feedback) {
         switch (feedback) {
+            case NOT_VISIBLE:
+                // 앉아서 하는 운동이라 "서 주세요" 대신
+                return R.string.feedback_stretch_full_body_visible;
             case START_BENDING:
                 return R.string.feedback_stretch_start;
             case BEND_MORE:
@@ -106,6 +109,22 @@ public final class FeedbackMessages {
         return messageRes == R.string.feedback_squat_rising
                 || messageRes == R.string.feedback_lunge_rising
                 || messageRes == R.string.feedback_knee_rising;
+    }
+
+    /**
+     * 운동하는 다리를 정하기 전 안내: 다리가 보이면 운동별 "옆으로 서 / 앉아 주세요", 안 보이면 "전신이 보이게 서 주세요"
+     * 하체 스트레칭은 앉아서 하는 운동이라 다리가 안 보여도 "의자 끝에 카메라 쪽으로 옆으로 앉아 주세요."
+     */
+    @StringRes
+    public static int beforeLegLocked(@Nullable ExerciseCriteria exerciseCriteria, boolean legVisible) {
+        if (legVisible || isSeated(exerciseCriteria)) {
+            return sideways(exerciseCriteria);
+        }
+        return R.string.feedback_full_body_visible;
+    }
+
+    private static boolean isSeated(@Nullable ExerciseCriteria exerciseCriteria) {
+        return exerciseCriteria != null && ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH.equals(exerciseCriteria.id);
     }
 
     // 다리를 정하기 전 "옆으로 서 주세요" 안내 (운동별)

@@ -147,7 +147,11 @@ public final class ExerciseCriteria {
             .judgedJoint(JudgedJoint.HIP)
             .targetReps(3)             // 20초 유지 x 3회
             .holdDurationMs(20000)
-            .lockMinAngle(0)           // 앉은 자세라 각도는 보지 않고, 정옆으로 앉아 visibility 차이만으로 다리를 정함
+            .lockMinAngle(0)           // 앉은 자세라 아래 기준은 보지 않음
+            .lockMaxAngle(150)         // 엉덩이 각도 150도 이하(앉음)로 1초 이어질 때 정함 (서 있거나 앉는 중이면 약 160~180도)
+                                       // 1차 실측(2026-11-12): 앉기 전 움직이는 중에 다리가 정해져 먼 다리로 고정됨
+            .relockHiddenMs(2000)      // 정해진 다리가 2초 넘게 안 보이고 반대 다리는 계속 잘 보이면 반대 다리로 다시 정함
+                                       // (1차 실측: 앉으며 몸 방향을 바꿔 정해진 다리가 계속 가려짐, 유지 시간 최대 1.5초)
             .extendedAngle(120)        // 다시 세운 상태 (1회를 마친 뒤 이 각도 이상 또는 직전 유지 평균 + 15도 이상)
             .releaseRiseDegrees(15)
             .bentAngle(110)            // 이 각도 이하에서 유지 시간이 쌓임
@@ -206,6 +210,10 @@ public final class ExerciseCriteria {
     public final int targetReps;
     // 운동하는 다리를 정할 때 "자세를 잡았다"고 보는 판정 각도 (이 각도 이상). 0이면 각도는 보지 않음
     public final double lockMinAngle;
+    // 운동하는 다리를 정할 때 더 잘 보이는 다리의 판정 각도가 이 각도 이하여야 함 (앉은 뒤에 정하기). 0이면 보지 않음
+    public final double lockMaxAngle;
+    // 정해진 다리가 이 시간 넘게 안 보이고 반대 다리는 계속 잘 보이면(유지 / 동작 중이 아닐 때) 반대 다리로 다시 정함. 0이면 다시 정하지 않음
+    public final long relockHiddenMs;
     // 판정 관절 (joint_errors 저장 키: KNEE → knee, HIP → hip)
     public final JudgedJoint judgedJoint;
     // 유지 시간형이면 1회로 인정하는 유지 시간 (0이면 횟수형)
@@ -250,6 +258,8 @@ public final class ExerciseCriteria {
         this.targetReps = b.targetReps;
         // 지정하지 않으면 편 상태 각도 이상일 때 다리를 정함 (무릎 굽힘과 같음)
         this.lockMinAngle = Double.isNaN(b.lockMinAngle) ? b.extendedAngle : b.lockMinAngle;
+        this.lockMaxAngle = b.lockMaxAngle;
+        this.relockHiddenMs = b.relockHiddenMs;
         this.judgedJoint = b.judgedJoint;
         this.holdDurationMs = b.holdDurationMs;
         this.holdGraceMs = b.holdGraceMs;
@@ -286,6 +296,8 @@ public final class ExerciseCriteria {
         private final String exerciseName;
         private int targetReps = 10;
         private double lockMinAngle = Double.NaN;
+        private double lockMaxAngle = 0;
+        private long relockHiddenMs = 0;
         private JudgedJoint judgedJoint = JudgedJoint.KNEE;
         private long holdDurationMs = 0;
         private long holdGraceMs = 1000;
@@ -333,6 +345,8 @@ public final class ExerciseCriteria {
 
         public Builder targetReps(int v) { targetReps = v; return this; }
         public Builder lockMinAngle(double v) { lockMinAngle = v; return this; }
+        public Builder lockMaxAngle(double v) { lockMaxAngle = v; return this; }
+        public Builder relockHiddenMs(long v) { relockHiddenMs = v; return this; }
         public Builder judgedJoint(JudgedJoint v) { judgedJoint = v; return this; }
         public Builder holdDurationMs(long v) { holdDurationMs = v; return this; }
         public Builder holdGraceMs(long v) { holdGraceMs = v; return this; }

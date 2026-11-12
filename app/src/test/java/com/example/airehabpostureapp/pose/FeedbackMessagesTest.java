@@ -2,6 +2,7 @@ package com.example.airehabpostureapp.pose;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.example.airehabpostureapp.R;
@@ -87,6 +88,36 @@ public class FeedbackMessagesTest {
         assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_good_stand_up));
         assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_shallow));
         assertFalse(FeedbackMessages.isScreenOnly(R.string.feedback_squat_start));
+    }
+
+    @Test
+    public void hamstringStretch_neverAsksToStand() {
+        ExerciseCriteria c = ExerciseCriteria.SEATED_HAMSTRING_STRETCH;
+        // 측정 중 다리를 놓치면 "전신이 보이게 앉아 주세요."
+        assertEquals(R.string.feedback_stretch_full_body_visible,
+                message(c, RepetitionCounter.Feedback.NOT_VISIBLE, 1));
+        // 다리를 정하기 전에는 다리가 보이든 안 보이든 "옆으로 앉아 주세요"
+        assertEquals(R.string.feedback_stretch_sit_sideways, FeedbackMessages.beforeLegLocked(c, false));
+        assertEquals(R.string.feedback_stretch_sit_sideways, FeedbackMessages.beforeLegLocked(c, true));
+        // 하체 스트레칭 측정기가 내는 안내 전부에 "서 주세요" 문구가 없음
+        for (RepetitionCounter.Feedback f : new RepetitionCounter.Feedback[]{
+                RepetitionCounter.Feedback.NOT_VISIBLE, RepetitionCounter.Feedback.START_BENDING,
+                RepetitionCounter.Feedback.BEND_MORE, RepetitionCounter.Feedback.HOLD,
+                RepetitionCounter.Feedback.STRAIGHTEN_KNEE, RepetitionCounter.Feedback.RELEASE}) {
+            int res = message(c, f, 1);
+            assertNotEquals(f.name(), R.string.feedback_full_body_visible, res);
+            assertNotEquals(f.name(), R.string.feedback_stand_straight, res);
+        }
+    }
+
+    @Test
+    public void standingExercises_beforeLegLocked_unchanged() {
+        for (ExerciseCriteria c : new ExerciseCriteria[]{
+                ExerciseCriteria.KNEE_FLEXION, ExerciseCriteria.CHAIR_SQUAT, ExerciseCriteria.LUNGE}) {
+            assertEquals(R.string.feedback_full_body_visible, FeedbackMessages.beforeLegLocked(c, false));
+            assertEquals(FeedbackMessages.sideways(c), FeedbackMessages.beforeLegLocked(c, true));
+            assertEquals(R.string.feedback_full_body_visible, message(c, RepetitionCounter.Feedback.NOT_VISIBLE, 1));
+        }
     }
 
     @Test

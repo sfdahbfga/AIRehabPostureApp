@@ -86,6 +86,9 @@ public class LegSelector {
     // 정해질 때의 다리별 평균 visibility (디버그 기록용)
     private double lockedLeftAverage = Double.NaN;
     private double lockedRightAverage = Double.NaN;
+    // 다시 정하기: 정해진 다리가 안 보이고 반대 다리는 잘 보이는 상태가 시작된 시각 / 다시 정한 횟수
+    private long relockWindowStartMs = -1;
+    private int relockCount;
 
     /**
      * 운동하는 다리를 정하기 위한 프레임 하나를 반영한다.
@@ -98,11 +101,21 @@ public class LegSelector {
      * @return 이 프레임에서 다리가 정해졌으면 true
      */
     public boolean observeForLock(LegSample left, LegSample right, long timestampMs, double extendedAngle) {
+        return observeForLock(left, right, timestampMs, extendedAngle, 0);
+    }
+
+    /**
+     * maxAngle > 0이면 더 잘 보이는 다리가 잘 보이고 판정 각도가 maxAngle 이하일 때만 센다.
+     * (하체 스트레칭: 엉덩이 각도 150도 이하 = 앉은 뒤에만 정함. 서 있거나 앉는 중에는 정하지 않음)
+     */
+    public boolean observeForLock(LegSample left, LegSample right, long timestampMs, double extendedAngle,
+                                  double maxAngle) {
         if (lockedLabel != null) {
             return false;
         }
         String higherLabel = moreVisibleLabel(left, right);
-        if (!isStanding(left, right, extendedAngle) || higherLabel == null) {
+        if (!isStanding(left, right, extendedAngle) || higherLabel == null
+                || !isWithinMaxAngle(higherLabel.equals(left.label) ? left : right, maxAngle)) {
             clearLockWindow();
             return false;
         }
@@ -142,6 +155,45 @@ public class LegSelector {
     private static boolean isStanding(LegSample left, LegSample right, double extendedAngle) {
         return (left.isCandidate() && left.jointAngle >= extendedAngle)
                 || (right.isCandidate() && right.jointAngle >= extendedAngle);
+    }
+
+    private static boolean isWithinMaxAngle(LegSample sample, double maxAngle) {
+        return maxAngle <= 0 || (sample.isCandidate() && sample.jointAngle <= maxAngle);
+    }
+
+    /**
+     * 다시 정하기 (하체 스트레칭만 사용): 정해진 다리가 hiddenMs 넘게 계속 안 보이고 그동안 반대 다리는 계속 잘 보이면
+     * 반대 다리로 바꾼다. 유지 / 동작 중(motionInProgress)에는 바꾸지 않고 처음부터 다시 잰다.
+     * (앉으며 몸 방향을 바꾸면 처음 정한 다리가 카메라에서 먼 다리가 되어 계속 가려지는 경우)
+     *
+     * @return 이 프레임에서 다리가 바뀌었으면 true
+     */
+    public boolean observeForRelock(LegSample left, LegSample right, long timestampMs, boolean motionInProgress,
+                                    long hiddenMs) {
+        if (lockedLabel == null || hiddenMs <= 0) {
+            return false;
+        }
+        LegSample locked = lockedLabel.equals(left.label) ? left : right;
+        LegSample other = locked == left ? right : left;
+        if (motionInProgress || locked.isCandidate() || !other.isCandidate()) {
+            relockWindowStartMs = -1;
+            return false;
+        }
+        if (relockWindowStartMs < 0) {
+            relockWindowStartMs = timestampMs;
+        }
+        if (timestampMs - relockWindowStartMs <= hiddenMs) {
+            return false;
+        }
+        lockedLabel = other.label;
+        relockCount++;
+        relockWindowStartMs = -1;
+        return true;
+    }
+
+    /** 다시 정한 횟수 (디버그 기록용) */
+    public int getRelockCount() {
+        return relockCount;
     }
 
     private void clearLockWindow() {
@@ -209,6 +261,8 @@ public class LegSelector {
         lockedLabel = null;
         lockedLeftAverage = Double.NaN;
         lockedRightAverage = Double.NaN;
+        relockWindowStartMs = -1;
+        relockCount = 0;
         clearLockWindow();
     }
 }
