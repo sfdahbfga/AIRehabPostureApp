@@ -11,7 +11,7 @@ import java.util.Random;
 
 /**
  * 런지(제자리 스플릿 스쿼트): 가짜 각도 데이터(30fps)로 반복 횟수 / 보조 규칙 검증
- * 기준: 올라옴 >= 160도, 1회 인정 <= 120도, 목표 90도(허용 덜 10 / 더 15), 상체 20도, 최소 동작 0.8초
+ * 기준: 올라옴 >= 160도, 1회 인정 <= 120도, 목표 90도(허용 덜 10 / 더 15), 상체 25도, 최소 동작 0.8초
  * aux = 카메라 쪽 다리의 엉덩이 각도. 앞다리면 무릎과 함께 작아지고(약 100도), 뒷다리면 펴진 채(약 170도)
  */
 public class LungeTest {
@@ -109,11 +109,25 @@ public class LungeTest {
     @Test
     public void trunkLeaningForward_penalizedAndWarned() {
         up(500);
-        lunge(90, 100, 30);
-        // 상체 30도 → 허용 20도를 10도 넘음 → 상체 60점 → 100 x 0.8 + 60 x 0.2 = 92
+        lunge(90, 100, 35);
+        // 상체 35도 → 허용 25도를 10도 넘음 → 상체 60점 → 100 x 0.8 + 60 x 0.2 = 92
         assertEquals(1, h.completed.size());
         assertEquals(10, h.completed.get(0).trunkError, 0.5);
         assertEquals(92, h.completed.get(0).accuracy, 0.5);
+        assertTrue(h.sawFeedback(RepetitionCounter.Feedback.KEEP_TRUNK_UPRIGHT));
+    }
+
+    @Test
+    public void trunk_measuredNormalMax_notWarned_measuredLeanMin_warned() {
+        // 1차 실측: 정상 최대 21.4도 → 경고 / 감점 없음, 숙인 동작 최소 35.2도 → 경고 + 감점
+        up(500);
+        lunge(88, 90, 21.4);
+        assertEquals(0, h.completed.get(0).trunkError, DELTA);
+        assertEquals(100, h.completed.get(0).accuracy, 0.5);
+        assertTrue(!h.sawFeedback(RepetitionCounter.Feedback.KEEP_TRUNK_UPRIGHT));
+
+        lunge(88, 70, 35.2);
+        assertEquals(10.2, h.completed.get(1).trunkError, 0.5);
         assertTrue(h.sawFeedback(RepetitionCounter.Feedback.KEEP_TRUNK_UPRIGHT));
     }
 

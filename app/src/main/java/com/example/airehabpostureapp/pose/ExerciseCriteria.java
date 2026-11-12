@@ -112,8 +112,10 @@ public final class ExerciseCriteria {
      * 판정은 카메라 쪽 다리의 무릎 각도. 바르게 내려가면 앞다리 / 뒷다리 무릎이 모두 약 90도가 되므로
      * 카메라 쪽 다리가 앞다리든 뒷다리든 같은 기준을 쓴다.
      * - 목표 90도, 더 굽힘 허용 15도: 의자 스쿼트와 같은 근거 (재활 런지는 무릎 90도까지)
-     * - 상체는 세운 채 내려가는 운동이라 상체 허용은 20도
+     * - 상체 허용 25도: 1차 실측(2026-11-12, 1명)에서 상체를 세운 정상 8회의 최대 상체 기울기가 8.2~21.4도,
+     *   상체를 숙인 3회가 35.2~45.9도 (처음 값 20도는 정상 2회가 1.3~1.4도 넘어 경고 / 감점됨)
      * - 뒷다리는 엉덩이가 펴지는 것이 정상이라 엉덩이 규칙은 쓰지 않음
+     * TODO(실전 테스트): 다른 키·카메라 각도로 상체 허용 25° 재확인 (1차 실측은 1명, 정상 최대와 간격 3.6도뿐)
      */
     public static final ExerciseCriteria LUNGE = new Builder(ID_LUNGE, "런지")
             .targetReps(8)             // 한쪽 8회 x 2세트 중 1세트
@@ -122,9 +124,9 @@ public final class ExerciseCriteria {
             .targetAngle(90)
             .underBendTolerance(10)
             .overBendTolerance(15)
-            .maxTrunkLean(20)
+            .maxTrunkLean(25)
             .jointWeight(0.8)          // 회차 정확도 = 무릎 점수 x 0.8 + 상체 점수 x 0.2
-            .minRepDurationMs(800)     // 중급 운동이라 무릎 굽힘(0.5초)보다 길게, 스쿼트(1초)보다 짧게
+            .minRepDurationMs(800)    // 중급 운동이라 무릎 굽힘(0.5초)보다 길게, 스쿼트(1초)보다 짧게
             .build();
 
     /**
