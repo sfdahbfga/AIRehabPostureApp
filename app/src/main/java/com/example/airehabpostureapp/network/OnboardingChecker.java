@@ -13,6 +13,7 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.Retrofit;
 
 /**
  * 로그인 직후 초기 설정을 어디까지 마쳤는지 확인하고 이동할 화면을 알려준다.
@@ -26,18 +27,32 @@ public class OnboardingChecker {
         void onError(@StringRes int messageRes);
     }
 
-    private final SessionManager sessionManager;
+    private final SessionInfo sessionManager;
     private final Listener listener;
+    // 화면이 닫히면 요청 취소 (L7)
+    private final CallTracker tracker;
+    // Supabase 요청용 (단위 테스트에서는 가짜 서버 주소의 Retrofit)
+    private final Retrofit retrofit;
 
     public OnboardingChecker(SessionManager sessionManager, Listener listener) {
-        this.sessionManager = sessionManager;
+        this(sessionManager, CallTracker.NONE, listener);
+    }
+
+    public OnboardingChecker(SessionManager sessionManager, CallTracker tracker, Listener listener) {
+        this(sessionManager, SupabaseClient.getRetrofit(), tracker, listener);
+    }
+
+    OnboardingChecker(SessionInfo sessionInfo, Retrofit retrofit, CallTracker tracker, Listener listener) {
+        this.sessionManager = sessionInfo;
+        this.retrofit = retrofit;
+        this.tracker = tracker;
         this.listener = listener;
     }
 
     // email: profiles 행이 없을 때 name(이메일 앞부분)을 만드는 데 사용
     public void check(String email) {
-        ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.getProfile(sessionManager.getBearerToken(), userIdFilter())
+        ProfileApi profileApi = retrofit.create(ProfileApi.class);
+        tracker.track(profileApi.getProfile(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<ProfileApi.ProfileRow>>() {
                     @Override
                     public void onResponse(Call<List<ProfileApi.ProfileRow>> call,
@@ -74,9 +89,9 @@ public class OnboardingChecker {
         int atIndex = email.indexOf('@');
         String name = atIndex > 0 ? email.substring(0, atIndex) : email;
 
-        ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.insertProfile(sessionManager.getBearerToken(),
-                new ProfileApi.ProfileInsert(sessionManager.getUserId(), name, null))
+        ProfileApi profileApi = retrofit.create(ProfileApi.class);
+        tracker.track(profileApi.insertProfile(sessionManager.getBearerToken(),
+                new ProfileApi.ProfileInsert(sessionManager.getUserId(), name, null)))
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -95,8 +110,8 @@ public class OnboardingChecker {
     }
 
     private void checkBodyConditions() {
-        BodyConditionApi bodyConditionApi = SupabaseClient.getRetrofit().create(BodyConditionApi.class);
-        bodyConditionApi.getAny(sessionManager.getBearerToken(), userIdFilter())
+        BodyConditionApi bodyConditionApi = retrofit.create(BodyConditionApi.class);
+        tracker.track(bodyConditionApi.getAny(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
                     @Override
                     public void onResponse(Call<List<BodyConditionApi.IdRow>> call,
@@ -121,8 +136,8 @@ public class OnboardingChecker {
     }
 
     private void checkGoals() {
-        GoalApi goalApi = SupabaseClient.getRetrofit().create(GoalApi.class);
-        goalApi.getAny(sessionManager.getBearerToken(), userIdFilter())
+        GoalApi goalApi = retrofit.create(GoalApi.class);
+        tracker.track(goalApi.getAny(sessionManager.getBearerToken(), userIdFilter()))
                 .enqueue(new Callback<List<BodyConditionApi.IdRow>>() {
                     @Override
                     public void onResponse(Call<List<BodyConditionApi.IdRow>> call,

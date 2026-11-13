@@ -15,6 +15,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ProfileApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -28,6 +29,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class UserSetupActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // profiles.exercise_experience 값. experienceButtons와 같은 순서 (없음, 초급, 중급, 고급)
     private static final String[] EXPERIENCE_CODES = {"none", "beginner", "intermediate", "advanced"};
@@ -74,6 +78,13 @@ public class UserSetupActivity extends AppCompatActivity {
         for (View button : experienceButtons) {
             button.setOnClickListener(this::selectExperience);
         }
+        // L3: 화면 재생성 때 운동 경험 선택 복원 (나이 / 키 / 체중 입력칸은 EditText가 스스로 유지)
+        if (savedInstanceState != null) {
+            int index = savedInstanceState.getInt(STATE_EXPERIENCE_INDEX, -1);
+            if (index >= 0 && index < experienceButtons.length) {
+                selectExperience(experienceButtons[index]);
+            }
+        }
 
         sessionManager = new SessionManager(this);
         nextButton = findViewById(R.id.nextButton);
@@ -101,8 +112,8 @@ public class UserSetupActivity extends AppCompatActivity {
         // 저장 중 중복 클릭 방지
         nextButton.setEnabled(false);
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.updateProfile(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
-                new ProfileApi.ProfileUpdate(height, weight, experience))
+        apiCalls.track(profileApi.updateProfile(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
+                new ProfileApi.ProfileUpdate(height, weight, experience)))
                 .enqueue(new Callback<List<ProfileApi.ProfileRow>>() {
                     @Override
                     public void onResponse(Call<List<ProfileApi.ProfileRow>> call,
@@ -136,6 +147,14 @@ public class UserSetupActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         nextButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    private static final String STATE_EXPERIENCE_INDEX = "state_experience_index";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_EXPERIENCE_INDEX, Arrays.asList(experienceButtons).indexOf(selectedExperienceButton));
     }
 
     // 단일 선택: 누른 버튼만 selected, 나머지는 해제

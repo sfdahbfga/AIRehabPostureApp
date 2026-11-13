@@ -16,6 +16,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.GoalApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -31,6 +32,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class GoalSetupActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 선택된 운동 목표 키 (레이아웃의 android:tag 값: pain_relief, strength, ...)
     private final Set<String> selectedGoals = new LinkedHashSet<>();
@@ -86,14 +90,14 @@ public class GoalSetupActivity extends AppCompatActivity {
         // 저장 중 중복 클릭 방지
         completeButton.setEnabled(false);
         GoalApi goalApi = SupabaseClient.getRetrofit().create(GoalApi.class);
-        goalApi.deleteAll(bearerToken, "eq." + userId).enqueue(new Callback<Void>() {
+        apiCalls.track(goalApi.deleteAll(bearerToken, "eq." + userId)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (!response.isSuccessful()) {
                     showError(R.string.error_goal_save_failed);
                     return;
                 }
-                goalApi.insert(bearerToken, rows).enqueue(new Callback<Void>() {
+                apiCalls.track(goalApi.insert(bearerToken, rows)).enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
                         if (!response.isSuccessful()) {

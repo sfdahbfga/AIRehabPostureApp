@@ -1,5 +1,7 @@
 package com.example.airehabpostureapp.stats;
 
+import com.example.airehabpostureapp.pose.ExerciseCriteria;
+
 import org.junit.Test;
 
 import java.time.Instant;
@@ -44,9 +46,11 @@ public class ReportStatsCalculatorTest {
         assertArrayEquals(new double[]{75, 0, 90, 0, 0, 0, 85}, stats.chartAccuracies, DELTA);
         assertEquals(KNEE_FLEXION, stats.mostPerformedExerciseName);
         assertEquals(3, stats.mostPerformedExerciseCount);
-        // knee: 7, -6, 9 → 3회 (정확히 5.0은 제외), back: 6.5, -8 → 2회
-        assertEquals("knee", stats.frequentMistakeJoint);
-        assertEquals(3, stats.frequentMistakeCount);
+        // 운동별 허용 범위 기준 (샘플 운동 이름은 기준이 없어 무릎 굽힘 운동 기준: 덜 굽힘 10도 / 더 굽힘 20도까지 허용)
+        // knee: 9, 7, -6, 3, 5 → 모두 허용 범위 안 → 0회
+        // back(허용 각도 초과량): 2, 6.5 → 2회 (-8, -5는 초과 아님)
+        assertEquals("back", stats.frequentMistakeJoint);
+        assertEquals(2, stats.frequentMistakeCount);
     }
 
     @Test
@@ -64,8 +68,9 @@ public class ReportStatsCalculatorTest {
         assertArrayEquals(new double[]{60, 0, 80, 92.5}, stats.chartAccuracies, DELTA);
         assertEquals(KNEE_FLEXION, stats.mostPerformedExerciseName);
         assertEquals(4, stats.mostPerformedExerciseCount);
-        assertEquals("knee", stats.frequentMistakeJoint);
-        assertEquals(3, stats.frequentMistakeCount);
+        // 이번 주 밖의 기록은 관절 오차가 없으므로 주간과 같음
+        assertEquals("back", stats.frequentMistakeJoint);
+        assertEquals(2, stats.frequentMistakeCount);
     }
 
     @Test
@@ -136,6 +141,37 @@ public class ReportStatsCalculatorTest {
 
         assertTrue(calculator.calculate(sampleRecords(), ReportStatsCalculator.Period.WEEKLY, BASE_DATE).hasAccuracy);
         assertFalse(calculator.calculate(new ArrayList<>(), ReportStatsCalculator.Period.WEEKLY, BASE_DATE).hasAccuracy);
+    }
+
+    @Test
+    public void mistake_usesEachExercisesTolerance() {
+        // 같은 무릎 오차 -18도(더 굽힘): 무릎 굽힘 운동은 20도까지 허용 → 실수 아님, 의자 스쿼트 / 런지는 15도까지 → 실수
+        // 하체 스트레칭 엉덩이 +7도(덜 숙임): 5도까지 허용 → 실수
+        Map<String, Double> deepKnee = new HashMap<>();
+        deepKnee.put("knee", -18.0);
+        Map<String, Double> shallowHip = new HashMap<>();
+        shallowHip.put("hip", 7.0);
+        List<SessionRecord> records = Arrays.asList(
+                new SessionRecord("무릎 굽힘 운동", kst(2026, 10, 20, 9, 0), 60, 5, 10, 90.0, null, null, deepKnee),
+                new SessionRecord("의자 스쿼트", kst(2026, 10, 20, 10, 0), 60, 5, 10, 90.0, null, null, deepKnee),
+                new SessionRecord("런지", kst(2026, 10, 20, 11, 0), 60, 5, 10, 90.0, null, null, deepKnee),
+                new SessionRecord("하체 스트레칭", kst(2026, 10, 20, 12, 0), 60, 3, 3, 90.0, null, null, shallowHip));
+
+        ReportStats stats = calculator.calculate(records, ReportStatsCalculator.Period.WEEKLY, BASE_DATE);
+
+        assertEquals("knee", stats.frequentMistakeJoint);
+        assertEquals(2, stats.frequentMistakeCount);
+    }
+
+    @Test
+    public void mistake_boundaryIsWithinTolerance() {
+        // 허용 오차와 정확히 같으면 만점이므로 실수 아님, 넘으면 실수
+        assertFalse(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "knee", 10.0));
+        assertTrue(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "knee", 10.5));
+        assertFalse(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "knee", -20.0));
+        assertTrue(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "knee", -20.5));
+        assertFalse(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "back", 0.0));
+        assertTrue(ReportStatsCalculator.isMistake(ExerciseCriteria.KNEE_FLEXION, "back", 0.5));
     }
 
     private List<SessionRecord> sampleRecords() {

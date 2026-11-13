@@ -18,6 +18,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ProfileApi;
@@ -25,9 +26,6 @@ import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -35,8 +33,10 @@ import retrofit2.Response;
 
 public class SignUpActivity extends AppCompatActivity {
 
-    // 생년월일로 입력할 수 있는 가장 이른 날짜
-    private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
+
+    private static final int HTTP_CONFLICT = 409;
 
     private EditText emailInput;
     private EditText passwordInput;
@@ -82,15 +82,19 @@ public class SignUpActivity extends AppCompatActivity {
                 togglePasswordVisibility(passwordConfirmInput, passwordConfirmToggle));
 
         sessionManager = new SessionManager(this);
+        if (savedInstanceState != null) {
+            signedUpEmail = savedInstanceState.getString(STATE_SIGNED_UP_EMAIL);
+            signedUpUserId = savedInstanceState.getString(STATE_SIGNED_UP_USER_ID);
+        }
         signUpButton = findViewById(R.id.sign_up_button);
         signUpButton.setOnClickListener(v -> {
             if (validateInputs()) {
-                String birthDate = toDbBirthDate(birthDateInput.getText().toString().trim());
+                String birthDate = BirthDates.toDbBirthDate(birthDateInput.getText().toString().trim());
                 if (birthDate == null) {
                     fail(birthDateInput, R.string.error_birth_date_format);
                     return;
                 }
-                if (!isBirthDateInRange(birthDate)) {
+                if (!BirthDates.isInRange(birthDate, LocalDate.now())) {
                     fail(birthDateInput, R.string.error_birth_date_range);
                     return;
                 }
@@ -99,16 +103,37 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
+    // L5: 이 화면에서 가입에 성공한 이메일 / 사용자 id (프로필 저장만 실패한 뒤 다시 누르면 가입은 건너뜀)
+    private static final String STATE_SIGNED_UP_EMAIL = "state_signed_up_email";
+    private static final String STATE_SIGNED_UP_USER_ID = "state_signed_up_user_id";
+    private String signedUpEmail;
+    private String signedUpUserId;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SIGNED_UP_EMAIL, signedUpEmail);
+        outState.putString(STATE_SIGNED_UP_USER_ID, signedUpUserId);
+    }
+
     // 회원가입 → 세션 저장 → profiles insert → UserSetup 이동
     private void signUp(String birthDate) {
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
         String name = nameInput.getText().toString().trim();
 
+        // L5: 가입은 이미 됐고 프로필 저장만 실패한 경우 → 프로필 저장만 다시 시도 ("이미 가입된 이메일" 오류 방지)
+        if (signedUpUserId != null && email.equals(signedUpEmail)
+                && signedUpUserId.equals(sessionManager.getUserId())) {
+            signUpButton.setEnabled(false);
+            insertProfile(signedUpUserId, name, birthDate);
+            return;
+        }
+
         // 요청 중 중복 클릭 방지
         signUpButton.setEnabled(false);
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.signUp(new AuthApi.Credentials(email, password)).enqueue(new Callback<AuthApi.AuthResponse>() {
+        apiCalls.track(authApi.signUp(new AuthApi.Credentials(email, password))).enqueue(new Callback<AuthApi.AuthResponse>() {
             @Override
             public void onResponse(Call<AuthApi.AuthResponse> call, Response<AuthApi.AuthResponse> response) {
                 AuthApi.AuthResponse body = response.body();
@@ -126,6 +151,8 @@ public class SignUpActivity extends AppCompatActivity {
                 sessionManager.saveSession(body.accessToken, body.refreshToken, body.user.id);
                 // 회원가입 화면에는 자동 로그인 체크박스가 없으므로 꺼둔다.
                 sessionManager.setAutoLogin(false);
+                signedUpEmail = email;
+                signedUpUserId = body.user.id;
                 insertProfile(body.user.id, name, birthDate);
             }
 
@@ -138,11 +165,12 @@ public class SignUpActivity extends AppCompatActivity {
 
     private void insertProfile(String userId, String name, String birthDate) {
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.insertProfile(sessionManager.getBearerToken(),
-                new ProfileApi.ProfileInsert(userId, name, birthDate)).enqueue(new Callback<Void>() {
+        apiCalls.track(profileApi.insertProfile(sessionManager.getBearerToken(),
+                new ProfileApi.ProfileInsert(userId, name, birthDate))).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
-                if (!response.isSuccessful()) {
+                // 409: 프로필이 이미 있음 (저장은 됐는데 응답을 못 받은 뒤 다시 시도한 경우) → 성공으로 처리
+                if (!response.isSuccessful() && response.code() != HTTP_CONFLICT) {
                     showError(R.string.error_profile_save_failed);
                     return;
                 }
@@ -160,23 +188,6 @@ public class SignUpActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         signUpButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
-    }
-
-    // 생년월일 허용 범위: 1900-01-01 ~ 오늘. dbBirthDate는 YYYY-MM-DD
-    private boolean isBirthDateInRange(String dbBirthDate) {
-        LocalDate date = LocalDate.parse(dbBirthDate);
-        return !date.isBefore(MIN_BIRTH_DATE) && !date.isAfter(LocalDate.now());
-    }
-
-    // 입력 형식 YYYY.MM.DD → DB date 형식 YYYY-MM-DD. 존재하지 않는 날짜면 null
-    private String toDbBirthDate(String input) {
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu.MM.dd")
-                    .withResolverStyle(ResolverStyle.STRICT);
-            return LocalDate.parse(input, formatter).toString();
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     // 02_Login과 같은 방식: TransformationMethod 전환 + 커서/선택 위치 유지

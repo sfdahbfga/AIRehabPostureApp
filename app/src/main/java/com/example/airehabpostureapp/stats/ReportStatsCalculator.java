@@ -1,5 +1,7 @@
 package com.example.airehabpostureapp.stats;
 
+import com.example.airehabpostureapp.pose.ExerciseCriteria;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -14,8 +16,6 @@ public class ReportStatsCalculator {
     public enum Period { WEEKLY, MONTHLY }
 
     public static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
-    // 관절 오차 절댓값이 이 값(도)을 넘으면 실수로 센다
-    public static final double MISTAKE_THRESHOLD_DEGREES = 5.0;
 
     private static final int WEEKLY_CHART_SIZE = 7;
     private static final int MONTHLY_CHART_SIZE = 4;
@@ -71,11 +71,12 @@ public class ReportStatsCalculator {
                     exerciseCounts.merge(record.exerciseName, 1, Integer::sum);
                 }
 
-                // 한 기록에서 관절마다 최대 1번만 센다
+                // 한 기록에서 관절마다 최대 1번만 센다 (운동별 허용 범위를 벗어난 경우만)
                 if (record.jointErrors != null) {
+                    ExerciseCriteria criteria = ExerciseCriteria.forExerciseOrDefault(record.exerciseName);
                     for (Map.Entry<String, Double> entry : record.jointErrors.entrySet()) {
                         if (entry.getKey() != null && entry.getValue() != null
-                                && Math.abs(entry.getValue()) > MISTAKE_THRESHOLD_DEGREES) {
+                                && isMistake(criteria, entry.getKey(), entry.getValue())) {
                             mistakeCounts.merge(entry.getKey(), 1, Integer::sum);
                         }
                     }
@@ -106,6 +107,19 @@ public class ReportStatsCalculator {
     }
 
     // 주간: 월=0 ~ 일=6, 월간: 1~7일=0, 8~14일=1, 15~21일=2, 22일~말일=3
+    /**
+     * 관절 오차가 운동별 허용 범위(ExerciseCriteria)를 벗어났으면 실수.
+     * - knee / hip: 목표 각도와의 차이가 덜 굽힘 / 더 굽힘 허용 오차를 넘음 (= 그 관절 점수가 만점이 아님)
+     * - back: 저장값이 이미 상체 허용 각도를 넘은 만큼이므로 0보다 크면 실수
+     * 기준이 없는 운동 / 이름이 없는 기록은 무릎 굽힘 운동 기준 (JointAccuracyConverter와 같음)
+     */
+    static boolean isMistake(ExerciseCriteria criteria, String joint, double error) {
+        if (JointKeys.BACK.equals(joint)) {
+            return error > 0;
+        }
+        return criteria.jointScoreForError(error) < 100;
+    }
+
     private int chartIndex(LocalDate date, Period period) {
         if (period == Period.WEEKLY) {
             return date.getDayOfWeek().getValue() - 1;

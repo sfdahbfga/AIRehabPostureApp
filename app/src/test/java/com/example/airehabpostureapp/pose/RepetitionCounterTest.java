@@ -113,8 +113,9 @@ public class RepetitionCounterTest {
     public void feedback_followsMovement() {
         hold(175, 300);
         assertEquals(RepetitionCounter.Feedback.START_BENDING, counter.getFeedback());
+        // 굽히는 중에는 "조금 더 굽혀" 대신 시작 안내 유지
         move(175, 140, 600, UPRIGHT_TRUNK, 0, null);
-        assertEquals(RepetitionCounter.Feedback.BEND_MORE, counter.getFeedback());
+        assertEquals(RepetitionCounter.Feedback.START_BENDING, counter.getFeedback());
         move(140, 90, 600, UPRIGHT_TRUNK, 0, null);
         hold(90, 300);
         assertEquals(RepetitionCounter.Feedback.GOOD_STRAIGHTEN, counter.getFeedback());
@@ -174,7 +175,9 @@ public class RepetitionCounterTest {
         rep(140);
         rep(140);
         assertEquals(0, counter.getCompletedReps());
-        assertTrue(feedbackHistory.contains(RepetitionCounter.Feedback.BEND_MORE));
+        // 굽히는 중에는 "조금 더" 없이, 편 뒤에 "1회로 인정되려면" 안내
+        assertFalse(feedbackHistory.contains(RepetitionCounter.Feedback.BEND_MORE));
+        assertEquals(RepetitionCounter.Feedback.SHALLOW_RETRY, counter.getFeedback());
     }
 
     @Test

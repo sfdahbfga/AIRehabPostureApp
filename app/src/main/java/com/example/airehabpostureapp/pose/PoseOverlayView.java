@@ -25,7 +25,7 @@ import java.util.List;
 public class PoseOverlayView extends View {
 
     // 이 값보다 visibility가 낮은 관절은 그리지 않는다
-    public static final float MIN_VISIBILITY = 0.5f;
+    public static final float MIN_VISIBILITY = PoseMeasurer.MIN_VISIBILITY;
 
     private static final float POINT_RADIUS_DP = 4f;
     private static final float LINE_WIDTH_DP = 3f;
@@ -90,7 +90,7 @@ public class PoseOverlayView extends View {
     }
 
     public static boolean isVisible(NormalizedLandmark landmark) {
-        return landmark.visibility().orElse(0f) >= MIN_VISIBILITY;
+        return PoseMeasurer.isVisible(landmark);
     }
 
     @Override

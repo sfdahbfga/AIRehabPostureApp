@@ -14,6 +14,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.BodyConditionApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -29,6 +30,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class BodyConditionActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private static final int DEFAULT_DISCOMFORT_LEVEL = 5;
     private static final int NO_SELECTION = -1;
@@ -83,6 +87,23 @@ public class BodyConditionActivity extends AppCompatActivity {
         }
         selectDiscomfortLevel(DEFAULT_DISCOMFORT_LEVEL);
 
+        // L3: 화면 재생성 때 선택값 복원
+        if (savedInstanceState != null) {
+            int level = savedInstanceState.getInt(STATE_DISCOMFORT_LEVEL, NO_SELECTION);
+            if (level >= 0 && level < discomfortButtons.length) {
+                selectDiscomfortLevel(level);
+            }
+            ArrayList<String> savedParts = savedInstanceState.getStringArrayList(STATE_BODY_PARTS);
+            if (savedParts != null) {
+                for (int id : bodyPartButtonIds) {
+                    View button = findViewById(id);
+                    if (savedParts.contains((String) button.getTag())) {
+                        toggleBodyPart(button);
+                    }
+                }
+            }
+        }
+
         sessionManager = new SessionManager(this);
         nextButton = findViewById(R.id.nextButton);
         nextButton.setOnClickListener(v -> {
@@ -104,14 +125,14 @@ public class BodyConditionActivity extends AppCompatActivity {
         // 저장 중 중복 클릭 방지
         nextButton.setEnabled(false);
         BodyConditionApi bodyConditionApi = SupabaseClient.getRetrofit().create(BodyConditionApi.class);
-        bodyConditionApi.deleteAll(bearerToken, "eq." + userId).enqueue(new Callback<Void>() {
+        apiCalls.track(bodyConditionApi.deleteAll(bearerToken, "eq." + userId)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (!response.isSuccessful()) {
                     showError(R.string.error_body_condition_save_failed);
                     return;
                 }
-                bodyConditionApi.insert(bearerToken, rows).enqueue(new Callback<Void>() {
+                apiCalls.track(bodyConditionApi.insert(bearerToken, rows)).enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
                         if (!response.isSuccessful()) {
@@ -139,6 +160,16 @@ public class BodyConditionActivity extends AppCompatActivity {
     private void showError(@StringRes int messageRes) {
         nextButton.setEnabled(true);
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+    }
+
+    private static final String STATE_DISCOMFORT_LEVEL = "state_discomfort_level";
+    private static final String STATE_BODY_PARTS = "state_body_parts";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_DISCOMFORT_LEVEL, selectedDiscomfortLevel);
+        outState.putStringArrayList(STATE_BODY_PARTS, new ArrayList<>(selectedBodyParts));
     }
 
     private void toggleBodyPart(View button) {

@@ -16,7 +16,7 @@ public class ExerciseCriteriaTest {
     @Test
     public void forExercise_findsKneeFlexion_andNullForUnsupported() {
         assertSame(knee, ExerciseCriteria.forExercise("무릎 굽힘 운동"));
-        assertNull(ExerciseCriteria.forExercise("의자 스쿼트"));
+        assertNull(ExerciseCriteria.forExercise("없는 운동"));
         assertNull(ExerciseCriteria.forExercise(null));
     }
 
@@ -62,5 +62,38 @@ public class ExerciseCriteriaTest {
         assertEquals(92, knee.repAccuracy(90, 25), DELTA);    // 100 x 0.8 + 60 x 0.2
         assertEquals(68, knee.repAccuracy(120, 5), DELTA);    // 60 x 0.8 + 100 x 0.2
         assertEquals(60, knee.repAccuracy(120, Double.NaN), DELTA);
+    }
+
+    // Builder로 바꾼 뒤에도 무릎 굽힘 운동 기준값이 그대로인지 확인
+    @Test
+    public void kneeFlexion_keepsTunedValues() {
+        assertEquals("무릎 굽힘 운동", knee.exerciseName);
+        assertEquals(20, knee.targetReps);
+        assertEquals(160, knee.lockMinAngle, DELTA);
+        assertEquals(160, knee.extendedAngle, DELTA);
+        assertEquals(130, knee.bentAngle, DELTA);
+        assertEquals(90, knee.targetAngle, DELTA);
+        assertEquals(10, knee.underBendTolerance, DELTA);
+        assertEquals(20, knee.overBendTolerance, DELTA);
+        assertEquals(2, knee.pointsPerDegree, DELTA);
+        assertEquals(15, knee.maxTrunkLean, DELTA);
+        assertEquals(4, knee.trunkPointsPerDegree, DELTA);
+        assertEquals(0.8, knee.jointWeight, DELTA);
+        assertEquals(140, knee.minHipAngle, DELTA);
+        assertEquals(5, knee.smoothingWindow);
+        assertEquals(500, knee.minRepDurationMs);
+        assertEquals(1000, knee.maxInvisibleMs);
+        assertEquals(20, knee.maxJumpDegrees, DELTA);
+        assertEquals(200, knee.maxDegreesPerSecond, DELTA);
+        assertEquals(0.3, knee.maxMissedFrameRatio, DELTA);
+        assertEquals(100, knee.inRepMaxGapMs);
+        assertEquals(200, knee.extendedHoldMs);
+    }
+
+    @Test
+    public void forExerciseOrDefault_fallsBackToKneeFlexion() {
+        assertSame(knee, ExerciseCriteria.forExerciseOrDefault("없는 운동"));
+        assertSame(knee, ExerciseCriteria.forExerciseOrDefault(null));
+        assertNull(ExerciseCriteria.forExercise("없는 운동"));
     }
 }

@@ -15,11 +15,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 import com.example.airehabpostureapp.stats.JointAccuracyConverter;
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 
@@ -34,6 +36,9 @@ import retrofit2.Response;
 
 // 운동 기록 상세: 18_RecordList에서 고른 기록(session id)을 exercise_sessions에서 조회해 운동 정보 표시
 public class RecordDetailActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 18_RecordList에서 전달하는 선택한 기록의 exercise_sessions id
     public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RECORD_SESSION_ID";
@@ -82,14 +87,14 @@ public class RecordDetailActivity extends AppCompatActivity {
         }
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecord(sessionManager.getBearerToken(), "eq." + sessionId)
+        apiCalls.track(api.getRecord(sessionManager.getBearerToken(), "eq." + sessionId))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         List<ExerciseSessionApi.RecordRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            showError(R.string.error_record_load_failed);
+                            showLoadError(R.string.error_record_load_failed);
                             return;
                         }
                         showRecordSummary(rows.get(0));
@@ -97,7 +102,7 @@ public class RecordDetailActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        showError(AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed));
+                        showLoadError(AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed));
                     }
                 });
     }
@@ -140,17 +145,21 @@ public class RecordDetailActivity extends AppCompatActivity {
                 : getString(R.string.set_count_format, completedSets, targetSets));
     }
 
-    // joint_errors(평균 오차, 도)를 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
-    // 고관절은 저장하지 않으므로 항상 숨김
+    // joint_errors(평균 오차, 도)를 운동별 기준의 정확도로 바꿔 표시. 값이 없는 관절 줄은 숨기고, 모두 없으면 카드와 제목도 숨김
+    // (hip은 하체 스트레칭만 저장하고, 값은 상체 숙임 오차이므로 줄 이름을 "상체 숙임"으로 표시)
     private void showJointAccuracy(Map<String, Double> jointErrors) {
+        TextView hipLabel = findViewById(R.id.hipLabelText);
+        hipLabel.setText(R.string.joint_stretch_lean);
         Integer kneeAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.kneeAccuracy(jointErrors.get("knee"));
+                : JointAccuracyConverter.kneeAccuracy(exerciseName, jointErrors.get(JointKeys.KNEE));
         Integer backAccuracy = jointErrors == null ? null
-                : JointAccuracyConverter.backAccuracy(jointErrors.get("back"));
+                : JointAccuracyConverter.backAccuracy(exerciseName, jointErrors.get(JointKeys.BACK));
+        Integer hipAccuracy = jointErrors == null ? null
+                : JointAccuracyConverter.hipAccuracy(exerciseName, jointErrors.get(JointKeys.HIP));
         showAccuracyRow(R.id.kneeAccuracyText, R.id.kneeProgressBar, kneeAccuracy);
         showAccuracyRow(R.id.backAccuracyText, R.id.backProgressBar, backAccuracy);
-        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, null);
-        setVisible(kneeAccuracy != null || backAccuracy != null,
+        showAccuracyRow(R.id.hipAccuracyText, R.id.hipProgressBar, hipAccuracy);
+        setVisible(kneeAccuracy != null || backAccuracy != null || hipAccuracy != null,
                 R.id.jointAccuracyTitleText, R.id.jointAccuracyCard);
     }
 
@@ -173,6 +182,11 @@ public class RecordDetailActivity extends AppCompatActivity {
         for (int viewId : viewIds) {
             findViewById(viewId).setVisibility(visible ? View.VISIBLE : View.GONE);
         }
+    }
+
+    // M4: 불러오기 실패 → "다시 시도"
+    private void showLoadError(@StringRes int messageRes) {
+        RetrySnackbar.show(this, messageRes, this::loadRecord);
     }
 
     private void showError(@StringRes int messageRes) {

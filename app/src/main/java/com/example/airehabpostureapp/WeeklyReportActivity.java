@@ -4,7 +4,6 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -13,10 +12,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.stats.JointKeys;
 import com.example.airehabpostureapp.stats.ReportStats;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator.Period;
@@ -34,6 +35,9 @@ import retrofit2.Response;
 
 // 주간 / 월간 리포트 (Supabase에서 불러온 운동 기록으로 ReportStatsCalculator 통계를 계산해 표시)
 public class WeeklyReportActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     private final ReportStatsCalculator calculator = new ReportStatsCalculator();
     // 불러오기 전에는 null
@@ -84,15 +88,15 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecordsBetween(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
-                        Arrays.asList("gte." + start, "lt." + end))
+        apiCalls.track(api.getRecordsBetween(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId(),
+                        Arrays.asList("gte." + start, "lt." + end)))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         if (!response.isSuccessful() || response.body() == null) {
-                            Toast.makeText(WeeklyReportActivity.this, R.string.error_record_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            RetrySnackbar.show(WeeklyReportActivity.this, R.string.error_record_load_failed,
+                                    WeeklyReportActivity.this::loadSessionRecords);
                             return;
                         }
                         List<SessionRecord> loaded = new ArrayList<>();
@@ -105,9 +109,9 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        Toast.makeText(WeeklyReportActivity.this,
+                        RetrySnackbar.show(WeeklyReportActivity.this,
                                 AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                                WeeklyReportActivity.this::loadSessionRecords);
                     }
                 });
     }
@@ -175,13 +179,16 @@ public class WeeklyReportActivity extends AppCompatActivity {
                 range[1].getMonthValue(), range[1].getDayOfMonth());
     }
 
-    // 관절 키(knee, back)를 한글 표시로 변환, 모르는 키는 그대로 표시
+    // 관절 키(knee, back, hip)를 한글 표시로 변환, 모르는 키는 그대로 표시
     private String jointMistakeLabel(String joint) {
         switch (joint) {
-            case "knee":
+            case JointKeys.KNEE:
                 return getString(R.string.mistake_joint_knee);
-            case "back":
+            case JointKeys.BACK:
                 return getString(R.string.mistake_joint_back);
+            case JointKeys.HIP:
+                // hip은 하체 스트레칭만 저장하고, 값은 상체 숙임 오차
+                return getString(R.string.mistake_joint_stretch_lean);
             default:
                 return joint;
         }

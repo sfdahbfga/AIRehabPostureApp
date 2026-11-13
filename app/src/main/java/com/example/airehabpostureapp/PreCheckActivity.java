@@ -16,10 +16,9 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class PreCheckActivity extends AppCompatActivity {
 
-    private static final int DEFAULT_DISCOMFORT_LEVEL = 5;
     private static final int NO_SELECTION = -1;
 
-    // 선택된 불편감 정도 (0~10)
+    // 선택된 불편감 정도 (0~10 / 선택 전에는 NO_SELECTION, 기본 선택 없음)
     private int selectedDiscomfortLevel = NO_SELECTION;
     // 선택된 몸 상태 키 (레이아웃의 android:tag 값: good, normal, bad / 선택 전에는 null)
     private String selectedBodyCondition = null;
@@ -50,7 +49,7 @@ public class PreCheckActivity extends AppCompatActivity {
         // 이전 화면(ExerciseDetail)으로 돌아가기: 새 Activity를 만들지 않고 현재 화면만 종료
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
-        // 불편감: 0~10 단일 선택 (05_BodyCondition과 같은 방식)
+        // 불편감: 0~10 단일 선택 (기본 선택 없음, 선택하지 않으면 "다음"에서 안내)
         discomfortButtons = new View[]{
                 findViewById(R.id.discomfortButton0), findViewById(R.id.discomfortButton1),
                 findViewById(R.id.discomfortButton2), findViewById(R.id.discomfortButton3),
@@ -63,7 +62,6 @@ public class PreCheckActivity extends AppCompatActivity {
             final int selectedLevel = level;
             discomfortButtons[level].setOnClickListener(v -> selectDiscomfortLevel(selectedLevel));
         }
-        selectDiscomfortLevel(DEFAULT_DISCOMFORT_LEVEL);
 
         // 몸 상태: 단일 선택 (기본 선택 없음)
         conditionButtons = new View[]{
@@ -73,6 +71,9 @@ public class PreCheckActivity extends AppCompatActivity {
         };
         for (View button : conditionButtons) {
             button.setOnClickListener(this::selectBodyCondition);
+        }
+        if (savedInstanceState != null) {
+            restoreSelections(savedInstanceState);
         }
 
         findViewById(R.id.nextButton).setOnClickListener(v -> {
@@ -86,6 +87,30 @@ public class PreCheckActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+    }
+
+    // L3: 화면 재생성(회전 / 시스템 종료 후 복구) 때 선택값 유지
+    private static final String STATE_DISCOMFORT_LEVEL = "state_discomfort_level";
+    private static final String STATE_BODY_CONDITION = "state_body_condition";
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_DISCOMFORT_LEVEL, selectedDiscomfortLevel);
+        outState.putString(STATE_BODY_CONDITION, selectedBodyCondition);
+    }
+
+    private void restoreSelections(Bundle savedInstanceState) {
+        int level = savedInstanceState.getInt(STATE_DISCOMFORT_LEVEL, NO_SELECTION);
+        if (level >= 0 && level < discomfortButtons.length) {
+            selectDiscomfortLevel(level);
+        }
+        String condition = savedInstanceState.getString(STATE_BODY_CONDITION);
+        for (View button : conditionButtons) {
+            if (button.getTag() != null && button.getTag().equals(condition)) {
+                selectBodyCondition(button);
+            }
+        }
     }
 
     // 선택한 숫자 버튼만 selected, 나머지는 해제
@@ -107,7 +132,7 @@ public class PreCheckActivity extends AppCompatActivity {
     // 필수: 불편감, 몸 상태 / 선택: 특이사항(noteEditText)은 검사하지 않음
     private boolean validateInputs() {
         if (selectedDiscomfortLevel == NO_SELECTION) {
-            Toast.makeText(this, R.string.error_discomfort_not_selected, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.error_exercise_discomfort_not_selected, Toast.LENGTH_SHORT).show();
             return false;
         }
         if (selectedBodyCondition == null) {

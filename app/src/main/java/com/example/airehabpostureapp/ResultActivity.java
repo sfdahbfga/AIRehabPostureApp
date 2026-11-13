@@ -15,6 +15,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
@@ -28,6 +29,9 @@ import retrofit2.Response;
 
 // 운동 결과 화면: 15_PostCheck에서 저장한 exercise_sessions 행을 조회해 운동 시간 / 횟수 / 정확도 표시
 public class ResultActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 15_PostCheck에서 저장한 exercise_sessions id
     public static final String EXTRA_SESSION_ID = "com.example.airehabpostureapp.EXTRA_RESULT_SESSION_ID";
@@ -52,6 +56,8 @@ public class ResultActivity extends AppCompatActivity {
         findViewById(R.id.viewAnalysisButton).setOnClickListener(v -> {
             Intent intent = new Intent(this, AIReportActivity.class);
             intent.putExtra(AIReportActivity.EXTRA_SESSION_ID, getIntent().getStringExtra(EXTRA_SESSION_ID));
+            // M6: 실제 운동 이름 전달 (조회 전이면 null → AI 리포트가 직접 조회한 이름 표시)
+            intent.putExtra(AIReportActivity.EXTRA_EXERCISE_NAME, exerciseName);
             startActivity(intent);
         });
 
@@ -77,14 +83,14 @@ public class ResultActivity extends AppCompatActivity {
         }
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getSession(sessionManager.getBearerToken(), "eq." + sessionId)
+        apiCalls.track(api.getSession(sessionManager.getBearerToken(), "eq." + sessionId))
                 .enqueue(new Callback<List<ExerciseSessionApi.SessionRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.SessionRow>> call,
                                            Response<List<ExerciseSessionApi.SessionRow>> response) {
                         List<ExerciseSessionApi.SessionRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            showError(R.string.error_result_load_failed);
+                            showLoadError(R.string.error_result_load_failed);
                             return;
                         }
                         showResult(rows.get(0));
@@ -92,12 +98,21 @@ public class ResultActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.SessionRow>> call, Throwable t) {
-                        showError(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
+                        showLoadError(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
                     }
                 });
     }
 
+    // 조회한 운동 이름 (AI 리포트에 전달)
+    private String exerciseName;
+
     private void showResult(ExerciseSessionApi.SessionRow session) {
+        // M6: 레이아웃 기본값("무릎 굽힘 운동") 대신 실제 운동 이름
+        exerciseName = session.exerciseName;
+        if (exerciseName != null) {
+            TextView exerciseNameText = findViewById(R.id.exerciseNameText);
+            exerciseNameText.setText(exerciseName);
+        }
         TextView exerciseDurationValueText = findViewById(R.id.exerciseDurationValueText);
         TextView repetitionValueText = findViewById(R.id.repetitionValueText);
         TextView averageAccuracyValueText = findViewById(R.id.averageAccuracyValueText);
@@ -119,6 +134,11 @@ public class ResultActivity extends AppCompatActivity {
         setCompletionValueText.setText(completedSets == null || targetSets == null
                 ? getString(R.string.empty_value)
                 : getString(R.string.set_count_format, completedSets, targetSets));
+    }
+
+    // M4: 불러오기 실패 → "다시 시도"
+    private void showLoadError(@StringRes int messageRes) {
+        RetrySnackbar.show(this, messageRes, this::loadSession);
     }
 
     private void showError(@StringRes int messageRes) {

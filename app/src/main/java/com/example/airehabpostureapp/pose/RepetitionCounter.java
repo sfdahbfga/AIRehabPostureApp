@@ -14,6 +14,9 @@ import java.util.List;
  * - 편 기준과 굽힘 기준 사이에 간격이 있어서, 경계에서 흔들려도 두 번 세지지 않는다.
  * - 굽히기 시작해서 다시 펼 때까지 minRepDurationMs 미만이면 흔들림으로 보고 세지 않는다.
  * - 동작 중 엉덩이 각도가 minHipAngle보다 작아지면(스쿼트처럼 엉덩이를 굽힘) 세지 않는다.
+ * - 반대로 스쿼트처럼 엉덩이를 굽혀야 하는 운동은, 동작 중 엉덩이 각도가 maxHipAngleAtDepth 아래로
+ *   한 번도 내려가지 않으면(무릎만 접음) 세지 않는다. 1회 인정 각도까지 못 앉은 동작도 이 경우면
+ *   HIP_NOT_BENT로 보고, 다음 동작을 시작할 때까지 HIPS_BACK 안내를 보여 준다.
  * - 관절이 maxInvisibleMs 넘게 안 보이면 진행 중이던 동작은 버리고, 다시 편 상태부터 기다린다.
  * - 각도 연속성 검사: 직전에 받아들인 각도와 비교해 실제 무릎이 움직일 수 없을 만큼 튄 값은
  *   추적 오류(가려진 다리 대신 서 있는 다리 값이 들어온 경우 등)로 보고 그 프레임을 건너뛴다.
@@ -22,10 +25,18 @@ import java.util.List;
  *
  * 한 스레드에서만 호출해야 한다. (ExerciseActivity에서는 UI 스레드)
  */
-public class RepetitionCounter {
+public class RepetitionCounter implements ExerciseCounter {
 
     // 편 상태에서 이만큼도 굽히지 않은 작은 흔들림은 "버려진 동작"으로 기록하지 않음
     private static final double MIN_ATTEMPT_DEPTH_DEGREES = 10;
+
+    // 안내 문구 시점용 (판정 / 횟수에는 쓰지 않음)
+    // 가장 많이 굽힌 각도보다 이만큼 넘게 다시 펴지면 "일어서는 중"
+    static final double RISING_MARGIN_DEGREES = 5;
+    // "좋아요" 지점 전에 이 시간 넘게 더 굽히지 않고 멈추면 "조금 더" 안내를 한 번 보여 줌
+    static final long STALL_HINT_MS = 800;
+    // 이만큼 이상 더 굽혀야 "아직 내려가는 중"으로 봄 (각도 흔들림은 멈춘 것으로 취급)
+    static final double STALL_PROGRESS_DEGREES = 2;
 
     /** 화면 안내 문구 종류 (문구 자체는 화면에서 strings.xml로 바꾼다) */
     public enum Feedback {
@@ -42,7 +53,19 @@ public class RepetitionCounter {
         // 상체가 허용 각도보다 많이 숙여짐
         KEEP_TRUNK_UPRIGHT,
         // 엉덩이를 굽힘 (스쿼트처럼 허벅지가 기움)
-        THIGH_UPRIGHT
+        THIGH_UPRIGHT,
+        // 굽힘 기준까지 내려갔는데 엉덩이를 굽히지 않음 (스쿼트: 엉덩이를 뒤로 빼야 함)
+        HIPS_BACK,
+        // 방금 동작이 1회 인정 기준까지 굽히지 않아 세지 않음 (SHALLOW) → 다음 동작을 시작할 때까지 안내
+        SHALLOW_RETRY,
+        // "조금 더"(BEND_MORE)가 나온 뒤 "좋아요" 지점에 닿지 않은 채 일어서기 시작함 → 일어서는 중 안내 (화면에만 표시)
+        RISING,
+        // 유지형: 기준 안에서 유지 중
+        HOLD,
+        // 유지형: 펴야 하는 다리의 무릎이 굽음
+        STRAIGHTEN_KNEE,
+        // 유지형: 1회를 마쳤으니 자세를 다시 세움
+        RELEASE
     }
 
     /** 세지 않고 버린 이유 */
@@ -54,7 +77,11 @@ public class RepetitionCounter {
         // 엉덩이 각도가 minHipAngle보다 작아짐
         HIP_BENT,
         // 동작 중 관절이 maxInvisibleMs 넘게 안 보임
-        LOST_TRACKING
+        LOST_TRACKING,
+        // 엉덩이 각도가 maxHipAngleAtDepth 아래로 내려가지 않음 (무릎만 접음)
+        HIP_NOT_BENT,
+        // 유지형: 유지 시간을 채우기 전에 기준 밖으로 holdGraceMs 넘게 벗어남
+        RELEASED_EARLY
     }
 
     /** 한 번의 동작 동안 받은 프레임 수 (기준값 조정 / 천천히 안내용) */
@@ -118,6 +145,44 @@ public class RepetitionCounter {
             this.durationMs = durationMs;
             this.frames = frames;
         }
+
+        // 화면 재생성 / 프로세스 종료 후 복구용: 회차 결과 1개 = double 값 ARRAY_SIZE개
+        public static final int ARRAY_SIZE = 11;
+
+        /** 저장용 값 배열 (fromArray로 되돌림) */
+        public double[] toArray() {
+            return new double[]{repNumber, minJointAngle, maxTrunkLean, minHipAngle, jointError, trunkError,
+                    accuracy, durationMs, frames.accepted, frames.skippedByJump, frames.invisible};
+        }
+
+        /** toArray로 만든 값 배열에서 offset 위치의 회차 결과를 되살림 */
+        public static RepResult fromArray(double[] values, int offset) {
+            return new RepResult((int) values[offset], values[offset + 1], values[offset + 2],
+                    values[offset + 3], values[offset + 4], values[offset + 5], values[offset + 6],
+                    (long) values[offset + 7],
+                    new FrameStats((int) values[offset + 8], (int) values[offset + 9], (int) values[offset + 10]));
+        }
+
+        /** 회차 결과 목록 → 하나의 값 배열 (Bundle 저장용) */
+        public static double[] toArray(List<RepResult> results) {
+            double[] values = new double[results.size() * ARRAY_SIZE];
+            for (int i = 0; i < results.size(); i++) {
+                System.arraycopy(results.get(i).toArray(), 0, values, i * ARRAY_SIZE, ARRAY_SIZE);
+            }
+            return values;
+        }
+
+        /** toArray(List)로 만든 값 배열 → 회차 결과 목록 (null이나 길이가 맞지 않으면 빈 목록) */
+        public static List<RepResult> listFromArray(double[] values) {
+            List<RepResult> results = new ArrayList<>();
+            if (values == null || values.length % ARRAY_SIZE != 0) {
+                return results;
+            }
+            for (int offset = 0; offset < values.length; offset += ARRAY_SIZE) {
+                results.add(fromArray(values, offset));
+            }
+            return results;
+        }
     }
 
     /** 세지 않고 버린 동작 (기준값 조정용 기록) */
@@ -169,6 +234,20 @@ public class RepetitionCounter {
     private Feedback feedback = Feedback.NOT_VISIBLE;
     private RejectedAttempt pendingRejection;
     private boolean moveSlowlyHint;
+    // 직전 동작이 버려진 이유에 맞는 안내 (HIP_NOT_BENT → HIPS_BACK, SHALLOW → SHALLOW_RETRY).
+    // 다음 동작을 시작할 때까지 보여 준다. 없으면 null
+    private Feedback afterAttemptHint;
+
+    // 동작 중 안내 문구 시점 (판정 / 횟수에는 쓰지 않음)
+    // "좋아요" 지점(목표 각도 + 덜 굽힘 허용 범위)까지 굽힘 → 이 동작이 끝날 때까지 "좋아요" 유지
+    private boolean reachedGood;
+    // 가장 많이 굽힌 각도보다 RISING_MARGIN_DEGREES 넘게 펴짐 → 일어서는 중 ("조금 더"를 새로 보여 주지 않음)
+    private boolean rising;
+    // 이 동작에서 멈춤 안내("조금 더")를 이미 보여 줌 (동작 하나에 한 번만)
+    private boolean stallHintUsed;
+    // 멈춤 판단 기준: 마지막으로 STALL_PROGRESS_DEGREES 넘게 더 굽힌 각도와 시각
+    private double stallRefAngle;
+    private long stallRefAtMs;
 
     public RepetitionCounter(ExerciseCriteria criteria) {
         this.criteria = criteria;
@@ -188,6 +267,7 @@ public class RepetitionCounter {
      * @param hipAngle    엉덩이 각도(어깨-엉덩이-무릎). 안 보이면 NaN
      * @return 이 프레임에서 1회가 끝났으면 그 결과, 아니면 null
      */
+    @Override
     public RepResult onFrame(long timestampMs, double jointAngle, double trunkLean, double hipAngle) {
         if (Double.isNaN(jointAngle)) {
             if (bendStartedAtMs >= 0) {
@@ -252,6 +332,7 @@ public class RepetitionCounter {
                 } else if (criteria.extendedAngle - minJointAngle >= MIN_ATTEMPT_DEPTH_DEGREES) {
                     pendingRejection = new RejectedAttempt(reason, minJointAngle, maxTrunkLean,
                             minHipAngle, durationMs, frames);
+                    afterAttemptHint = hintForRejection(reason);
                     if (reason == RejectReason.TOO_FAST
                             || (reason == RejectReason.SHALLOW
                             && frames.missedRatio() >= criteria.maxMissedFrameRatio)) {
@@ -262,7 +343,11 @@ public class RepetitionCounter {
             bendStartedAtMs = -1;
             extendedSinceMs = -1;
             reachedBent = false;
-            feedback = Feedback.START_BENDING;
+            if (result != null) {
+                afterAttemptHint = null;
+            }
+            // 동작이 끝난 뒤 한 번만 평가: 버려진 이유에 맞는 안내, 아니면 다음 동작 시작 안내
+            feedback = afterAttemptHint != null ? afterAttemptHint : Feedback.START_BENDING;
             return result;
         }
 
@@ -272,6 +357,12 @@ public class RepetitionCounter {
         // 편 상태에서 벗어남 → 동작 진행 중
         if (bendStartedAtMs < 0) {
             bendStartedAtMs = timestampMs;
+            afterAttemptHint = null;
+            reachedGood = false;
+            rising = false;
+            stallHintUsed = false;
+            stallRefAngle = smoothedJointAngle;
+            stallRefAtMs = timestampMs;
             minJointAngle = smoothedJointAngle;
             maxTrunkLean = Double.NaN;
             minHipAngle = Double.NaN;
@@ -293,26 +384,78 @@ public class RepetitionCounter {
 
         if (criteria.isHipTooBent(smoothedHip)) {
             feedback = Feedback.THIGH_UPRIGHT;
+        } else if (smoothedJointAngle <= criteria.bentAngle && criteria.isHipNotBent(smoothedHip)) {
+            feedback = Feedback.HIPS_BACK;
         } else if (!Double.isNaN(smoothedTrunk) && smoothedTrunk > criteria.maxTrunkLean) {
             feedback = Feedback.KEEP_TRUNK_UPRIGHT;
-        } else if (smoothedJointAngle <= criteria.targetAngle + criteria.underBendTolerance) {
-            feedback = Feedback.GOOD_STRAIGHTEN;
         } else {
-            feedback = Feedback.BEND_MORE;
+            feedback = motionFeedback(timestampMs);
         }
         return null;
+    }
+
+    /**
+     * 동작 중 깊이 안내 (자세 경고가 없을 때). 문구 시점만 정하고 판정 / 횟수에는 영향 없음
+     * - "좋아요" 지점(목표 + 덜 굽힘 허용 범위)에 닿으면 이 동작이 끝날 때까지 GOOD_STRAIGHTEN
+     * - 내려가는 중에는 시작 안내(START_BENDING) 유지
+     * - "좋아요" 지점 전에 STALL_HINT_MS 넘게 더 굽히지 않고 멈추면 BEND_MORE를 한 번 (동작 하나에 한 번)
+     * - 일어서는 중(가장 많이 굽힌 각도보다 RISING_MARGIN_DEGREES 넘게 펴짐)에는 BEND_MORE를 새로 띄우지 않음
+     * - 보이던 BEND_MORE는 일어서기 시작하면 RISING으로 바꿈 (일어서는 중 안내, 음성으로 읽지 않음)
+     */
+    private Feedback motionFeedback(long timestampMs) {
+        if (smoothedJointAngle <= criteria.targetAngle + criteria.underBendTolerance) {
+            reachedGood = true;
+        }
+        if (smoothedJointAngle > minJointAngle + RISING_MARGIN_DEGREES) {
+            rising = true;
+        }
+        if (smoothedJointAngle < stallRefAngle - STALL_PROGRESS_DEGREES) {
+            stallRefAngle = smoothedJointAngle;
+            stallRefAtMs = timestampMs;
+        }
+        if (reachedGood) {
+            return Feedback.GOOD_STRAIGHTEN;
+        }
+        boolean stalled = !rising
+                && criteria.extendedAngle - smoothedJointAngle >= MIN_ATTEMPT_DEPTH_DEGREES
+                && timestampMs - stallRefAtMs >= STALL_HINT_MS;
+        if (stalled && !stallHintUsed) {
+            stallHintUsed = true;
+            return Feedback.BEND_MORE;
+        }
+        if (rising && (feedback == Feedback.BEND_MORE || feedback == Feedback.RISING)) {
+            return Feedback.RISING;
+        }
+        return feedback == Feedback.BEND_MORE ? Feedback.BEND_MORE : Feedback.START_BENDING;
+    }
+
+    // 버려진 동작 뒤에 보여 줄 안내 (이유별). 따로 안내가 없는 이유면 null
+    private static Feedback hintForRejection(RejectReason reason) {
+        switch (reason) {
+            case HIP_NOT_BENT:
+                return Feedback.HIPS_BACK;
+            case SHALLOW:
+                return Feedback.SHALLOW_RETRY;
+            default:
+                return null;
+        }
     }
 
     // 다시 편 상태로 돌아왔을 때 이번 동작을 셀 수 없는 이유 (셀 수 있으면 null)
     private RejectReason rejectReason(long durationMs) {
         if (!reachedBent) {
-            return RejectReason.SHALLOW;
+            // 1회 인정 각도까지 못 앉았어도 엉덩이가 내내 펴져 있었으면 원인은 "무릎만 접음" (의자 스쿼트 실측:
+            // 무릎만 접으면 무릎은 137~150도에서 멈추고 엉덩이는 155~171도) → 덜 앉음보다 엉덩이 규칙으로 판정
+            return criteria.isHipNotBent(minHipAngle) ? RejectReason.HIP_NOT_BENT : RejectReason.SHALLOW;
         }
         if (durationMs < criteria.minRepDurationMs) {
             return RejectReason.TOO_FAST;
         }
         if (criteria.isHipTooBent(minHipAngle)) {
             return RejectReason.HIP_BENT;
+        }
+        if (criteria.isHipNotBent(minHipAngle)) {
+            return RejectReason.HIP_NOT_BENT;
         }
         return null;
     }
@@ -370,6 +513,12 @@ public class RepetitionCounter {
         return sum / window.size();
     }
 
+    @Override
+    public void restoreResults(List<RepResult> savedResults) {
+        reset();
+        results.addAll(savedResults);
+    }
+
     /** "처음부터 다시": 센 횟수와 진행 상태를 모두 초기화 */
     public void reset() {
         results.clear();
@@ -387,6 +536,10 @@ public class RepetitionCounter {
         feedback = Feedback.NOT_VISIBLE;
         pendingRejection = null;
         moveSlowlyHint = false;
+        afterAttemptHint = null;
+        reachedGood = false;
+        rising = false;
+        stallHintUsed = false;
     }
 
     /** 각도 연속성 검사로 건너뛴 프레임 수 (누적, 디버그 기록용) */

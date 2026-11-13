@@ -14,3 +14,6 @@
 .cxx
 local.properties
 .claude/settings.local.json
+# release 서명 키 (M8): 저장소에 올리지 않음
+*.jks
+*.keystore

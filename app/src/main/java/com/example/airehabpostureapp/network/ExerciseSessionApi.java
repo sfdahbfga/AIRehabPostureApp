@@ -24,20 +24,23 @@ import retrofit2.http.Query;
  */
 public interface ExerciseSessionApi {
 
-    // 추가된 행의 id를 돌려받아 session_checkins 저장에 사용한다.
-    @Headers("Prefer: return=representation")
-    @POST("rest/v1/exercise_sessions?select=id")
-    Call<List<BodyConditionApi.IdRow>> insertSession(@Header("Authorization") String bearerToken,
-                                                     @Body SessionInsert body);
+    // 중복 저장 방지 (H2 / L4): id는 운동이 끝날 때 앱이 미리 만든 UUID (PendingWorkout.sessionId)
+    // 서버에는 저장됐는데 응답을 못 받아 다시 보내도, 같은 id의 행이 이미 있으면 무시된다. (ON CONFLICT (id) DO NOTHING)
+    String PREFER_IGNORE_DUPLICATES = "Prefer: return=minimal, resolution=ignore-duplicates";
+
+    @Headers(PREFER_IGNORE_DUPLICATES)
+    @POST("rest/v1/exercise_sessions?on_conflict=id")
+    Call<Void> insertSession(@Header("Authorization") String bearerToken, @Body SessionInsert body);
 
     // 체크인 저장 열 목록. CheckinInsert의 @SerializedName과 같아야 한다. (ExerciseSessionApiTest에서 확인)
-    String CHECKIN_COLUMNS = "session_id,check_type,discomfort_level,body_condition,note";
+    String CHECKIN_COLUMNS = "id,session_id,check_type,discomfort_level,body_condition,note";
 
     // pre / post 두 행을 한 요청으로 보내므로 둘 다 저장되거나 둘 다 실패한다.
     // Gson은 null 필드를 JSON에서 빼므로, 한쪽 행만 메모가 있으면 두 행의 키가 달라진다.
     // columns를 지정해야 PostgREST가 빠진 키를 null로 채워 저장한다. (지정하지 않으면 PGRST102 "All object keys must match")
-    @Headers("Prefer: return=minimal")
-    @POST("rest/v1/session_checkins?columns=" + CHECKIN_COLUMNS)
+    // 체크인 id도 앱이 미리 만든 UUID라 다시 보내도 중복 저장되지 않는다.
+    @Headers(PREFER_IGNORE_DUPLICATES)
+    @POST("rest/v1/session_checkins?on_conflict=id&columns=" + CHECKIN_COLUMNS)
     Call<Void> insertCheckins(@Header("Authorization") String bearerToken, @Body List<CheckinInsert> body);
 
     // 체크인 저장이 실패했을 때 방금 저장한 운동 기록을 되돌리는 데 사용 (체크인 / AI 리포트는 DB에서 함께 삭제됨)
@@ -46,7 +49,7 @@ public interface ExerciseSessionApi {
     Call<Void> deleteSession(@Header("Authorization") String bearerToken, @Query("id") String idFilter);
 
     // idFilter: "eq.{세션 id}". 행이 없으면 빈 목록
-    @GET("rest/v1/exercise_sessions?select=duration_seconds,completed_repetitions,target_repetitions,"
+    @GET("rest/v1/exercise_sessions?select=exercise_name,duration_seconds,completed_repetitions,target_repetitions,"
             + "completed_sets,target_sets,average_accuracy")
     Call<List<SessionRow>> getSession(@Header("Authorization") String bearerToken,
                                       @Query("id") String idFilter);
@@ -72,11 +75,14 @@ public interface ExerciseSessionApi {
                                     @Query("id") String idFilter);
 
     // AI 리포트 화면의 분석 결과(관절별 평균 오차 / 전반·후반 정확도). idFilter: "eq.{세션 id}"
-    @GET("rest/v1/exercise_sessions?select=first_half_accuracy,second_half_accuracy,joint_errors")
+    @GET("rest/v1/exercise_sessions?select=exercise_name,first_half_accuracy,second_half_accuracy,joint_errors")
     Call<List<ReportMetricsRow>> getReportMetrics(@Header("Authorization") String bearerToken,
                                                   @Query("id") String idFilter);
 
     class SessionInsert {
+        // 앱이 미리 만든 UUID (중복 저장 방지)
+        @SerializedName("id")
+        final String id;
         @SerializedName("user_id")
         final String userId;
         @SerializedName("exercise_name")
@@ -99,15 +105,17 @@ public interface ExerciseSessionApi {
         final Integer firstHalfAccuracy;
         @SerializedName("second_half_accuracy")
         final Integer secondHalfAccuracy;
-        // 관절별 평균 각도 오차 (도). 예: {"knee": 12, "back": 3}
+        // 관절별 평균 각도 오차 (도). 예: {"knee": 12, "back": 3}, 하체 스트레칭: {"hip": 8}
         // knee: 가장 많이 굽힌 각도 - 목표 각도 (+ 덜 굽힘 / - 더 굽힘), back: 상체 숙임 허용 각도 초과량
+        // hip: 유지 중 평균 엉덩이 각도 - 목표 각도 (+ 덜 숙임 / - 더 숙임). 목표 / 허용 범위는 운동별 ExerciseCriteria
         @SerializedName("joint_errors")
         final Map<String, Integer> jointErrors;
 
-        public SessionInsert(String userId, String exerciseName, String startedAt, String endedAt,
+        public SessionInsert(String id, String userId, String exerciseName, String startedAt, String endedAt,
                              int durationSeconds, int completedRepetitions, int targetRepetitions,
                              Integer averageAccuracy, Integer firstHalfAccuracy, Integer secondHalfAccuracy,
                              Map<String, Integer> jointErrors) {
+            this.id = id;
             this.userId = userId;
             this.exerciseName = exerciseName;
             this.startedAt = startedAt;
@@ -123,6 +131,9 @@ public interface ExerciseSessionApi {
     }
 
     class CheckinInsert {
+        // 앱이 미리 만든 UUID (중복 저장 방지)
+        @SerializedName("id")
+        final String id;
         @SerializedName("session_id")
         final String sessionId;
         // pre, post
@@ -138,8 +149,9 @@ public interface ExerciseSessionApi {
         @SerializedName("note")
         final String note;
 
-        public CheckinInsert(String sessionId, String checkType, int discomfortLevel,
+        public CheckinInsert(String id, String sessionId, String checkType, int discomfortLevel,
                              String bodyCondition, String note) {
+            this.id = id;
             this.sessionId = sessionId;
             this.checkType = checkType;
             this.discomfortLevel = discomfortLevel;
@@ -149,6 +161,8 @@ public interface ExerciseSessionApi {
     }
 
     class SessionRow {
+        @SerializedName("exercise_name")
+        public String exerciseName;
         @SerializedName("duration_seconds")
         public int durationSeconds;
         @SerializedName("completed_repetitions")
@@ -215,12 +229,14 @@ public interface ExerciseSessionApi {
     }
 
     class ReportMetricsRow {
+        @SerializedName("exercise_name")
+        public String exerciseName;
         // DB numeric → 소수일 수 있음
         @SerializedName("first_half_accuracy")
         public Double firstHalfAccuracy;
         @SerializedName("second_half_accuracy")
         public Double secondHalfAccuracy;
-        // 관절별 평균 오차 (키: knee, back)
+        // 관절별 평균 오차 (키: knee, back, hip)
         @SerializedName("joint_errors")
         public Map<String, Double> jointErrors;
     }

@@ -20,6 +20,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.pose.ExerciseCriteria;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -45,13 +47,17 @@ public class ExerciseListActivity extends AppCompatActivity {
 
     // 예시 운동 1개의 필터용 정보
     private static class ExerciseItem {
+        // 운동 고정 키 (ExerciseCriteria.id) (L11)
+        final String id;
         final View card;
         final TextView nameText;
         final Set<String> bodyParts;
         final String purpose;
         final String difficulty;
 
-        ExerciseItem(View card, TextView nameText, String purpose, String difficulty, String... bodyParts) {
+        ExerciseItem(String id, View card, TextView nameText, String purpose, String difficulty,
+                     String... bodyParts) {
+            this.id = id;
             this.card = card;
             this.nameText = nameText;
             this.purpose = purpose;
@@ -91,31 +97,36 @@ public class ExerciseListActivity extends AppCompatActivity {
 
         // 예시 데이터: 신체 부위 / 목적 / 난이도 키 (DB 연동 시 교체)
         exercises = new ExerciseItem[]{
-                new ExerciseItem(findViewById(R.id.exerciseCard1), findViewById(R.id.exerciseNameText1),
+                new ExerciseItem(ExerciseCriteria.ID_KNEE_FLEXION,
+                        findViewById(R.id.exerciseCard1), findViewById(R.id.exerciseNameText1),
                         "range_of_motion", "beginner", "knee"),
-                new ExerciseItem(findViewById(R.id.exerciseCard2), findViewById(R.id.exerciseNameText2),
+                new ExerciseItem(ExerciseCriteria.ID_CHAIR_SQUAT,
+                        findViewById(R.id.exerciseCard2), findViewById(R.id.exerciseNameText2),
                         "strength", "beginner", "knee"),
-                new ExerciseItem(findViewById(R.id.exerciseCard3), findViewById(R.id.exerciseNameText3),
+                new ExerciseItem(ExerciseCriteria.ID_SEATED_HAMSTRING_STRETCH,
+                        findViewById(R.id.exerciseCard3), findViewById(R.id.exerciseNameText3),
                         "flexibility", "beginner", "knee", "waist"),
-                new ExerciseItem(findViewById(R.id.exerciseCard4), findViewById(R.id.exerciseNameText4),
+                new ExerciseItem(ExerciseCriteria.ID_LUNGE,
+                        findViewById(R.id.exerciseCard4), findViewById(R.id.exerciseNameText4),
                         "strength", "intermediate", "knee")
         };
         emptyText = findViewById(R.id.exerciseListEmptyText);
 
-        // TODO: 운동별 상세 데이터가 준비되면 모든 Card를 상세 화면으로 연결
+        // 상세 데이터가 있는 운동은 상세 화면으로 이동, 없으면 선택한 운동 이름만 안내
         for (ExerciseItem exercise : exercises) {
-            exercise.card.setOnClickListener(v -> Toast.makeText(this,
-                    getString(R.string.exercise_selected, exercise.nameText.getText()),
-                    Toast.LENGTH_SHORT).show());
+            exercise.card.setOnClickListener(v -> {
+                String name = exercise.nameText.getText().toString();
+                if (ExerciseDetailActivity.hasDetail(exercise.id)) {
+                    Intent intent = new Intent(this, ExerciseDetailActivity.class);
+                    intent.putExtra(ExerciseDetailActivity.EXTRA_EXERCISE_ID, exercise.id);
+                    intent.putExtra(ExerciseDetailActivity.EXTRA_EXERCISE_NAME, name);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, getString(R.string.exercise_selected, name),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
         }
-        // 현재 상세 데이터가 있는 "무릎 굽힘 운동"(첫 번째 Card)만 상세 화면으로 이동
-        ExerciseItem kneeFlexion = exercises[0];
-        kneeFlexion.card.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ExerciseDetailActivity.class);
-            intent.putExtra(ExerciseDetailActivity.EXTRA_EXERCISE_NAME,
-                    kneeFlexion.nameText.getText().toString());
-            startActivity(intent);
-        });
 
         // 검색: 입력할 때마다 이름에 검색어가 포함된 운동만 표시
         EditText searchEditText = findViewById(R.id.exerciseSearchEditText);

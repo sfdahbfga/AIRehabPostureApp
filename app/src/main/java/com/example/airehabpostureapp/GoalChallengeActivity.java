@@ -3,7 +3,6 @@ package com.example.airehabpostureapp;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -12,11 +11,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
 import com.example.airehabpostureapp.stats.ExerciseStreak;
+import com.example.airehabpostureapp.stats.GoalTargets;
 import com.example.airehabpostureapp.stats.ReportStats;
 import com.example.airehabpostureapp.stats.ReportStatsCalculator;
 import com.example.airehabpostureapp.stats.SessionRecord;
@@ -34,11 +35,14 @@ import retrofit2.Response;
 // (횟수 / 시간 / 정확도는 이번 주 기록으로 ReportStatsCalculator 계산, 연속 운동일은 ExerciseStreak)
 public class GoalChallengeActivity extends AppCompatActivity {
 
-    // 목표 기준
-    private static final int WEEKLY_EXERCISE_GOAL = 3;
-    private static final int EXERCISE_TIME_GOAL_MINUTES = 60;
-    private static final int ACCURACY_GOAL = 90;
-    private static final int CHALLENGE_GOAL_DAYS = 7;
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
+
+    // 목표 기준 (L12: GoalTargets에 모음)
+    private static final int WEEKLY_EXERCISE_GOAL = GoalTargets.WEEKLY_EXERCISE_COUNT;
+    private static final int EXERCISE_TIME_GOAL_MINUTES = GoalTargets.WEEKLY_EXERCISE_MINUTES;
+    private static final int ACCURACY_GOAL = GoalTargets.AVERAGE_ACCURACY;
+    private static final int CHALLENGE_GOAL_DAYS = GoalTargets.CHALLENGE_STREAK_DAYS;
 
     private final ReportStatsCalculator calculator = new ReportStatsCalculator();
 
@@ -76,14 +80,14 @@ public class GoalChallengeActivity extends AppCompatActivity {
     private void loadRecords() {
         SessionManager sessionManager = new SessionManager(this);
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId())
+        apiCalls.track(api.getRecords(sessionManager.getBearerToken(), "eq." + sessionManager.getUserId()))
                 .enqueue(new Callback<List<ExerciseSessionApi.RecordRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.RecordRow>> call,
                                            Response<List<ExerciseSessionApi.RecordRow>> response) {
                         if (!response.isSuccessful() || response.body() == null) {
-                            Toast.makeText(GoalChallengeActivity.this, R.string.error_record_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            RetrySnackbar.show(GoalChallengeActivity.this, R.string.error_record_load_failed,
+                                    GoalChallengeActivity.this::loadRecords);
                             return;
                         }
                         List<SessionRecord> records = new ArrayList<>();
@@ -95,9 +99,9 @@ public class GoalChallengeActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.RecordRow>> call, Throwable t) {
-                        Toast.makeText(GoalChallengeActivity.this,
+                        RetrySnackbar.show(GoalChallengeActivity.this,
                                 AuthErrorMapper.fromFailure(t, R.string.error_record_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                                GoalChallengeActivity.this::loadRecords);
                     }
                 });
     }

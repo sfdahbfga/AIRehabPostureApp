@@ -15,6 +15,9 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.snackbar.Snackbar;
+
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AuthApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ProfileApi;
@@ -29,6 +32,9 @@ import retrofit2.Response;
 
 // 마이페이지 (프로필 이름 / 이메일은 Supabase에서 조회, 설정 메뉴는 준비 중)
 public class MyPageActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,7 +83,7 @@ public class MyPageActivity extends AppCompatActivity {
         TextView profileEmailText = findViewById(R.id.profileEmailText);
 
         ProfileApi profileApi = SupabaseClient.getRetrofit().create(ProfileApi.class);
-        profileApi.getProfileName(bearerToken, "eq." + sessionManager.getUserId())
+        apiCalls.track(profileApi.getProfileName(bearerToken, "eq." + sessionManager.getUserId()))
                 .enqueue(new Callback<List<ProfileApi.ProfileNameRow>>() {
                     @Override
                     public void onResponse(Call<List<ProfileApi.ProfileNameRow>> call,
@@ -99,7 +105,7 @@ public class MyPageActivity extends AppCompatActivity {
                 });
 
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.getUser(bearerToken).enqueue(new Callback<AuthApi.User>() {
+        apiCalls.track(authApi.getUser(bearerToken)).enqueue(new Callback<AuthApi.User>() {
             @Override
             public void onResponse(Call<AuthApi.User> call, Response<AuthApi.User> response) {
                 AuthApi.User user = response.body();
@@ -117,8 +123,14 @@ public class MyPageActivity extends AppCompatActivity {
         });
     }
 
+    // M4: 불러오기 실패 → "다시 시도" (이름 / 이메일 요청이 둘 다 실패해도 Snackbar는 하나만)
+    private Snackbar profileRetrySnackbar;
+
     private void showProfileError(@StringRes int messageRes) {
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show();
+        if (profileRetrySnackbar != null && profileRetrySnackbar.isShownOrQueued()) {
+            return;
+        }
+        profileRetrySnackbar = RetrySnackbar.show(this, messageRes, this::loadProfile);
     }
 
     private void setNotReadyMenu(int rowId, @StringRes int menuNameResId) {
@@ -148,7 +160,7 @@ public class MyPageActivity extends AppCompatActivity {
         }
 
         AuthApi authApi = SupabaseClient.getRetrofit().create(AuthApi.class);
-        authApi.logout(bearerToken).enqueue(new Callback<Void>() {
+        apiCalls.track(authApi.logout(bearerToken)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 finishLogout(sessionManager);

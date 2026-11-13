@@ -26,13 +26,15 @@ import retrofit2.http.POST;
 public class ExerciseSessionApiTest {
 
     private static final String SESSION_ID = "00000000-0000-0000-0000-000000000000";
+    private static final String PRE_ID = "00000000-0000-0000-0000-000000000001";
+    private static final String POST_ID = "00000000-0000-0000-0000-000000000002";
 
     @Test
     public void gsonOmitsNullNote_soRowsCanHaveDifferentKeys() {
         // 문제가 되는 상황 재현: 같은 요청 안에서 한 행만 note 키를 가짐
         List<ExerciseSessionApi.CheckinInsert> rows = Arrays.asList(
-                new ExerciseSessionApi.CheckinInsert(SESSION_ID, "pre", 2, "good", null),
-                new ExerciseSessionApi.CheckinInsert(SESSION_ID, "post", 2, "good", "test"));
+                new ExerciseSessionApi.CheckinInsert(PRE_ID, SESSION_ID, "pre", 2, "good", null),
+                new ExerciseSessionApi.CheckinInsert(POST_ID, SESSION_ID, "post", 2, "good", "test"));
         String json = new Gson().toJson(rows);
         String preRow = json.substring(0, json.indexOf("},") + 1);
         String postRow = json.substring(json.indexOf("},") + 2);
@@ -45,7 +47,7 @@ public class ExerciseSessionApiTest {
         // columns를 지정해야 PostgREST가 빠진 note 키를 null로 채운다
         Method method = ExerciseSessionApi.class.getMethod("insertCheckins", String.class, List.class);
         String path = method.getAnnotation(POST.class).value();
-        assertEquals("rest/v1/session_checkins?columns=" + ExerciseSessionApi.CHECKIN_COLUMNS, path);
+        assertEquals("rest/v1/session_checkins?on_conflict=id&columns=" + ExerciseSessionApi.CHECKIN_COLUMNS, path);
     }
 
     @Test

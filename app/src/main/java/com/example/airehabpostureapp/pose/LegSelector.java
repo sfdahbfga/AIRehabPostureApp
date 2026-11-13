@@ -35,6 +35,8 @@ public class LegSelector {
         public final float minVisibility;
         // 엉덩이 / 무릎 / 발목 visibility 평균 (운동하는 다리를 정할 때 사용)
         public final float averageVisibility;
+        // 무릎 각도 (엉덩이-무릎-발목, 안 보이면 NaN). 무릎을 판정하는 운동이면 jointAngle과 같음
+        public final double kneeAngle;
 
         public LegSample(String label, double jointAngle, double trunkLean, double hipAngle, float minVisibility) {
             this(label, jointAngle, trunkLean, hipAngle, minVisibility, minVisibility);
@@ -42,12 +44,18 @@ public class LegSelector {
 
         public LegSample(String label, double jointAngle, double trunkLean, double hipAngle,
                          float minVisibility, float averageVisibility) {
+            this(label, jointAngle, trunkLean, hipAngle, minVisibility, averageVisibility, jointAngle);
+        }
+
+        public LegSample(String label, double jointAngle, double trunkLean, double hipAngle,
+                         float minVisibility, float averageVisibility, double kneeAngle) {
             this.label = label;
             this.jointAngle = jointAngle;
             this.trunkLean = trunkLean;
             this.hipAngle = hipAngle;
             this.minVisibility = minVisibility;
             this.averageVisibility = averageVisibility;
+            this.kneeAngle = kneeAngle;
         }
 
         /** 엉덩이 / 무릎 / 발목이 모두 잘 보이고 각도를 계산할 수 있으면 true */
@@ -170,52 +178,6 @@ public class LegSelector {
 
     public double getLockedRightAverage() {
         return lockedRightAverage;
-    }
-
-    /**
-     * @return 판정에 쓸 다리 (더 많이 굽혀진 후보). 후보가 없으면 null
-     */
-    public LegSample select(LegSample left, LegSample right) {
-        boolean leftOk = left != null && left.isCandidate();
-        boolean rightOk = right != null && right.isCandidate();
-        LegSample chosen;
-        if (leftOk && rightOk) {
-            chosen = left.jointAngle <= right.jointAngle ? left : right;
-        } else if (leftOk) {
-            chosen = left;
-        } else if (rightOk) {
-            chosen = right;
-        } else {
-            return null;
-        }
-        return remember(chosen);
-    }
-
-    /**
-     * 동작 진행 중에 쓰는 고르기: 후보 중 직전 각도(referenceAngle)와 가장 가까운 다리.
-     * L/R 이름이 바뀌어도 굽힌 값이 붙은 쪽이 가장 가까우므로 굽히는 다리를 계속 따라간다.
-     * 굽히는 다리가 가려져 서 있는 다리만 남으면 그 값을 돌려주지만, 직전 각도와 크게 다르므로
-     * RepetitionCounter의 연속성 검사에서 건너뛰어진다.
-     * referenceAngle이 NaN이면 select()와 같이 더 많이 굽혀진 다리를 고른다.
-     */
-    public LegSample selectClosest(LegSample left, LegSample right, double referenceAngle) {
-        if (Double.isNaN(referenceAngle)) {
-            return select(left, right);
-        }
-        boolean leftOk = left != null && left.isCandidate();
-        boolean rightOk = right != null && right.isCandidate();
-        LegSample chosen;
-        if (leftOk && rightOk) {
-            chosen = Math.abs(left.jointAngle - referenceAngle) <= Math.abs(right.jointAngle - referenceAngle)
-                    ? left : right;
-        } else if (leftOk) {
-            chosen = left;
-        } else if (rightOk) {
-            chosen = right;
-        } else {
-            return null;
-        }
-        return remember(chosen);
     }
 
     private LegSample remember(LegSample chosen) {

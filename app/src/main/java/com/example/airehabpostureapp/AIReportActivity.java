@@ -3,7 +3,6 @@ package com.example.airehabpostureapp;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
@@ -13,11 +12,15 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.snackbar.Snackbar;
+
+import com.example.airehabpostureapp.network.ApiCalls;
 import com.example.airehabpostureapp.network.AiSummaryApi;
 import com.example.airehabpostureapp.network.AuthErrorMapper;
 import com.example.airehabpostureapp.network.ExerciseSessionApi;
 import com.example.airehabpostureapp.network.SessionManager;
 import com.example.airehabpostureapp.network.SupabaseClient;
+import com.example.airehabpostureapp.stats.JointKeys;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -33,6 +36,9 @@ import retrofit2.Response;
 // session id가 있으면 Edge Function ai-summary의 요약 / 팁과 exercise_sessions의 수치를 표시하고,
 // 없으면(다른 화면에서 들어온 경우) 기존 예시 화면을 그대로 표시한다.
 public class AIReportActivity extends AppCompatActivity {
+
+    // L7: 화면이 닫힐 때 진행 중인 요청 취소
+    private final ApiCalls apiCalls = ApiCalls.bind(this);
 
     // 선택 전달값: 19_RecordDetail에서 운동 이름 전달 (없으면 레이아웃 기본값 유지)
     public static final String EXTRA_EXERCISE_NAME = "com.example.airehabpostureapp.EXTRA_REPORT_EXERCISE_NAME";
@@ -95,8 +101,8 @@ public class AIReportActivity extends AppCompatActivity {
         aiSummaryText.setText(R.string.ai_report_analyzing);
         nextExerciseTipText.setText(R.string.ai_report_analyzing);
 
-        AiSummaryApi.create()
-                .getSummary(sessionManager.getBearerToken(), new AiSummaryApi.AiSummaryRequest(sessionId))
+        apiCalls.track(AiSummaryApi.create()
+                .getSummary(sessionManager.getBearerToken(), new AiSummaryApi.AiSummaryRequest(sessionId)))
                 .enqueue(new Callback<AiSummaryApi.AiSummaryResponse>() {
                     @Override
                     public void onResponse(Call<AiSummaryApi.AiSummaryResponse> call,
@@ -136,20 +142,44 @@ public class AIReportActivity extends AppCompatActivity {
     private void showAiSummaryError(@StringRes int messageRes) {
         aiSummaryText.setText(messageRes);
         nextExerciseTipText.setText(messageRes);
+        summaryFailed = true;
+        showRetry(messageRes);
+    }
+
+    // M4: 요약 / 분석 수치 중 실패한 것만 다시 불러오는 "다시 시도" (Snackbar는 하나만)
+    private boolean summaryFailed;
+    private boolean metricsFailed;
+    private Snackbar retrySnackbar;
+
+    private void showRetry(@StringRes int messageRes) {
+        if (retrySnackbar != null && retrySnackbar.isShownOrQueued()) {
+            return;
+        }
+        retrySnackbar = RetrySnackbar.show(this, messageRes, () -> {
+            String sessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
+            if (summaryFailed) {
+                summaryFailed = false;
+                loadAiSummary(sessionId);
+            }
+            if (metricsFailed) {
+                metricsFailed = false;
+                loadReportMetrics(sessionId);
+            }
+        });
     }
 
     // 관절별 평균 오차 / 전반·후반 정확도를 exercise_sessions에서 조회 (실패하면 값 칸은 비워 두고 안내)
     private void loadReportMetrics(String sessionId) {
         ExerciseSessionApi api = SupabaseClient.getRetrofit().create(ExerciseSessionApi.class);
-        api.getReportMetrics(sessionManager.getBearerToken(), "eq." + sessionId)
+        apiCalls.track(api.getReportMetrics(sessionManager.getBearerToken(), "eq." + sessionId))
                 .enqueue(new Callback<List<ExerciseSessionApi.ReportMetricsRow>>() {
                     @Override
                     public void onResponse(Call<List<ExerciseSessionApi.ReportMetricsRow>> call,
                                            Response<List<ExerciseSessionApi.ReportMetricsRow>> response) {
                         List<ExerciseSessionApi.ReportMetricsRow> rows = response.body();
                         if (!response.isSuccessful() || rows == null || rows.isEmpty()) {
-                            Toast.makeText(AIReportActivity.this, R.string.error_result_load_failed,
-                                    Toast.LENGTH_SHORT).show();
+                            metricsFailed = true;
+                            showRetry(R.string.error_result_load_failed);
                             return;
                         }
                         showReportMetrics(rows.get(0));
@@ -157,18 +187,32 @@ public class AIReportActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<List<ExerciseSessionApi.ReportMetricsRow>> call, Throwable t) {
-                        Toast.makeText(AIReportActivity.this,
-                                AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed),
-                                Toast.LENGTH_SHORT).show();
+                        metricsFailed = true;
+                        showRetry(AuthErrorMapper.fromFailure(t, R.string.error_result_load_failed));
                     }
                 });
     }
 
     // 값이 없는 항목(자세 인식 미지원 운동 / 0회)은 "-"로 표시
     private void showReportMetrics(ExerciseSessionApi.ReportMetricsRow metrics) {
+        // M6: 이전 화면에서 운동 이름을 받지 못했으면 조회한 실제 이름 표시
+        if (getIntent().getStringExtra(EXTRA_EXERCISE_NAME) == null && metrics.exerciseName != null) {
+            TextView exerciseNameText = findViewById(R.id.exerciseNameText);
+            exerciseNameText.setText(metrics.exerciseName);
+        }
         Map<String, Double> jointErrors = metrics.jointErrors;
-        showAngleError(R.id.kneeAverageErrorText, jointErrors == null ? null : jointErrors.get("knee"));
-        showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get("back"));
+        // M6: hip 키를 저장하는 운동(하체 스트레칭)은 레이아웃에 해당 줄이 없으므로
+        // 무릎 줄의 이름을 바꿔 hip 값을 표시. 하체 스트레칭의 hip 값은 상체 숙임 오차이므로 "상체 숙임 평균 오차"
+        Double hipError = jointErrors == null ? null : jointErrors.get(JointKeys.HIP);
+        Double kneeError = jointErrors == null ? null : jointErrors.get(JointKeys.KNEE);
+        if (hipError != null && kneeError == null) {
+            TextView kneeLabel = findViewById(R.id.kneeAverageErrorLabelText);
+            kneeLabel.setText(R.string.stretch_lean_average_error);
+            showAngleError(R.id.kneeAverageErrorText, hipError);
+        } else {
+            showAngleError(R.id.kneeAverageErrorText, kneeError);
+        }
+        showAngleError(R.id.backAverageErrorText, jointErrors == null ? null : jointErrors.get(JointKeys.BACK));
         showPercent(R.id.overallAccuracyText, metrics.firstHalfAccuracy);
         showPercent(R.id.lateAccuracyText, metrics.secondHalfAccuracy);
     }
