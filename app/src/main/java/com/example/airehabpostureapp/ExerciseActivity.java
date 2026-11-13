@@ -172,6 +172,7 @@ public class ExerciseActivity extends AppCompatActivity {
     // 디버그용: 마지막 프레임의 앞으로 숙인 상체 기울기 / 그때 휴대폰 기울기 (하체 스트레칭)
     private double lastForwardLean = Double.NaN;
     private double lastPhoneRoll = Double.NaN;
+    private double lastRawForwardLean = Double.NaN;
     // 휴대폰이 화면 안에서 좌우로 기운 각도 (상체 기울기 보정, 센서가 없으면 NaN → 보정 없음)
     private PhoneTiltSensor phoneTiltSensor;
 
@@ -541,6 +542,11 @@ public class ExerciseActivity extends AppCompatActivity {
                     ? PoseMeasurer.measureForwardLean(pose, criteria.leftSide, criteria.rightSide,
                     imageWidth, imageHeight, PhoneTilt.imageVerticalOffset(phoneRoll))
                     : Double.NaN;
+            // 디버그용: 보정 전 값 (휴대폰 기울기 보정 확인)
+            double rawForwardLean = criteria.isHoldType() && DEBUG_LOG_KNEE_ANGLE
+                    ? PoseMeasurer.measureForwardLean(pose, criteria.leftSide, criteria.rightSide,
+                    imageWidth, imageHeight, 0)
+                    : Double.NaN;
             long timestampMs = result.timestampMs();
 
             runOnUiThread(() -> {
@@ -550,6 +556,7 @@ public class ExerciseActivity extends AppCompatActivity {
                 skeletonOverlayView.setPose(pose, imageWidth, imageHeight, USE_FRONT_CAMERA);
                 lastForwardLean = forwardLean;
                 lastPhoneRoll = phoneRoll;
+                lastRawForwardLean = rawForwardLean;
                 LegSelector.LegSample chosen = countRepetition(timestampMs, left, right, forwardLean);
                 countDebugFrame(pose == null, chosen == null, left.isCandidate() != right.isCandidate());
                 showDebugKneeAngles(left, right, chosen);
@@ -696,8 +703,8 @@ public class ExerciseActivity extends AppCompatActivity {
             return "";
         }
         LegSelector.LegSample better = PoseMeasurer.betterTrunkSide(left, right);
-        return String.format(Locale.US, " lean=%s tilt=%s trunk L=%s R=%s hipBest=%s kneeStraight=%s",
-                formatAngle(lastForwardLean), formatAngle(lastPhoneRoll),
+        return String.format(Locale.US, " lean=%s raw=%s tilt=%s trunk L=%s R=%s hipBest=%s kneeStraight=%s",
+                formatAngle(lastForwardLean), formatAngle(lastRawForwardLean), formatAngle(lastPhoneRoll),
                 formatAngle(left.trunkLean), formatAngle(right.trunkLean),
                 better == null ? "-" : formatAngle(better.hipAngle),
                 formatAngle(PoseMeasurer.straighterKneeAngle(left, right)));
