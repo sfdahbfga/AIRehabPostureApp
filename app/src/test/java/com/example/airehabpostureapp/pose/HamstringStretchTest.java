@@ -247,20 +247,48 @@ public class HamstringStretchTest {
     }
 
     @Test
-    public void kneeAround160_noFlicker_onceBentNeeds165() {
-        // 실측 B 구간처럼 무릎이 156~163도로 흔들림: 한 번 굽힘으로 본 뒤에는 165도 전까지 계속 굽힘
+    public void kneeAround160_noFlicker_staysStraightAbove155() {
+        // 실측처럼 무릎이 156~163도로 흔들려도 편 상태에서는 155도 아래로 내려가야 굽힘 → 유지가 이어짐
         sitUpright(1000);
         h.move(UPRIGHT, 30, STRAIGHT_KNEE, STRAIGHT_KNEE, 1000, NO_TRUNK);
-        h.hold(30, NO_TRUNK, 157, 300);
+        h.hold(30, NO_TRUNK, STRAIGHT_KNEE, 300);
         int before = h.feedbackHistory.size();
         for (int i = 0; i < 20; i++) {
             h.hold(30, NO_TRUNK, i % 2 == 0 ? 163 : 157, 200);
         }
         for (int i = before; i < h.feedbackHistory.size(); i++) {
-            assertEquals(RepetitionCounter.Feedback.STRAIGHTEN_KNEE, h.feedbackHistory.get(i));
+            assertEquals(RepetitionCounter.Feedback.HOLD, h.feedbackHistory.get(i));
         }
-        h.hold(30, NO_TRUNK, 170, 500);
+    }
+
+    @Test
+    public void kneeHysteresis_bentBelow155_straightAgainAt160() {
+        sitUpright(1000);
+        h.move(UPRIGHT, 30, STRAIGHT_KNEE, STRAIGHT_KNEE, 1000, NO_TRUNK);
+        // 1차 실측 A1처럼 155~157도로 숙여 있음 → 편 것으로 보고 시간이 쌓임
+        h.hold(30, NO_TRUNK, 156, 3000);
         assertEquals(RepetitionCounter.Feedback.HOLD, h.counter.getFeedback());
+        assertTrue(counter().getHeldMs() >= 2500);
+        // 150도로 굽힘 → 굽힘
+        h.hold(30, NO_TRUNK, 150, 500);
+        assertEquals(RepetitionCounter.Feedback.STRAIGHTEN_KNEE, h.counter.getFeedback());
+        // 158도: 아직 160도 전이라 굽힘 그대로
+        h.hold(30, NO_TRUNK, 158, 500);
+        assertEquals(RepetitionCounter.Feedback.STRAIGHTEN_KNEE, h.counter.getFeedback());
+        // 162도: 편 것
+        h.hold(30, NO_TRUNK, 162, 500);
+        assertEquals(RepetitionCounter.Feedback.HOLD, h.counter.getFeedback());
+    }
+
+    @Test
+    public void singleFrameKneeDip_averaged_noWarning() {
+        // 한쪽 다리만 보여 한 프레임만 145도로 튐 → 5프레임 평균으로 무시
+        sitUpright(1000);
+        h.move(UPRIGHT, 30, STRAIGHT_KNEE, STRAIGHT_KNEE, 1000, NO_TRUNK);
+        h.hold(30, NO_TRUNK, 172, 1000);
+        h.frame(30, NO_TRUNK, 145);
+        h.hold(30, NO_TRUNK, 172, 1000);
+        assertEquals(0, appearances(RepetitionCounter.Feedback.STRAIGHTEN_KNEE));
     }
 
     @Test

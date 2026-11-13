@@ -13,7 +13,7 @@ import java.util.List;
  * 1회 = 판정 값(평균)이 기준 이상이고 무릎(더 펴진 다리)이 minKneeAngle 이상인 상태를 holdDurationMs 동안 유지
  * - 판정에는 최근 smoothingWindow 프레임의 평균을 쓰고, 연속성 검사도 RepetitionCounter와 같다.
  * - 유지 시작은 bentAngle(20도) 이상, 유지 중에는 holdKeepAngle(17도) 이상이면 이어짐 (기준 근처에서 시작 / 끊김 반복 방지)
- * - 무릎도 여유 범위: 160도 아래면 굽힘, 굽힌 뒤에는 165도 이상이 되어야 다시 편 것으로 봄
+ * - 무릎은 최근 5프레임 평균으로 보고 여유 범위: 160도 이상이면 편 것, 155도 미만으로 내려가야 굽힌 것
  * - 유지 시간은 기준 안에 있는 프레임 사이의 시간만 더한다. (기준 밖 / 안 보이는 동안은 멈춤)
  * - 기준 밖으로 holdGraceMs 넘게 벗어나거나 관절이 maxInvisibleMs 넘게 안 보이면 그 유지는 끝(세지 않음).
  *   기준 밖이어도 holdGraceMs 안이면 안내는 "유지하세요" 그대로 (잠깐 끊겼다 이어져도 안내가 바뀌지 않음)
@@ -37,8 +37,8 @@ public class HoldCounter implements ExerciseCounter {
     static final long STALL_HINT_MS = 1500;
     // 이만큼 더 숙여야 "더 숙이는 중"으로 봄 (멈춤 시간을 처음부터 다시 잼)
     static final double STALL_PROGRESS_DEGREES = 2;
-    // 무릎을 굽힌 것으로 본 뒤에는 minKneeAngle + 이 값 이상이 되어야 다시 편 것으로 봄
-    static final double KNEE_STRAIGHT_MARGIN_DEGREES = 5;
+    // 무릎 여유 범위: 편 상태에서는 minKneeAngle - 이 값 아래로 내려가야 굽힌 것으로 봄 (160 이상 = 편 것, 155 미만 = 굽힘)
+    static final double KNEE_BENT_MARGIN_DEGREES = 5;
 
     private final ExerciseCriteria criteria;
     private final Deque<Double> window = new ArrayDeque<>();
@@ -66,8 +66,10 @@ public class HoldCounter implements ExerciseCounter {
     private int attemptInvisible;
     private double lastHoldMinKneeAngle = Double.NaN;
 
-    // 무릎을 굽힌 상태로 보고 있는지 (여유 범위)
+    // 이번 프레임에 무릎을 굽힌 것으로 보는지 (무릎이 안 보이면 false) / 여유 범위로 유지하는 상태 / 최근 무릎 각도
     private boolean kneeBent;
+    private boolean kneeBentState;
+    private final Deque<Double> kneeWindow = new ArrayDeque<>();
     // 숙이는 동작 중 (LEAN_STARTED_DEGREES 이상 숙임, 유지 중 포함)
     private boolean leaning;
     // 멈춤 안내: 이번 동작에서 이미 안내했는지 / 기준 각도와 그 시각
@@ -176,15 +178,29 @@ public class HoldCounter implements ExerciseCounter {
         return null;
     }
 
-    // 무릎 여유 범위: 160도 아래면 굽힘, 굽힌 뒤에는 165도 이상이어야 편 것. 안 보이면 검사하지 않음
+    // 무릎: 최근 smoothingWindow 프레임 평균으로 판단 (한쪽 다리만 보여 프레임마다 흔들림)
+    // 여유 범위: 평균 160도 이상이면 편 것, 155도 미만으로 내려가야 굽힌 것. 그 사이면 직전 상태 유지
+    // 이번 프레임에 무릎이 안 보이면 이 프레임은 검사하지 않음 (평균과 상태는 그대로)
     private void updateKneeBent(double kneeAngle) {
         if (Double.isNaN(kneeAngle) || criteria.minKneeAngle <= 0) {
             kneeBent = false;
-        } else if (kneeBent) {
-            kneeBent = kneeAngle < criteria.minKneeAngle + KNEE_STRAIGHT_MARGIN_DEGREES;
-        } else {
-            kneeBent = criteria.isKneeBent(kneeAngle);
+            return;
         }
+        kneeWindow.addLast(kneeAngle);
+        while (kneeWindow.size() > criteria.smoothingWindow) {
+            kneeWindow.removeFirst();
+        }
+        double sum = 0;
+        for (double v : kneeWindow) {
+            sum += v;
+        }
+        double average = sum / kneeWindow.size();
+        if (average >= criteria.minKneeAngle) {
+            kneeBentState = false;
+        } else if (average < criteria.minKneeAngle - KNEE_BENT_MARGIN_DEGREES) {
+            kneeBentState = true;
+        }
+        kneeBent = kneeBentState;
     }
 
     // 유지 전 숙이는 중 안내: 기본은 "숙여 주세요", 기준에 못 미친 채 멈추면 "조금 더 숙여 주세요" 한 번
@@ -320,6 +336,8 @@ public class HoldCounter implements ExerciseCounter {
         needRelease = false;
         awaitingUpright = false;
         kneeBent = false;
+        kneeBentState = false;
+        kneeWindow.clear();
         clearHold();
         endLeaning();
         smoothedAngle = Double.NaN;
